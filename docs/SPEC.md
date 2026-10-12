@@ -11,7 +11,7 @@ Binding owner rules (all our games):
 ---------------------------------------------------------------------------------------------------
 
 ## 1. How it plays
-1. A game has **R rounds** (the owner wrote "1 rounds", so the number is a setting; default 5, see section 14). Each round has **10 dice rounds**.
+1. A game has **10 rounds** (DECIDED by the owner 2026-10-12; the organizer may still choose 1 to 20). Each round has **10 dice rounds**, so a full game is 100 dice rounds.
 2. At the start of a dice round the screen shows a **target number**, 1 to 6, very large.
 3. Every player gets a window of a few seconds (default 10) to **press the dice**.
 4. The window closes; the dice shows for everyone. A player whose number equals the target scores **that many points** (target 1: 1 point, target 6: 6 points). A player whose number is different scores **0**.
@@ -36,8 +36,8 @@ Why Presence mode needs a server timestamp: after a window closes the dice resul
 ## 4. What the numbers look like (my calculation and simulation, 2026-10-12)
 - One dice round: expected points = (1/6) x average target = 3.5 / 6 = **0.58**; standard deviation about 1.5.
 - One round of 10 dice rounds: expected **5.8 points**, standard deviation about **4.7**.
-- Five rounds (50 dice rounds): expected about **29 points**, standard deviation about **10**. The best of 5,000 players typically ends near 70 (a simulation gave winners of 70 to 72).
-- **Ties are certain.** In a simulation of 20 games with 1,000 to 5,000 players, there was a tie inside the top 10 in 19 to 20 games out of 20, a tie inside the top 5 in 10 to 16 games out of 20, and a tie for first place in 0 to 3 games out of 20. This is why the no-tie rule (section 6) is not optional.
+- Ten rounds (100 dice rounds): expected about **58 points**, standard deviation about **14**; the best of 5,000 players ended near 120 in a simulation. (Five rounds: about 29 points, standard deviation about 10, best near 70 to 72.)
+- **Ties are certain.** In a simulation of 20 games with 1,000 to 5,000 players, there was a tie inside the top 10 in 19 to 20 games out of 20, a tie inside the top 5 in 10 to 16 games out of 20 (also 10 of 20 with 10 rounds), and a tie for first place in 0 to 3 games out of 20. This is why the no-tie rule (section 6) is not optional.
 
 ## 5. What each player sees
 - A huge target number, a big dice to press, a countdown ring, and "dice round 4 of 10, round 2 of 5".
@@ -65,7 +65,7 @@ Why Presence mode needs a server timestamp: after a window closes the dice resul
 ## 7. Timing
 - A dice round: press window 10 seconds, reveal 3 seconds: about **13 seconds**. (A setting: window 6 / 10 / 15 seconds.)
 - A round of 10 dice rounds: about 2 minutes 10 seconds, plus a 20-second standings break: about 2.5 minutes.
-- Five rounds: about **13 minutes**, plus any golden shoot-out. Ten rounds: about 26 minutes.
+- **Ten rounds: about 26 minutes** (the default), plus any golden shoot-out. Five rounds would be about 13 minutes.
 
 ## 8. Prizes
 - **Per round:** 1st to 5th of each round (organizer sets text or a gift for each place), and the top-10 list.
@@ -75,8 +75,8 @@ Why Presence mode needs a server timestamp: after a window closes the dice resul
 - Prizes are decided by software only: each phone computes the ranking and a result counts when enough different phones agree (the vote and quorum rule used by Tambola); the organizer's console only watches. Players never pay to play and the product never holds or pays prize money.
 
 ## 9. Scale and cost
-- **Fate mode:** each phone computes every player's score. 5,000 players x 50 dice rounds = 250,000 small hash calculations (an estimate; to be measured on a low-end phone; they can be done in slices as each dice round arrives, so the phone never does it all at once). No request leaves the phone during play; the signed result votes are collected once at the end of each round (a few requests per phone per round).
-- **Presence mode:** one ping per press: players x dice rounds (1,000 players x 50 = 50,000 requests for a 5-round game). The free plan allows roughly 100,000 requests a day for everything, so this limits Presence mode to about 1,000 to 1,500 players. A larger size needs a paid plan; **no paid add-on is switched on without the owner's yes.**
+- **Fate mode:** each phone computes every player's score. 5,000 players x 100 dice rounds = 500,000 small hash calculations (an estimate; to be measured on a low-end phone; they can be done in slices as each dice round arrives, so the phone never does it all at once). No request leaves the phone during play; the signed result votes are collected once at the end of each round (a few requests per phone per round).
+- **Presence mode:** one ping per press: players x dice rounds (1,000 players x 100 = 100,000 requests for a 10-round game, which is the whole free daily allowance, so a full 10-round Presence game is realistic only for a few hundred players on the free plan; this is an estimate to be measured). The free plan allows roughly 100,000 requests a day for everything, so this limits Presence mode to about 1,000 to 1,500 players. A larger size needs a paid plan; **no paid add-on is switched on without the owner's yes.**
 - Boards, dice and results are never stored on the server. Only press timestamps (Presence mode) and the winners' votes.
 
 ## 10. Everything around the game (copied once from Corporate Tambola, then independent)
@@ -106,12 +106,12 @@ Roles (Organizer, Host up to 5, Co-host, AI work link), the nine-step console, t
 - **Scale:** 5,000 simulated phones in virtual time; the 30-phone and 2-phone real-browser games; the life-cycle, matrix and UI scenarios copied from Tambola and adapted.
 
 ## 14. Decisions the owner must make
-1. **How many rounds:** the brief says "1 rounds". Default 5, a setting from 1 to 20. (Do you mean 10 rounds?)
-2. **Mode:** build Fate mode, Presence mode, or both (recommended: both).
+1. ~~How many rounds~~ DECIDED 2026-10-12: 10 rounds (the organizer may set 1 to 20).
+2. ~~Mode~~ DECIDED 2026-10-12: build BOTH Fate mode and Presence mode; the organizer picks one when creating the game.
 3. **Press window:** 10 seconds (default) or another.
 4. **Prizes:** per round, overall, or both (default both).
 5. **Golden shoot-out for the top five:** on (recommended) or off.
-6. **Names on the top-10 list:** nicknames chosen by players, or masked numbers only.
+6. ~~Names on the top-10 list~~ DECIDED 2026-10-12: **nicknames** chosen by players when they join (the organizer sees real names only for prize hand-over; offensive nicknames are blocked by a simple list and the organizer can rename).
 7. **Price:** the Tambola ladder (default) or its own.
 
 ## 15. Honest limits
