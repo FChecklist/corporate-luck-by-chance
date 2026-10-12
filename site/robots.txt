@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://corporate-luck-by-chance.pages.dev/sitemap.xml
