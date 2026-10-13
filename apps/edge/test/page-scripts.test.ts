@@ -1,0 +1,22 @@
+// A page that draws the Terms boxes must load termsbox.js before the script that uses it, and not deferred: a script that runs at once (for example a sign-in sheet opened by a "#login" address)
+// finds no boxes otherwise and the person is left with a button that never turns on. Found by the Chrome simulation (S01-03) on the home page.
+import { describe, expect, test } from "bun:test";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+const DIR = join(import.meta.dir, "../../web/public");
+const pages = readdirSync(DIR).filter((f) => f.endsWith(".html"));
+const scripts = (html: string) => [...html.matchAll(/<script\b([^>]*)\bsrc="([^"]+)"([^>]*)>/g)].map((m) => ({ src: m[2]!, attrs: (m[1]! + m[3]!).toLowerCase() }));
+
+describe("pages that show the Terms boxes load termsbox.js first and at once", () => {
+  for (const f of pages) {
+    const list = scripts(readFileSync(join(DIR, f), "utf8"));
+    const at = list.findIndex((s) => s.src.includes("termsbox.js"));
+    if (at < 0) continue;
+    test(f, () => {
+      expect(list[at]!.attrs).not.toMatch(/\bdefer\b|\basync\b/);
+      const users = list.slice(0, at).filter((s) => !/\b(defer|async)\b/.test(s.attrs) && /\/(site|pay|paylink|signin|ai-link|zc|luck)\.js$/.test(s.src));
+      expect(users.map((s) => s.src)).toEqual([]); // none of the scripts that draw the boxes runs before termsbox.js
+    });
+  }
+});
