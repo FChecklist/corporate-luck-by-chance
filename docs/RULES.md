@@ -1,63 +1,79 @@
 # Corporate Luck by Chance: the rules (plain words)
 
-Written 2026-10-13. Every rule below is one plain sentence and has at least one test. The test name starts with the rule number (for example `R13: ...`).
-Code: `packages/ttt/src/` (`classic.ts` the game, `match.ts` a board and the clock, `bracket.ts` the tournament, `seal.ts` the sealed seed).
-Tests: `packages/ttt/test/` (run `bun test packages/ttt/test`).
+Written 2026-10-13. Every rule below is one plain sentence and has at least one test. The test name starts with the rule number (for example `R15: ...`).
+Game code: `packages/luck/src/` (`random.ts` the draws, `settings.ts` the organizer's choices, `timeline.ts` the clock of the game, `engine.ts` target, dice, scoring, ranking, prizes).
+Game tests: `packages/luck/test/engine.test.ts` (R01 to R33). Server tests: `apps/edge/test/luck.test.ts` (R34 to R46). Run them with `bun test packages/luck` and `bun test apps/edge/test/luck.test.ts`.
 
-The earlier prototype with three boards and run scoring (`packages/ttt/src/engine.ts`, `docs/PROTOTYPE_NOTES.md`) is kept for reference. The product does not use it, because it is not the game people mean by luck by chance and the checklist asks for three in a row, draws and a timeout rule.
+Fate mode only. In Fate mode the dice is rolled for everybody when the press window closes, so a player who is away still scores. Presence mode (a player who does not press scores nothing) is not part of this product.
 
 ## A. The game
-- R01 The board has nine squares in three rows of three.
-- R02 Two players take turns; X moves first, O second.
-- R03 A move puts your mark on an empty square; a taken square, or a square that is not on the board, is refused.
-- R04 Three of your marks in a row, in a column or on a diagonal wins the game.
-- R05 A full board with no three in a row is a draw.
-- R06 You can only move when it is your turn.
+- R01 A game has 1 to 20 rounds; the default is 10.
+- R02 Every round has 10 dice rounds, so a default game has 100.
+- R03 Each dice round shows a target number from 1 to 6.
+- R04 Players have a press window to press the dice: 6, 10 (default) or 15 seconds.
+- R05 A dice that shows the target scores that many points; any other number scores nothing.
+- R06 Points add up inside a round and across rounds; the best possible score is 6 per dice round.
+- R07 Whatever the target is, a player's chance of a hit is exactly 1 in 6.
 
-## B. A board (two players, one winner)
-A "board" is one pair of players. It always ends with exactly one winner.
-- R07 The first game that has a winner ends the board.
-- R08 A drawn game is replayed at once with the marks swapped, up to three games in all.
-- R09 Who has X in game 1 is a coin from the sealed seed; game 2 swaps it; game 3 is a fresh coin. Nobody can change it.
-- R10 If all three games are drawn, fate decides: each player has a fate number made from the sealed seed, the board and their id, and the lower number wins. Anybody can re-check it.
+## B. Fair randomness
+- R08 The target of a dice round is made from the game id, the number of the dice round and a public beacon value (A) that is published when the dice round opens; it is the same on every device.
+- R09 A player's dice is made from the game id, the seat, the number of the dice round and a second public beacon value (B) that is published only when the press window closes, so nobody can know a dice while the window is open.
+- R10 The target is fixed before the window opens, and the next target is published only after the previous dice round has ended.
+- R11 Targets and dice are spread evenly over 1 to 6.
+- R12 Two players in the same dice round roll independently.
+- R13 The same inputs always give the same game; different beacon values give a different game.
+- R14 Dice rounds are played in order; none can be skipped.
 
-**Decision on draws (2026-10-13):** a draw is common in luck by chance, and a knockout needs a winner. So a draw is replayed with the marks swapped (this is fair, both players get the first move), at most three games, and only then fate. We chose a replay first because it lets skill decide almost always; fate is the last step and is shown on the results screen as "won by fate".
+## C. Ranking: no ties
+- R15 The ranking puts the player with the most points first.
+- R16 If points are equal, the highest single hit wins (a 6 beats a 5).
+- R17 If that is equal too, the most hits wins.
+- R18 If that is equal too, the player who reached that score first wins.
+- R19 If that is equal too, fate decides: a number made from the game id, the seat, the name of the ranking and the last beacon value of that ranking; the lower number wins and anybody can re-compute it.
+- R20 So the order is always strict: places 1 to 10 are always ten different players and a prize is never shared.
+- R21 Every round has its own ranking by the same chain; the overall ranking uses the running total.
+- R22 When a place had to be decided between equal players, the result says so in one line ("Tied on 11 points; decided by who reached the score first.").
+- R23 Places 1 to 5 are named and the top 10 are listed.
+- R24 The golden shoot-out is NOT built. Fate decides straight away (rule R19). The organizer cannot switch a shoot-out on.
+- R25 A player sees how they stand in plain words ("you are in the top 8%"), worked out on their own phone.
 
-## C. The clock
-- R11 Every move has a clock. The organizer picks 10, 20 (default), 30 or 60 seconds. The first move of a match has 30 seconds so players can open the page.
-- R12 When the clock runs out, the software plays a move for that player: a random empty square drawn from the sealed seed, the same wherever it is computed.
-- R13 A second clock-out in a row, in the same game, loses the board (forfeit). A real move sets the count back to zero.
-- R14 If both players stay away, the player who was due to start loses (this follows from R12 and R13).
-- R15 What happens never depends on when somebody looks: clock-outs are replayed at the moment their clock ended; a stale tap (an old screen, a double tap) is refused.
+## D. Settings and prizes
+- R26 The organizer writes a prize text for places 1 to 5 of the overall ranking and of each round. The product holds up to 5 prizes per ranking.
+- R27 A prize is a gift the organizer hands over. Words for money, cash, bets and stakes are refused in the prize text.
+- R28 Prizes can be for each round, for the overall result, or both (the default).
+- R29 A player may win several prizes; if the organizer switches that off, the next player in the order gets the prize.
 
-## D. Formats
-- R16 One-against-one knockout: every player is an entrant; the bracket order is a shuffle from the sealed seed (the order the organizer typed the names in does not matter).
-- R17 The bracket has the next power of two of places; the empty places are byes. At most one place in a pair is empty, so two byes never meet; a bye wins its match without playing; byes exist only in round 1.
-- R18 Winners move up; the winner of the last match is the champion.
-- R19 Team format: teams of 3 or 5 players, cut from a seeded shuffle of the players. Players left over (fewer than a full team) are reserve and only watch.
-- R20 A team match has one board per seat (1st of one team against 1st of the other, and so on), all played at the same time. The team that wins more boards wins the match. Teams are odd in size, so there is never a tie.
-- R21 A crowd is one knockout. The plan size is the limit (up to 10,000 players); a crowd of N needs about log2(N) rounds. Tested with 1,000.
-- R22 A match in a later round starts the moment both of its earlier matches are finished; nobody waits for other matches.
+## E. Time
+- R30 A dice round takes the press window plus 3 seconds of reveal; after every full round there is a 20-second standings break. A default game takes 24 minutes 40 seconds (the break after the last round is not needed).
+- R31 At any moment the game is before the start, in a press window, in a reveal, in a break, or over.
 
-## E. Results, no ties
-- R23 Points: 2 for each game won, 1 for each game drawn. A forfeited game counts as a win for the other player. A team's points are the points of all its players.
-- R24 The ranking has no ties. Order: (1) the round reached (champion, runner-up, then the semi-finalists, quarter-finalists ...), (2) total points over all matches, (3) points in the last match played, (4) fate (a number from the sealed seed; the lower wins). Every rank is unique; 1st to 5th are named and the top 10 are listed.
-- R25 The results screen says in one line how each tie was decided.
+## F. The same result on every phone
+- R32 Two phones that receive the same beacon values show the same standings, however the work is cut into pieces.
+- R33 Every hit is recorded exactly: the points, the best hit, the number of hits and the dice round of the last hit.
 
-## F. Fair play
-- R26 One sealed seed. When the tournament is made, only its fingerprint is shown. At the start the roster is closed, the seed is made from the secret, the tournament id and the closed roster (and, if the organizer's console adds one, a public beacon number), and the secret is revealed so anybody can re-compute the bracket, every starter and every fate number.
-- R27 The browser cannot change a draw: it sends only "my square". Everything else (bracket, who has X, clocks, results) is decided on the server from the sealed seed. A spectator, an outsider or a player who is not to move cannot move.
-- R28 The host can pause. While paused no clock runs; afterwards every clock has the same time left as before.
-- R29 A player who loses the connection can open the link again and sees the board exactly as it is (the clock kept running).
-
-## G. Spectators
-- R30 The spectator view shows the bracket, the live boards and the results with display names only. It shows no seed before the start and no personal data.
+## G. The server (it does almost nothing)
+- R34 Only the Organizer or a Host can start the game, never the AI helper; at least 2 players are needed; wrong settings are refused with a plain sentence.
+- R35 The fingerprint of the sealed draw is public from the first look. The secret is shown only after the game is over, because with it anybody could compute every future number. Then anybody can check the seed.
+- R36 The list of players closes when the game starts (registration closes before the first dice round). A player who was in can open the link again; a new phone is told the game is running.
+- R37 A beacon value is sent only from the moment it is due. The dice value of a dice round does not exist while its press window is open.
+- R38 After the start the list of nicknames is public (nicknames and seat numbers only). Before the start it is closed.
+- R39 A result counts only when enough different phones send the same one (3, or 5% of the players if that is more, or all players if there are fewer than 3). One phone alone or a forged result counts for nothing.
+- R40 A result with an odd shape (a seat that does not exist, a repeated seat, a wrong number of rounds, an impossible score) is refused.
+- R41 Whole game: phones play with the real engine, the agreed result has a strict 1st to 5th, and the podium goes to the winners record as seat numbers.
+- R42 If the phones never agree, the game is closed after ten minutes without a published result.
+- R43 Nothing is ever taken from a player: there is no entry-fee field or payment code on any player route, and the game ignores any fee sent to it.
+- R44 24 hours after the end every nickname and every vote is gone; the agreed result keeps only seat numbers until the retention date.
+- R45 A game never reads or writes another game's rows.
+- R46 A player sees their own seat and nickname from their own phone only.
 
 ## H. Product rules (wording and money)
-- R31 Players never pay and never stake money. There are no cash prizes and no betting. Any gift is supplied by the organizer, outside this product. Adults (18+) only; a company event.
-- R32 Display name only is asked of a player; a short privacy notice is shown before the name is asked.
+- R47 Players never pay and never stake money. There are no cash prizes and no betting. Any gift is supplied by the organizer, outside this product. Adults (18+) only; a company event.
+- R48 A nickname only is asked of a player; the boxes with the short privacy notice come before the nickname field (tests: `apps/edge/test/consent.test.ts`, `apps/web/test/luck-page.test.ts`).
+- R49 The Terms boxes (K1 to K6) are enforced by the server and recorded in `consent_log` (tests: `apps/edge/test/consent.test.ts`).
+- R50 A paid game can be moved within 365 days of the payment day; there is no refund, a cancelled game becomes credit (tests: `apps/edge/test/reschedule-window.test.ts`, `credit.test.ts`, `cancel.test.ts`).
 
 ## Known limits (stated, not hidden)
-- The server draws the secret, so the server is trusted to draw it fairly and not to look. Adding a public beacon number at the start removes even that; the code supports it (`seedOf(..., beacon)`), the organizer console does not add one yet.
-- Moves go through the server (one small write per move), not phone to phone. This is simpler and works behind office firewalls; the cost is about 9 writes per game.
-- Team format: players beyond a full team only watch. Nobody can substitute for a missing team member; an absent member forfeits their board.
+- The server draws the secret and publishes the beacon values at their due time. The server is therefore trusted to draw the secret fairly and not to look; afterwards anybody can re-check every number. A public beacon from outside (the other Corporate Games use drand) is not wired into this build; the phone reads the game's own feed.
+- A modified browser cannot be made impossible; a result counts only when enough phones agree (R39).
+- Clearing browser data gives a new device id; the place is on one phone only (the same rule as the other Corporate Games).
+- Presence mode and the golden shoot-out are not built.

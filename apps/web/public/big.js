@@ -13,7 +13,7 @@
   let lastKey = "", err = "";
   const rows = (list, podium) => (list.length ? `<ol class="${podium ? "lb-podium" : ""}">${list.map((x) => `<li><b>${esc(RUN.nameOf(x.seat))}</b><span>${x.points} pts</span>${x.line ? `<small>${esc(x.line)}</small>` : ""}</li>`).join("")}</ol>` : "");
   const shell = (status, body, commit) => `<header class="top"><span class="brand">Corporate Luck by Chance</span><span class="meta">${esc(status)}</span></header><main class="main1">${body}</main>
-    <footer class="meta">Nicknames only. Nothing else about you is shown. <a href="/legal.html#privacy">Privacy</a>${commit ? ` &middot; Game fingerprint <span class="mono">${esc(commit.slice(0, 12))}</span>` : ""}</footer>`;
+    <footer class="meta">Nicknames only. Nothing else about you is shown. <a href="/privacy.html">Privacy</a>${commit ? ` &middot; Game fingerprint <span class="mono">${esc(commit.slice(0, 12))}</span>` : ""}</footer>`;
 
   async function paint() {
     const v = RUN.view;

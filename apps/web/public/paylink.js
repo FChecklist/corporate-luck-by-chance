@@ -52,7 +52,7 @@
         ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}${S.busy ? `<div class="zbanner info" role="status">Confirming your payment with Razorpay. Please keep this page open.</div>` : ""}
         <div id="tbSlot" class="tbslot"></div>
         <button class="zbtn" id="paygo" ${S.busy || !S.k3ok ? "disabled" : ""}>${S.busy ? "Confirming your payment…" : "Pay " + TB.money(p.total, cur) + " securely with Razorpay"}</button>
-        <p class="zsmall">Secure payment by Razorpay. Payment to <a href="https://itservices-rajat-agarwal.pages.dev/" rel="noopener" target="_blank">IT Services by Rajat Agarwal</a>. An invoice is e-mailed to you. See the <a href="/legal.html#privacy">privacy policy</a>.</p></div>`;
+        <p class="zsmall">Secure payment by Razorpay. Payment to <a href="https://itservices-rajat-agarwal.pages.dev/" rel="noopener" target="_blank">IT Services by Rajat Agarwal</a>. An invoice is e-mailed to you. See the <a href="/privacy.html">privacy policy</a>.</p></div>`;
   }
   function keep() { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; }
   // The K3 consent box (termsbox.js): wording from the server, never pre-ticked, the pay button stays disabled until it is ticked. The page redraws often, so the tick is kept in S.k3 and put back.

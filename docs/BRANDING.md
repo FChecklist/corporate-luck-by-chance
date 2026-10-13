@@ -25,7 +25,7 @@ Who gets e-mail: only the Organizer and Hosts. Players give a display name only,
 - Short plain sentences, one idea each, for a non-technical owner. Nothing that explains instead of helping the next click. Legal text lives on the legal pages.
 - Soft claims we can prove. We say "built for DPDP, GDPR and US privacy laws", not "compliant", until it is confirmed.
 - No gambling or betting words (see `docs/GLOSSARY.md`). Players never pay and never stake money; there are no cash prizes; adults (18+) only; it is a company event.
-- The join page shows the short notice first and one clear tick box (`docs/PRIVACY_AND_LIFECYCLE.md`, section 1), with a "Privacy Policy" link (`/legal.html#privacy`, opens in a new tab) and a Terms link under it.
+- The join page shows the short notice first and one clear tick box (`docs/PRIVACY_AND_LIFECYCLE.md`, section 1), with a "Privacy Policy" link (`/privacy.html`, opens in a new tab) and a Terms link under it.
 - The do-not-forward warning in AI-link mails is one sentence: "DO NOT FORWARD: this email holds your personal AI work link".
 
 ## Not true yet

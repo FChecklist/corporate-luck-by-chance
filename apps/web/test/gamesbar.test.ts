@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
-const PUBLIC = ["index", "about", "contact", "legal", "terms", "refund-policy", "dpa", "subprocessors", "partner", "partner-terms", "organizer-guide", "pricing", "brochure", "404"];
+const PUBLIC = ["index", "about", "contact", "legal", "terms", "privacy", "refund-policy", "dpa", "subprocessors", "partner", "partner-terms", "organizer-guide", "pricing", "brochure", "404"];
 const PRIVATE = ["z", "zc", "big", "host", "pay", "paylink", "paytest", "report", "signin", "demo", "owner-visits", "ai-link"];
 const LINKS = ["https://corporate-games.pages.dev/?from=luck-by-chance", "https://corporate-tambola.pages.dev/", "https://corporate-bingo.pages.dev/", "https://corporate-tic-tac-toe.pages.dev/", "https://corporate-snakes-and-ladders.pages.dev/", "https://corporate-luck-by-chance.pages.dev/"];
 

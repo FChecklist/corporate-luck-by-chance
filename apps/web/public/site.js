@@ -56,7 +56,7 @@
   let TBX = null; // the boxes of the pop-up that is open now (K2 on the sign-in pop-ups, K3 on the checkout)
   const mountTerms = (group, slotId, btnId) => { TBX = null; const slot = $(slotId); if (!slot || !window.TermsBox) return; window.TermsBox.mount(slot, group, { base: "", onChange: (ok) => { const b = $(btnId); if (b) b.disabled = !ok; } }).then((t) => { TBX = t; }).catch(() => {}); };
   const termsNow = () => (TBX && TBX.ok() ? TBX.terms() : undefined);
-  const termsLinks = `<p class="spriv accept"><a href="/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy &amp; Data Policy</a></p>`;
+  const termsLinks = `<p class="spriv accept"><a href="/terms.html" target="_blank" rel="noopener">Terms</a> · <a href="/privacy.html" target="_blank" rel="noopener">Privacy &amp; Data Policy</a></p>`;
   function busy(btn, on, label) { btn.disabled = on; if (label) btn.dataset.l = btn.dataset.l || btn.innerHTML; btn.innerHTML = on ? label : btn.dataset.l || btn.innerHTML; }
 
   // ---------- checkout ----------

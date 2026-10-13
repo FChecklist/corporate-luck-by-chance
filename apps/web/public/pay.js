@@ -61,7 +61,7 @@
         ${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}${S.busy ? `<div class="zbanner info" role="status">Confirming your payment with Razorpay. Please keep this page open. Your game starts only after Razorpay confirms.</div>` : ""}
         <div id="tbSlot" class="tbslot"></div>
         <button class="zbtn" id="paygo" ${off || S.busy || !S.k3ok ? "disabled" : ""}>${S.busy ? "Confirming your payment…" : off ? "Payment opens soon" : "Pay " + TB.money(applied ? toPay : x.total, S.cur) + " securely with Razorpay"}</button>
-        <p class="zsmall">Secure payment by Razorpay. Payment to <a href="https://itservices-rajat-agarwal.pages.dev/" rel="noopener" target="_blank">IT Services by Rajat Agarwal</a>. An invoice is emailed to you. See the <a href="/legal.html#privacy">privacy policy</a>.</p></div>`;
+        <p class="zsmall">Secure payment by Razorpay. Payment to <a href="https://itservices-rajat-agarwal.pages.dev/" rel="noopener" target="_blank">IT Services by Rajat Agarwal</a>. An invoice is emailed to you. See the <a href="/privacy.html">privacy policy</a>.</p></div>`;
   }
   // The server answers 202 {confirming:true} while Razorpay still says the payment is only created or authorized. We ask every 4 seconds, for up to 5 minutes, until the game itself says Paid.
   async function waitForConfirm(first) {

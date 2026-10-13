@@ -28,7 +28,7 @@ export function withSeo(html, file) {
     `<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${attr(title)}"><meta name="twitter:description" content="${attr(d)}"><meta name="twitter:image" content="${SITE}/img/card.webp">`].join(nl);
   return strip.replace(/(<title>[^<]*<\/title>)\r?\n?/, (m, a) => a + nl + tags + nl);
 }
-const FOOTNAV = '<nav class="fl" aria-label="Legal"><a href="/legal.html#rules">Rules</a><a href="/legal.html#privacy">Privacy</a><a href="/legal.html#disclaimer">Disclaimer</a><a href="/about.html">About</a><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/terms.html">Terms</a><a href="/refund-policy.html">Refund policy</a><a href="/dpa.html">Data processing</a><a href="/subprocessors.html">Sub-processors</a><a href="/organizer-guide.html">Organizer guide</a><a href="/partner-terms.html">Partner terms</a><a href="/partner.html">Refer &amp; earn</a><a href="/demo.html">Demo</a><a href="/brochure.pdf">Brochure</a><a href="/">Home</a></nav>';
+const FOOTNAV = '<nav class="fl" aria-label="Legal"><a href="/legal.html#rules">Rules</a><a href="/privacy.html">Privacy</a><a href="/legal.html#disclaimer">Disclaimer</a><a href="/about.html">About</a><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/terms.html">Terms</a><a href="/refund-policy.html">Refund policy</a><a href="/dpa.html">Data processing</a><a href="/subprocessors.html">Sub-processors</a><a href="/organizer-guide.html">Organizer guide</a><a href="/partner-terms.html">Partner terms</a><a href="/partner.html">Refer &amp; earn</a><a href="/demo.html">Demo</a><a href="/brochure.pdf">Brochure</a><a href="/">Home</a></nav>';
 const newFoot = foot.replace(/<nav class="fl"[\s\S]*?<\/nav>/, FOOTNAV);
 export const footNav = FOOTNAV;
 const e = (s) => s.replace(/&(?!rsquo;|amp;)/g, "&amp;");
@@ -75,7 +75,7 @@ const PAGES = {
       "A Host&rsquo;s personal link works once, for 7 days. After the Host confirms an e-mail and adds a mobile number, the Host signs in with an e-mail code or Google.",
     ]],
     ["data", "Data", [
-      "Your use of Corporate Luck by Chance is also covered by the <a href=\"/legal.html#privacy\">Privacy &amp; Data Policy</a>.",
+      "Your use of Corporate Luck by Chance is also covered by the <a href=\"/privacy.html\">Privacy &amp; Data Policy</a>.",
       "For the details you enter about your players, you are in charge and we are your processor. See the <a href=\"/dpa.html\">Data processing terms</a>.",
     ]],
     ["changes", "Changes and contact", [
@@ -124,7 +124,7 @@ const PAGES = {
       "You are responsible for your own taxes.",
       "We keep the details we need for payment and tax records.",
     ]],
-    ["data", "Your details", ["We use your mobile number to run your partner account. See the <a href=\"/legal.html#privacy\">Privacy &amp; Data Policy</a>.", "You may stop at any time."]],
+    ["data", "Your details", ["We use your mobile number to run your partner account. See the <a href=\"/privacy.html\">Privacy &amp; Data Policy</a>.", "You may stop at any time."]],
   ] },
   "organizer-guide.html": { title: "Organizer guide", h1: "Organizer guide", lead: "Short notes for a safe, simple game.", sections: [
     ["rules", "Keep it a private game", [
