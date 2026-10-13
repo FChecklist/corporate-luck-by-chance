@@ -10,9 +10,13 @@
   const LE = window.LuckEngine;
   const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"));
   const secsTo = (ms) => Math.max(0, Math.ceil((ms - RUN.now()) / 1000));
-  let lastKey = "", err = "";
+  let lastKey = "", err = "", INFO = null;
+  // the organizer's company name and logo (public settings of the game); without them the page says Corporate Luck by Chance
+  const logoOf = (b) => (b && typeof b.logo === "string" && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(b.logo) ? b.logo : "");
+  const brandHtml = () => (INFO && INFO.brand && (INFO.brand.name || logoOf(INFO.brand)) ? `<span class="brand">${logoOf(INFO.brand) ? `<img class="zblogo" alt="" src="${esc(logoOf(INFO.brand))}">` : ""}${INFO.brand.name ? esc(INFO.brand.name) : "Corporate Luck by Chance"}</span>` : `<span class="brand">Corporate Luck by Chance</span>`);
+  if (EID) fetch(BASE + `/api/z/${encodeURIComponent(EID)}/info`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { INFO = j; lastKey = ""; }).catch(() => {});
   const rows = (list, podium) => (list.length ? `<ol class="${podium ? "lb-podium" : ""}">${list.map((x) => `<li><b>${esc(RUN.nameOf(x.seat))}</b><span>${x.points} pts</span>${x.line ? `<small>${esc(x.line)}</small>` : ""}</li>`).join("")}</ol>` : "");
-  const shell = (status, body, commit) => `<header class="top"><span class="brand">Corporate Luck by Chance</span><span class="meta">${esc(status)}</span></header><main class="main1">${body}</main>
+  const shell = (status, body, commit) => `<header class="top">${brandHtml()}<span class="meta">${esc(status)}</span></header><main class="main1">${body}</main>
     <footer class="meta">Nicknames only. Nothing else about you is shown. <a href="/privacy.html">Privacy</a>${commit ? ` &middot; Game fingerprint <span class="mono">${esc(commit.slice(0, 12))}</span>` : ""}</footer>`;
 
   async function paint() {
@@ -40,7 +44,7 @@
   }
   async function tick() {
     try { await RUN.fetchView(null); err = ""; if (RUN.game) await RUN.advance(); }
-    catch (e) { err = e.status === 403 ? "This game is not open yet." : e.status === 404 ? "That game was not found." : "Connecting..."; lastKey = ""; }
+    catch (e) { err = e.code === "cancelled" ? "This game was cancelled by the organizer." : e.code === "did-not-start" ? "This game did not start." : e.code === "payment-due" ? "Waiting for the Organizer or Host to start the game." : e.status === 403 ? "This game is not open yet." : e.status === 404 ? "That game was not found." : "Connecting..."; lastKey = ""; }
     try { await paint(); } catch (e) { err = "Connecting..."; }
     setTimeout(tick, RUN.view && RUN.view.state === "running" ? 900 : 4000);
   }

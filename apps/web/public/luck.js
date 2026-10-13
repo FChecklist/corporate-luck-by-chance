@@ -21,12 +21,13 @@
     return j;
   };
   const head = () => `<div class="zhead"><b>Corporate Luck by Chance</b></div>`;
-  const brand = () => (INFO && INFO.brand && INFO.brand.name ? `<div class="zbrand" data-bg="${esc(INFO.brand.color)}" data-fg="#ffffff"><b>${esc(INFO.brand.name)}</b></div>` : "");
+  const logoOf = (b) => (b && typeof b.logo === "string" && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(b.logo) ? b.logo : "");
+  const brand = () => (INFO && INFO.brand && (INFO.brand.name || logoOf(INFO.brand)) ? `<div class="zbrand" data-bg="${esc(INFO.brand.color || "#0B5D5B")}" data-fg="#ffffff">${logoOf(INFO.brand) ? `<img class="zblogo" alt="" src="${esc(logoOf(INFO.brand))}">` : ""}${INFO.brand.name ? `<b>${esc(INFO.brand.name)}</b>` : ""}</div>` : "");
   const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
   const set = (html) => { $app.innerHTML = html; paintBrand(); };
   
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
-  let tb = null;
+  let tb = null, NICK = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
   const joinView = () => {
     set(`${brand()}${head()}<div class="zcard zform"><h2>Join the game</h2>
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
@@ -42,7 +43,7 @@
     nm.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
     go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = "";
+      go.disabled = true; joinMsg = ""; NICK = nm.value.trim();
       try {
         const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
@@ -61,7 +62,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: "", device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);
@@ -142,8 +143,11 @@
         if (RUN.game && RUN.game.finished) { try { await RUN.vote({ pid, device }); } catch (e) { /* tried again at the next look */ } }
       }
     } catch (e) {
+      if (e.code === "removed") { set(`${head()}<div class="zcard" role="status"><h2>You were removed from this game</h2><p class="zsmall">The organizer removed you from this game. If you think this is a mistake, please ask the organizer.</p></div>`); return; }
+      if (e.status === 403 && !e.code && (stateNow === "running" || stateNow === "done")) { set(`${head()}<div class="zcard" role="status"><h2>You are no longer in this game</h2><p class="zsmall">Your place was removed by the organizer. If you think this is a mistake, please ask the organizer.</p></div>`); return; }
       if (e.status === 403 || e.status === 400) { ls.del(pidKey()); pid = ""; joinMsg = e.code === "other-phone" ? "This place is on another phone." : ""; joinView(); return; }
-      if (e.code === "cancelled" || e.code === "did-not-start") { set(`${head()}<div class="zcard" role="status"><h2>${e.code === "cancelled" ? "This game was cancelled" : "This game did not start"}</h2><p class="zsmall">There is nothing to do on this page.</p></div>`); return; }
+      if (e.code === "cancelled" || e.code === "did-not-start") { set(`${head()}<div class="zcard" role="status"><h2>${e.code === "cancelled" ? "This game was cancelled by the organizer" : "This game did not start"}</h2><p class="zsmall">There is nothing to do on this page.</p></div>`); return; }
+      if (e.code === "payment-due") { set(`${head()}<div class="zcard" role="status"><h2>Waiting for the Organizer or Host to start the game.</h2><p class="zsmall">This page moves on by itself.</p></div>`); lastKey = ""; timer = setTimeout(tick, 4000); return; }
       set(`${head()}<div class="zcard" role="status"><h2>No connection</h2><p class="zsmall">Trying again in a moment.</p></div>`); lastKey = "";
     }
     timer = setTimeout(tick, stateNow === "open" ? 3000 : 900);
@@ -151,6 +155,6 @@
   cdTimer = setInterval(tickCd, 250);
   const start = () => { if (!pid) joinView(); else tick(); };
   if (!EID) { set(`${head()}<div class="zcard"><h2>Open your game link</h2><p class="zsmall">Ask your organizer for the link to this game.</p></div>`); return; }
-  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 403 || e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
+  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>We could not find this game</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
   void cdTimer;
 })();

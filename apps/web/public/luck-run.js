@@ -49,7 +49,9 @@
       if (R.voted || !me) return; const fr = await R.finalResult(); if (!fr) return;
       const body = { pid: me.pid, device: me.device, result: { overall: fr.overall.map(R.line), rounds: fr.rounds.map((l) => l.map(R.line)) } };
       const r = await fetch(base + `/api/z/${eid}/luck/vote`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      if (r.ok || r.status === 409) R.voted = true;
+      // a result sent a moment before the game is over is answered 409 "running": the phone must send it again (marking it as sent would leave this phone without a vote and the result unpublished)
+      if (r.ok) R.voted = true;
+      else if (r.status === 409) { const b = await r.json().catch(() => ({})); if (b && b.code === "watching") R.voted = true; }
     };
     return R;
   }
