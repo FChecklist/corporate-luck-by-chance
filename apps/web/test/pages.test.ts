@@ -870,7 +870,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
 
 });
 describe("console: About this step write-ups (spec 4, A)", () => {
-  const FIRST = ["This is the basics.", "Pick the biggest crowd you expect.", "Tick the prizes you will give", "Show your message, video or audio in the game.", "A Host runs the game with you.", "Add your people here, one by one", "Look through your game and change what you need.", "Pay once, before the start time. You see the price here.", "Run the game from here.", "A few minutes after the game, a report link is e-mailed to the Organizer."];
+  const FIRST = ["This is the basics.", "Pick the biggest crowd you expect.", "Tick the places that get a prize", "Show your message, video or audio in the game.", "A Host runs the game with you.", "Add your people here, one by one", "Look through your game and change what you need.", "Pay once, before the start time. You see the price here.", "Run the game from here.", "A few minutes after the game, a report link is e-mailed to the Organizer."];
   test("each of the ten steps shows its box under the talking line: a title, at most 5 short lines, the agreed first line, and no drop-down", async () => {
     const o = await organizer(); await make(o, "UI-ABT"); await publish(o, "UI-ABT");
     const p = await consolePage(o, "UI-ABT", o.token, {}, { afterLoad: spy().hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x));

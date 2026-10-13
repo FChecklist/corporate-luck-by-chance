@@ -121,7 +121,7 @@
   const TIMES = [["09:00", "9 am"], ["10:00", "10 am"], ["12:00", "12 pm"], ["13:00", "1 pm"], ["15:00", "3 pm"], ["16:00", "4 pm"], ["18:00", "6 pm"], ["19:00", "7 pm"], ["other", "Other time"]];
   const HS = HOUSES.map((h) => [h.id, h.label, h.how, h.max]); // [id, label, how to win, most winners]
   const maxOf = (k) => (HS.find((h) => h[0] === k) || [0, 0, 0, 5])[3];
-  const BUNDLES = { Classic: { line: 1, corners: 1, x: 1, blackout: 1 }, Simple: { line: 1, blackout: 1 }, Rich: { line: 3, corners: 1, x: 1, frame: 1, stamp: 1, blackout: 2 } };
+  const BUNDLES = { Classic: { first: 1, second: 1, third: 1 }, Simple: { first: 1 }, Rich: { first: 1, second: 1, third: 1, fourth: 1, fifth: 1 } };
   // [key, label, currency prefix, what to ask]. "Decide later" saves an empty prize; "No prize" saves the words No prize, so the card shows them.
   const PT = [["voucher", "Gift card", "", "Amount, for example $25 or Rs 1000"], ["hamper", "Gift hamper", "", "What is in it? (optional)"], ["phone", "Smartphone", "", "Which one? (optional)"], ["watch", "Smart watch", "", "Which one? (optional)"], ["earbuds", "Earbuds or headphones", "", "Which one? (optional)"], ["tablet", "Tablet or laptop", "", "Which one? (optional)"], ["holiday", "Holiday or weekend stay", "", "Where?"], ["dinner", "Restaurant gift card", "", "Amount, for example $50"], ["movie", "Movie tickets", "", "How many tickets?"], ["dayoff", "Extra day off", "", ""], ["other", "Something else", "", "Type the prize"], ["later", "I will decide later", "", ""], ["none", "No prize", "", ""]];
   const KINDS = [["msg", "Type a message"], ["yt", "YouTube link"], ["vid", "Paste video file link"], ["aud", "Paste audio file link"]];
@@ -184,7 +184,7 @@
     for (const [k] of HS) f.hs[k] = { on: false, n: 1, pt: "later", pd: "", orig: [] };
     for (const l of c.rewards || []) { const k = l.pattern, h = f.hs[k]; if (!h) continue; h.on = true; h.n = Math.max(h.n, l.ordinal); h.orig[l.ordinal - 1] = l.text || ""; }
     for (const [k] of HS) { const h = f.hs[k]; if (h.on) { const a = prizeFrom(h.orig[0]); h.pt = a.pt; h.pd = a.pd; h.same = h.orig.every((x) => (x || "") === (h.orig[0] || "")); h.diff = !h.same; if (h.diff) h.per = Array.from({ length: h.n }, (_, i) => prizeFrom(h.orig[i])); } }
-    f.ph = (HS.find(([k]) => f.hs[k].on) || ["blackout"])[0];
+    f.ph = (HS.find(([k]) => f.hs[k].on) || ["first"])[0];
     const pad = (arr, n) => { const o = arr.slice(0, n); while (o.length < n) o.push({ k: "msg", v: "", t: "", s: "" }); return o; };
     const lk = (c.breaks || []).filter((b) => b.kind === "lucky"), mk = (c.breaks || []).filter((b) => b.kind !== "lucky");
     f.brand = Object.assign({ name: "", color: "", logo: "" }, inf.brand || (S.sum && S.sum.brand) || {}); f.opN = (c.opening || []).length; f.op = pad((c.opening || []).map(momentFrom), 2);
@@ -829,7 +829,7 @@
   const ABOUT = {
     1: ["This is the basics. Pick the occasion, the day and the time.", "Times are in your own time zone, as your device shows it.", "Guests can join before the start. The first number comes 2 minutes after the start.", "You can change all this until the game starts."],
     2: ["Pick the biggest crowd you expect. Or type your own number. You see the price when you pay.", "Who can join: \"Only people on a list\" keeps it private, and people not on a list wait for you to let them in.", "\"Anyone with the link\" lets people in at once.", "Cards, marking, speed and rounds can stay as they are. Guests type just their name to join.", "Each guest can invite family or colleagues if you switch it on."],
-    3: ["Tick the prizes you will give: Line, Four Corners, X, Blackout and more. Pick what each one is.", "\"I will decide later\" is fine. You can still publish and choose before the game starts.", "\"No prize\" shows on the card as \"No prize\".", "You give the prizes. We provide the software.", "The software picks the winners. Nobody can change them, not even us."],
+    3: ["Tick the places that get a prize: 1st to 5th. Pick what each one is.", "\"I will decide later\" is fine. You can still publish and choose before the game starts.", "\"No prize\" shows on the card as \"No prize\".", "You give the prizes. We provide the software.", "The software picks the winners. Nobody can change them, not even us."],
     4: ["Show your message, video or audio in the game.", "You get 5 moments for each card: before the game, during it and at the end. A lucky draw is also a moment.", "Press \"Test it\" before you publish.", "Use a YouTube link, or a direct link to a video or audio file.", "Add your company name, a colour and a small logo for the top of the card. The logo also sits in the FREE square. Press \"See what guests see\" to check it."],
     5: ["A Host runs the game with you. A Host needs a name, a mobile number and an e-mail.", "A Co-host invites people and can pay. A Co-host needs a name and a mobile number only.", "Guests need a name only (a mobile number too if you chose that).", "Send each private link to one person only.", "Each Co-host can add up to 100 people unless you change it below."],
     6: ["Add your people here, one by one, from your phone contacts (where your phone allows it), by pasting from Excel or by uploading a CSV.", "Each person gets their own link to send by WhatsApp or e-mail. Or share the one common link in Slack, Teams, Zoom chat or any group.", "With \"Only people on a list\", people who are not on your list wait under \"Waiting to come in\". You can let them in one by one or press \"Approve all\".", "The big screen link is for the laptop connected to the room screen or shared in your video call. It shows the call board and winners only."],
@@ -956,7 +956,7 @@
     applyBundleTo(f, "Classic");
     return f;
   }
-  function applyBundleTo(f, b) { const set = BUNDLES[b]; if (!set) return; for (const [k] of HS) { const h = f.hs[k]; h.on = !!set[k]; if (set[k]) h.n = set[k]; } f.ph = (HS.find(([k]) => f.hs[k].on) || ["blackout"])[0]; }
+  function applyBundleTo(f, b) { const set = BUNDLES[b]; if (!set) return; for (const [k] of HS) { const h = f.hs[k]; h.on = !!set[k]; if (set[k]) h.n = set[k]; } f.ph = (HS.find(([k]) => f.hs[k].on) || ["first"])[0]; }
   function quickView() {
     const f = S.f;
     const caps = capOptions().map((p) => `<button type="button" class="zc-chip${String(f.cap) === String(p.n) ? " on" : ""}" data-ck="cap" data-v="${p.n}" aria-pressed="${String(f.cap) === String(p.n)}"><span>Up to ${p.n} people</span></button>`).join("");
