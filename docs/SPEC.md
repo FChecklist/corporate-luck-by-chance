@@ -1,4 +1,4 @@
-# Corporate Luck by Chance: product and build specification (draft 1, 2026-10-12)
+# Corporate Luck by Chance: product and build specification (version 1, 2026-10-12)
 
 Owner brief (2026-10-12): a pure-luck dice game for thousands of players at once, from their own phones or laptops. The screen shows a target number; everyone presses the dice; players whose dice shows the target number score that many points; everyone else scores zero. Each round has 10 dice rounds; points add up; prizes can be per round or for the total. Take the clue from Corporate Tambola. Status: SPEC ONLY, nothing is built.
 
