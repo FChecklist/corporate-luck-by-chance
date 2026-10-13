@@ -8,4 +8,3 @@ Deploy (free Cloudflare Pages), only after the owner says go:
 
     wrangler pages deploy site --project-name corporate-luck-by-chance --branch main
 
-The legal pages are first drafts for a lawyer to read before launch.
