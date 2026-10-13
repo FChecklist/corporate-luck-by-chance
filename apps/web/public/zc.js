@@ -569,8 +569,8 @@
     return `<div class="zc-block"><h3>Guest link</h3><div class="zc-linkrow"><span class="zlink">${esc(link)}</span><button type="button" class="zc-mini" id="copy">Copy link</button></div>
         <div class="zc-chips zc-gap"><a class="zc-chip" href="${esc(waUrl(""))}" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a></div>${S.draft ? small("Guests can join once you publish.") : ""}</div>
       <div class="zc-block"><h3>Big screen</h3><div class="zc-linkrow"><span class="zlink" id="biglink">${esc(bigLink())}</span><button type="button" class="zc-mini" id="copybig">Copy the link</button></div>
-        <a class="zc-chip zc-gap" href="${esc(bigLink())}" target="_blank" rel="noopener">Open the big screen</a>${small("Open it on a laptop or phone connected to the big screen. It shows the bracket, the live boards and the results, with names only.")}</div>
-      <div class="zc-block"><h3>Run the game</h3><a class="zc-chip zc-gap" href="/host.html?e=${encodeURIComponent(eid)}">Open the tournament page</a>${small("Choose one against one or teams, set the move clock, start, pause and resume. Starting closes the list of players.")}</div>
+        <a class="zc-chip zc-gap" href="${esc(bigLink())}" target="_blank" rel="noopener">Open the big screen</a>${small("Open it on a laptop or phone connected to the big screen. It shows the target number, the countdown and the top-10 list, with nicknames only.")}</div>
+      <div class="zc-block"><h3>Run the game</h3><a class="zc-chip zc-gap" href="/host.html?e=${encodeURIComponent(eid)}">Open the game page</a>${small("Choose the number of rounds, the press window and the prizes, then start. Starting closes the list of players.")}</div>
       ${peopleBlock()}${playBlock()}
       ${cont(6)}`;
   }

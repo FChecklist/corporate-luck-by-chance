@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 440" role="img" aria-label="A phone showing the target number 4 and a dice">
+<rect width="700" height="440" rx="28" fill="#E9F2F1"/>
+<rect x="215" y="24" width="270" height="392" rx="34" fill="#0B1F1E"/>
+<rect x="229" y="52" width="242" height="336" rx="18" fill="#FFFDF9"/>
+<text x="350" y="98" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700" fill="#4A5F5E" letter-spacing="2">TARGET</text>
+<text x="350" y="228" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="130" font-weight="800" fill="#0B5D5B">4</text>
+<rect x="278" y="262" width="144" height="100" rx="22" fill="#0B5D5B"/>
+<text x="350" y="322" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">Press the dice</text>
+<g transform="translate(70 140)"><rect width="110" height="110" rx="20" fill="#FFFFFF" stroke="#0B5D5B" stroke-width="6"/><circle cx="32" cy="32" r="9" fill="#0B1F1E"/><circle cx="78" cy="32" r="9" fill="#0B1F1E"/><circle cx="32" cy="78" r="9" fill="#0B1F1E"/><circle cx="78" cy="78" r="9" fill="#0B1F1E"/></g>
+<text x="125" y="290" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#0B1F1E">+4 points</text>
+</svg>

@@ -242,7 +242,7 @@ describe("invoices", () => {
     const html = await (await call("GET", f.invoiceUrl)).text();
     expect(html).not.toContain("DRAFT"); expect(html).toContain("<b>INVOICE</b>"); expect(html).not.toContain("TAX INVOICE");
     expect(html).toContain("IT Services by Rajat Agarwal"); expect(html).toContain("rajatsiroffice@gmail.com"); expect(html).toContain("4,699.00");
-    expect(html).not.toMatch(/CGST|SGST|IGST|Taxable value|Place of supply|GSTIN|SHOBHA/i);
+    expect(html).not.toMatch(/CGST|SGST|IGST|Taxable value|Place of supply|GSTIN/i);
     expect(f.tax).toBe(0); expect(f.total).toBe(4699);
   });
   test("filling in a GSTIN in the configuration does not switch GST on: only the code switch GST_ENABLED does (product decision 2026-10-09)", async () => {

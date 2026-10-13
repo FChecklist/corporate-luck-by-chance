@@ -173,7 +173,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
   }
 
   if (sub === "vote" && method === "POST") {
-    const b = await c.body(req, 8192); if (!b) return json({ error: "Bad result." }, 400);
+    const b = await c.body(req, 49152); if (!b) return json({ error: "Bad result." }, 400);
     const who = await playerOf(c, b.pid, b.device); if (who instanceof Response) return who;
     if (t.state === "open") return json({ error: "The game has not started.", code: "open" }, 409);
     if (t.state === "done") return json({ ok: true, already: true });

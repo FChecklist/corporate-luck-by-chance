@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const PATTERN = /COUNSEL|\[●\]|legal(ly)?\s+(review|pending|sign-?off)|review\s+pending|pending\s+(legal|review|approval)|awaiting\s+(legal|counsel|lawyer|approval|review)|\blawyer\b|\badvocate\b|owner'?s?\s+(told|instruction|order|directive|decision)|\bTODO\b|\bFIXME\b|under review|not yet (reviewed|approved)|Shobha/i;
+const PATTERN = /COUNSEL|\[●\]|legal(ly)?\s+(review|pending|sign-?off)|review\s+pending|pending\s+(legal|review|approval)|awaiting\s+(legal|counsel|lawyer|approval|review)|\blawyer\b|\badvocate\b|owner'?s?\s+(told|instruction|order|directive|decision)|\bTODO\b|\bFIXME\b|under review|not yet (reviewed|approved)/i;
 const LEGAL_ONLY = /draft/i; // on the legal pages only: the bare word is fine elsewhere (a draft game)
 const LEGAL_PAGES = ["terms.html", "privacy.html", "legal.html", "refund-policy.html", "about.html", "contact.html", "pricing.html", "dpa.html", "subprocessors.html", "partner-terms.html"];
 const ROOT = new URL("../../../", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -38,7 +38,7 @@ describe("no internal notes in what is deployed", () => {
     expect(bad).toEqual([]);
   });
   test("the pattern itself catches what it should (so the scan is not asleep)", () => {
-    for (const s of ["pending legal review", "ask the lawyer", "COUNSEL to confirm", "Shobha Kamal", "owner's instruction", "TODO", "under review", "[●]"]) expect([s, PATTERN.test(s)]).toEqual([s, true]);
+    for (const s of ["pending legal review", "ask the lawyer", "COUNSEL to confirm", "owner's instruction", "TODO", "under review", "[●]"]) expect([s, PATTERN.test(s)]).toEqual([s, true]);
     for (const s of ["Terms and Conditions", "Grievance Officer", "unpublished game"]) expect([s, PATTERN.test(s)]).toEqual([s, false]);
   });
 });

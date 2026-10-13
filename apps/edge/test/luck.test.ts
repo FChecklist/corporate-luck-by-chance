@@ -116,7 +116,7 @@ describe("the numbers: seats, beacon values, votes", () => {
     expect((await vote("LK-6", ps[0]!, result, st.endMs - 5000)).status).toBe(409); // the game is not over yet
     expect(quorumFor(6)).toBe(3); expect(quorumFor(2)).toBe(2); expect(quorumFor(1000)).toBe(50);
     expect((await j(await vote("LK-6", ps[0]!, result, after))).agreed).toBe(false);
-    const forged = JSON.parse(JSON.stringify(result)); forged.overall[0].seat = forged.overall[3].seat; forged.overall[3].seat = result.overall[0].seat; // a modified phone puts its own pick first
+    const forged = JSON.parse(JSON.stringify(result)); forged.overall[0].seat = forged.overall[3].seat; forged.overall[3].seat = result.overall[0]!.seat; // a modified phone puts its own pick first
     expect((await vote("LK-6", ps[1]!, forged, after)).status).toBe(200);
     expect((await j(await call("GET", "/api/z/LK-6/luck/rank", undefined, {}, after))).agreed).toBe(false); // 1 against 1: no result
     expect((await j(await vote("LK-6", ps[2]!, result, after))).agreed).toBe(false);
@@ -157,6 +157,14 @@ describe("the numbers: seats, beacon values, votes", () => {
     const { result } = await phoneResult("LK-8", s, 4, st.endMs + 1); await vote("LK-8", ps[0]!, result, st.endMs + 1);
     await call("POST", "/api/lifecycle/tick", {}, { "x-organizer": "plat" }, st.endMs + 11 * 60_000);
     const r = await j(await call("GET", "/api/z/LK-8/luck/rank", undefined, {}, st.endMs + 11 * 60_000)); expect(r.agreed).toBe(false); expect(r.done).toBe(true);
+  });
+  test("R47: a full 20-round game's result (the biggest one) fits in a vote and is accepted", async () => {
+    const h = await game("LK-14"); const ps = await joinAll("LK-14", 12);
+    const st = await j(await call("POST", "/api/z/LK-14/luck/start", { settings: { rounds: 20, windowSecs: 6 } }, h));
+    const s = (await view("LK-14", T + 1000)).settings as LuckSettings; expect(s.rounds).toBe(20);
+    const { result } = await phoneResult("LK-14", s, 12, st.endMs + 1); expect(JSON.stringify(result).length).toBeGreaterThan(15000);
+    for (const p of ps.slice(0, 3)) expect((await vote("LK-14", p, result, st.endMs + 2)).status).toBe(200);
+    expect((await j(await call("GET", "/api/z/LK-14/luck/rank", undefined, {}, st.endMs + 3))).rounds.length).toBe(20);
   });
 });
 

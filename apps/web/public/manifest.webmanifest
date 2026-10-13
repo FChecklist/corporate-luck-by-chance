@@ -1,7 +1,7 @@
 {
   "name": "Corporate Luck by Chance",
   "short_name": "Corporate Luck by Chance",
-  "description": "A luck by chance tournament for companies. The whole game is saved on your phone and plays from your own device.",
+  "description": "A dice game of luck for companies. The whole game is saved on your phone and plays from your own device.",
   "id": "/z.html",
   "start_url": "/z.html",
   "scope": "/",
