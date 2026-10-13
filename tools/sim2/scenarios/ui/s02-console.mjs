@@ -1,5 +1,5 @@
 // Group 2: the ten console steps filled by tapping (Organizer): date and time, size and rules, every prize house, prize kinds, brand, moments, team, people, publish.
-import { H, openConsole, openStep, chip, chipOn, saveStep, uiPublish, tinyPng } from "./kit.mjs";
+import { H, openConsole, openStep, chip, chipOn, saveStep, uiPublish, tinyPng, tickTerms, tickGuestList } from "./kit.mjs";
 
 const eidOf = (page) => new URL(page.url()).searchParams.get("e");
 /** from the empty console: tap 'Start a new game' and return the game id */
@@ -7,7 +7,7 @@ async function startGameUi(t, device = "laptop") {
   const org = await t.org("c");
   const x = await openConsole(t, org, null, { device });
   await x.page.click("#mk"); await x.page.waitForSelector(".zc-sech", { timeout: 15000 });
-  await x.page.waitForFunction(() => /[?&]e=/.test(location.search), null, { timeout: 8000 });
+  await x.page.waitForFunction(() => /[?&]e=/.test(location.search), null, { timeout: 8000 }).catch(async () => { throw new Error("'Start a new game' did not open a game: " + (await t.text(x.page)).slice(0, 300)); });
   return { org, x, eid: eidOf(x.page) };
 }
 const rewardsOf = async (org, eid) => (await org.info(eid)).body.rewards ?? [];
@@ -27,7 +27,7 @@ async function setHouse(page, id, { n, pt = "voucher", pd } = {}) {
   if (pd !== undefined && (await page.$(`#sec3 #f-hs-${id}-pd`))) await page.fill(`#sec3 #f-hs-${id}-pd`, pd);
   return nChips.length;
 }
-const ALL_HOUSES = ["corners", "early7", "early10", "line", "x", "frame", "twolines", "corners", "plus", "plus", "frame", "topbottom", "midcorners", "odd5", "even5", "low5", "high5", "blackout", "unlucky"];
+const ALL_HOUSES = ["first", "second", "third", "fourth", "fifth"]; // the five places of Luck by Chance (packages/beacon/src/config.ts PRIZE_HOUSES); each has exactly one winner
 
 export default [
   {
@@ -36,13 +36,13 @@ export default [
       const { org, x, eid } = await startGameUi(t);
       t.check("a game id is in the address after 'Start a new game'", /^[A-Za-z0-9_-]{4,40}$/.test(eid ?? ""), eid);
       await openStep(x.page, 1);
-      await chip(x.page, "occ", "Dealer meet");
+      await chip(x.page, "occ", "Customer event");
       const days = await x.page.$$eval('[data-ck="day"]', (els) => els.map((e) => e.dataset.v).filter((v) => v !== "other"));
       const day = days[2]; await chip(x.page, "day", day); await chip(x.page, "time", "19:00");
-      t.check("tapped chips show as selected", (await chipOn(x.page, "occ", "Dealer meet")) && (await chipOn(x.page, "day", day)) && (await chipOn(x.page, "time", "19:00")));
+      t.check("tapped chips show as selected", (await chipOn(x.page, "occ", "Customer event")) && (await chipOn(x.page, "day", day)) && (await chipOn(x.page, "time", "19:00")));
       await saveStep(x.page, 1);
       const info = (await org.info(eid)).body, want = Date.parse(`${day}T19:00:00+05:30`);
-      t.check("game name is the occasion", info.name === "Dealer meet", String(info.name));
+      t.check("game name is the occasion", info.name === "Customer event", String(info.name));
       t.check("start time is the tapped day at 7 pm India time (within one number step)", Math.abs(info.startMs - want) < 15000, `${new Date(info.startMs).toISOString()} vs ${new Date(want).toISOString()}`);
       t.check("the synopsis line for step 1 says 7:00 pm", /7:00 pm/.test(await t.text(x.page, '.zc-syn[data-open="1"]')), await t.text(x.page, '.zc-syn[data-open="1"]'));
       await t.shot(x.page, "step1-done");
@@ -132,7 +132,7 @@ export default [
     },
   },
   {
-    id: "S02-06", name: "Step 3: every prize house on its own (19 houses), maximum winners each, saved and read back",
+    id: "S02-06", name: "Step 3: every prize place on its own (1st to 5th, one winner each), saved and read back",
     async run(t) {
       const { org, x, eid } = await startGameUi(t);
       await openStep(x.page, 3);
@@ -148,36 +148,31 @@ export default [
         const others = rw.filter((r) => r.pattern !== id);
         if (!mine.length || others.length || (max && mine.length !== max)) bad.push(`${id}: saved ${mine.length}, others ${others.length}, max ${max}`);
       }
-      t.check("each of 19 houses saved alone with its maximum number of winners", bad.length === 0, bad.join(" | "));
+      t.check("each of the 5 places saved alone with its one winner", bad.length === 0, bad.join(" | "));
     },
   },
   {
-    id: "S02-07", name: "Step 3: every prize kind (10 popular + something else + decide later + no prize) and 'a different prize for each winner'",
+    id: "S02-07", name: "Step 3: every prize kind (10 popular + something else + decide later + no prize) and 'a different prize for each place'",
     async run(t) {
       const { org, x, eid } = await startGameUi(t);
       await openStep(x.page, 3);
-      const kinds = await x.page.$$eval('#sec3 [data-ck="hs.early5.pt"]', (els) => els.map((e) => e.dataset.v));
+      const kinds = await x.page.$$eval('#sec3 [data-ck="hs.first.pt"]', (els) => els.map((e) => e.dataset.v));
       t.check("13 prize options offered", kinds.length === 13, kinds.join());
-      for (const other of ALL_HOUSES) if (other !== "line") await houseOn(x.page, other, false).catch(() => {});
+      for (const other of ALL_HOUSES) if (other !== "first") await houseOn(x.page, other, false).catch(() => {});
       const out = {};
       for (const k of kinds) {
-        await setHouse(x.page, "line", { n: 1, pt: k, pd: k === "other" ? "Gold coin" : undefined });
+        await setHouse(x.page, "first", { n: 1, pt: k, pd: k === "other" ? "Gold coin" : undefined });
         await saveStep(x.page, 3); await openStep(x.page, 3);
-        const r = (await rewardsOf(org, eid)).find((q) => q.pattern === "line"); out[k] = r?.text ?? r?.prize ?? JSON.stringify(r);
+        const r = (await rewardsOf(org, eid)).find((q) => q.pattern === "first"); out[k] = r?.text ?? r?.prize ?? JSON.stringify(r);
       }
       t.check("every kind saved a prize text", Object.values(out).every((v) => v !== undefined && v !== "undefined"), JSON.stringify(out));
       t.check("'Something else' keeps the typed text", /Gold coin/.test(out.other ?? ""), out.other);
       t.check("'No prize' differs from 'decide later'", out.none !== out.later, `${out.none} / ${out.later}`);
-      // different prize for each winner
-      await setHouse(x.page, "line", { n: 2, pt: "voucher" });
-      const diff = await x.page.$('#sec3 [data-ck="hs.top.diff"],#sec3 [data-bool="hs.top.diff"]');
-      if (diff) {
-        await diff.click(); await x.page.waitForTimeout(300);
-        await x.page.click('#sec3 [data-ck="hs.top.per.0.pt"][data-v="phone"]'); await x.page.click('#sec3 [data-ck="hs.top.per.1.pt"][data-v="watch"]');
-        await saveStep(x.page, 3);
-        const tops = (await rewardsOf(org, eid)).filter((r) => r.pattern === "line");
-        t.check("two winners with different prizes saved", tops.length === 2 && tops[0].text !== tops[1].text, JSON.stringify(tops.map((r) => r.text)));
-      } else t.check("'a different prize for each winner' control exists with 2 winners", false, "no control found");
+      // a different prize for each place: 1st gets a phone, 2nd a watch
+      await setHouse(x.page, "first", { n: 1, pt: "phone" }); await setHouse(x.page, "second", { n: 1, pt: "watch" });
+      await saveStep(x.page, 3);
+      const tops = (await rewardsOf(org, eid)).filter((r) => r.pattern === "first" || r.pattern === "second");
+      t.check("two places with different prizes saved", tops.length === 2 && tops[0].text !== tops[1].text, JSON.stringify(tops.map((r) => r.text)));
     },
   },
   {
@@ -201,7 +196,7 @@ export default [
       { const L = b?.logo ?? ""; const bytes = Math.floor((L.length - L.indexOf(",") - 1) * 3 / 4); t.check("the stored logo is at most 30 KB", bytes > 0 && bytes <= 30720, String(bytes)); }
       await org.publish(eid);
       const p = await t.open({ device: "mobile", token: org.token });
-      await p.page.goto(`${H.SIM}/preview.html#w=ticket&e=${eid}`); await p.page.waitForTimeout(2000);
+      await p.page.goto(`${H.SIM}/preview.html#w=card&e=${eid}`); await p.page.waitForTimeout(2000);
       const ptxt = await t.text(p.page);
       t.check("preview is marked PREVIEW and shows the brand name", /PREVIEW/i.test(ptxt) && /Sim Industries/.test(ptxt), ptxt.slice(0, 200));
       await t.shot(p.page, "preview-brand");
@@ -277,7 +272,7 @@ export default [
       const { org, x, eid } = await startGameUi(t);
       await org.publish(eid);
       await x.page.reload(); await x.page.waitForSelector(".zc-sech");
-      await openStep(x.page, 6);
+      await openStep(x.page, 6); await tickGuestList(x.page);
       await x.page.fill("#gname", "Asha Rao"); await x.page.fill("#gphone", "98765 43210"); await x.page.click("#gadd"); await x.page.waitForTimeout(900);
       let p = (await org.people(eid)).body.people ?? [];
       t.check("one person added by typing (spaces cleaned)", p.length === 1, JSON.stringify(p).slice(0, 160));
@@ -315,7 +310,8 @@ export default [
     async run(t) {
       const { org, x, eid } = await startGameUi(t);
       await openStep(x.page, 7); await x.page.click("#publishopen"); await x.page.waitForSelector("#pubEmail");
-      await x.page.fill("#pubEmail", "nope"); await x.page.fill("#pubPhone", "123"); await x.page.click("#pubgo"); await x.page.waitForTimeout(900);
+      await x.page.fill("#pubEmail", "nope"); await x.page.fill("#pubPhone", "123");
+      await tickTerms(t, x.page, { scope: "[data-tbk^='pub']", btn: "#pubgo", what: "Publish" }); await x.page.click("#pubgo"); await x.page.waitForTimeout(900);
       t.check("a message is shown", /e-?mail|mobile|number/i.test(await t.text(x.page, "#sec7")));
       t.check("still a draft", /draft/i.test((await org.summary(eid)).body.status ?? ""), (await org.summary(eid)).body.status);
       await x.page.click("#pubcancel"); await x.page.waitForTimeout(300);
@@ -327,11 +323,12 @@ export default [
     async run(t) {
       const email = t.mail("j"); t.team.add(email);
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn"); await x.page.fill("#fMail", email); await x.page.click("#frGo");
+      await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn"); await x.page.fill("#fMail", email);
+      await tickTerms(t, x.page, { scope: "#tbSlot", btn: "#frGo", what: "Sign-up" }); await x.page.click("#frGo");
       await x.page.waitForURL(/\/zc/, { timeout: 15000 }); await x.page.waitForSelector("#mk"); await x.page.click("#mk"); await x.page.waitForSelector(".zc-sech");
       await x.page.waitForFunction(() => /[?&]e=/.test(location.search), null, { timeout: 8000 });
       const eid = eidOf(x.page);
-      await openStep(x.page, 1); await chip(x.page, "occ", "Team party"); await chip(x.page, "time", "20:00"); await saveStep(x.page, 1);
+      await openStep(x.page, 1); await chip(x.page, "occ", "Team event"); await chip(x.page, "time", "19:00"); await saveStep(x.page, 1);
       await openStep(x.page, 2); await chip(x.page, "cap", 100); await chip(x.page, "who", "list"); await saveStep(x.page, 2);
       await openStep(x.page, 3); await chip(x.page, "bundle", "Simple"); await saveStep(x.page, 3);
       await openStep(x.page, 4); await x.page.fill("#f-brand-name", "Phone Co"); await chip(x.page, "brand.color", "#6A1B9A"); await chip(x.page, "opN", 1); await x.page.fill("#f-op-0-t", "Hello everyone"); await saveStep(x.page, 4);
@@ -342,7 +339,8 @@ export default [
       const org = new H.Organizer(email, await x.page.evaluate(() => sessionStorage.getItem("cbz-org")));
       // step 8: the pay page in the same tab
       await openStep(x.page, 8); await x.page.click("a[href*='/pay.html']"); await x.page.waitForURL(/pay/, { timeout: 10000 });
-      await x.page.waitForSelector("#paygo"); await x.page.fill("#nm", "Journey Payer"); await x.page.fill("#em", email); await x.page.fill("#org", "Journey Co"); await x.page.click("#paygo");
+      await x.page.waitForSelector("#paygo"); await x.page.fill("#nm", "Journey Payer"); await x.page.fill("#em", email); await x.page.fill("#org", "Journey Co");
+      await tickTerms(t, x.page, { scope: "#tbSlot", btn: "#paygo", what: "Pay" }); await x.page.click("#paygo");
       await t.until(async () => (await org.summary(eid)).body.payment?.status === "paid", { what: "payment paid", timeout: 15000 });
       t.check("paid through the pay page (test payment)", true);
       await x.page.goto(`${H.SIM}/zc?e=${eid}`); await x.page.waitForSelector(".zc-sech");

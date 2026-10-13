@@ -1,6 +1,8 @@
 // API clients for each role, built on real HTTP calls to the sim server (no in-process shortcuts), plus the e-mail sink client.
 import { createHash, randomBytes } from "node:crypto";
-import { PLATFORM_KEY, SIM, sleep } from "./env.mjs";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { PLATFORM_KEY, ROOT, SIM, sleep } from "./env.mjs";
 import { clock } from "./clock.mjs";
 import { roundAt, roundTimeMs } from "./beacon.mjs";
 
@@ -8,9 +10,16 @@ export const sha = (s) => createHash("sha256").update(s).digest("hex");
 export const deviceOf = (s) => sha("dev|" + s).slice(0, 32);
 export const phoneOf = (i) => "98" + String(10000000 + i).slice(-8);
 
+/** The Terms version the server enforces now (read from the same file the server reads, so the harness never drifts from it). */
+export const CONSENT_VERSION = JSON.parse(readFileSync(join(ROOT, "apps/edge/src/consent-text.json"), "utf8")).version;
+/** What a person who ticked every box sends with a request: { v, boxes }. */
+export const consentAll = () => ({ v: CONSENT_VERSION, boxes: ["A", "B"] });
+
 /** One HTTP call; returns { status, body } (body parsed as JSON when possible, else { text }). `ip` = the simulated address of the caller (per-address limits). */
 export async function call(method, path, body, headers = {}, { base = SIM, ip } = {}) {
   const h = { "content-type": "application/json", ...(ip ? { "x-sim-ip": ip } : {}), ...headers };
+  // The server refuses a write without the ticked Terms boxes (HTTP 400 consent-required): a POST with a plain object body and no `consent` field carries every box ticked (harmless where the route does not ask for it).
+  if (method === "POST" && body && typeof body === "object" && !Array.isArray(body) && !("consent" in body)) body = { ...body, consent: consentAll() };
   const r = await fetch(base + path, { method, headers: h, body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body), redirect: "manual" });
   const text = await r.text(); let j; try { j = JSON.parse(text); } catch { j = { text }; }
   return { status: r.status, body: j, ok: r.ok };
