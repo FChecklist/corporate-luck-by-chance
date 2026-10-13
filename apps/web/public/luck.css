@@ -1,0 +1,41 @@
+/* Corporate Luck by Chance: styles for the player's page (z.html), the host page (host.html) and the demo. Phone first. */
+.lt-play{text-align:center}
+.lt-info{margin:0 0 6px;color:var(--muted);font-size:14px}
+.lt-label{margin:6px 0 0;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.lt-target{font:800 clamp(120px,46vw,220px)/1 var(--sans,inherit);color:var(--pri);margin:0 0 4px;font-variant-numeric:tabular-nums}
+.lt-target.hit{color:var(--ok)}
+.lt-target.miss{color:var(--muted)}
+.lt-clock{margin:0 0 12px;font-size:20px;font-weight:700;color:var(--ink)}
+#cd{display:inline-block;min-width:1.6em;font-variant-numeric:tabular-nums}
+.lt-dice{display:block;width:100%;max-width:340px;min-height:96px;margin:6px auto;border:0;border-radius:24px;background:var(--pri);color:#fff;font:800 26px/1.2 var(--sans,inherit);touch-action:manipulation;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+.lt-dice:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.lt-dice:focus-visible{outline:4px solid var(--acc);outline-offset:3px}
+.lt-dice:disabled{opacity:1;background:var(--sunk,#E9F2F1);color:var(--ink);box-shadow:none}
+.lt-dice.pressed{animation:lt-roll .5s linear infinite}
+@keyframes lt-roll{0%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}100%{transform:rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.lt-dice.pressed{animation:none}}
+.lt-result{font-size:20px;font-weight:700;margin:4px 0}
+.lt-totals{margin:10px 0 0;font-size:16px}
+.lt-list{margin:0;padding-left:1.6em}
+.lt-list li{margin:8px 0}
+.lt-list li.me{background:var(--sunk,#E9F2F1);border-radius:8px;padding:2px 6px}
+.lt-pts{color:var(--muted);font-variant-numeric:tabular-nums}
+.lt-prize{display:block;font-size:14px;color:var(--ink)}
+.lt-final li{font-size:18px}
+.trank{margin:0;padding-left:1.4em}.trank li{margin:6px 0}.trank small{display:block;color:var(--muted);font-size:12px}
+.tcen{text-align:center}
+.tcheck{display:flex!important;gap:8px;align-items:flex-start;margin:10px 0;font-size:14px;color:var(--ink)!important}
+.tcheck input{width:22px!important;min-height:22px!important;margin-top:2px}
+.mono{font-family:var(--mono,ui-monospace,monospace)}
+/* host page */
+.hwrap{max-width:760px;margin:0 auto;padding:14px 16px 60px}
+.hwrap .zcard h2{margin-bottom:10px}
+.hchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.hchip{border:2px solid var(--line);background:var(--surface,#fff);border-radius:999px;padding:8px 14px;font-weight:600;min-height:40px}
+.hchip[aria-pressed="true"]{border-color:var(--pri);background:var(--pri);color:#fff}
+.hrow{display:flex;gap:8px;flex-wrap:wrap}
+.hrow .zbtn{width:auto;flex:1 1 140px}
+.hprize{display:grid;grid-template-columns:5.5em 1fr;gap:6px 10px;align-items:center;margin:6px 0}
+.hprize label{font-size:14px}
+.hprize input{min-height:40px}
+.hbad{background:var(--bad,#B3261E)}
