@@ -7,7 +7,7 @@ export const TERMS_VERSION = "2026-10-13"; // the one version of the Terms: term
 
 export const BRAND = {
   name: "Corporate Luck by Chance",
-  tagline: "Live engagements for companies",
+  tagline: "Live games for companies",
   support: "rajatsiroffice@gmail.com", // the contact address the site's legal page publishes
   legalPath: "/legal.html",
   defaultOrigin: "https://corporate-luck-by-chance.pages.dev",

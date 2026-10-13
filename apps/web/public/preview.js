@@ -7,7 +7,7 @@
   const cardGrid = (label) => `<div class="lt-play" role="group" aria-label="${label}"><p class="lt-label">Target</p><div class="lt-target">4</div><p class="lt-clock">10 s left to press</p><button class="lt-dice" type="button" disabled>Press the dice</button></div>`;
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const q = new URLSearchParams(location.hash.replace(/^#/, ""));
-  if (q.get("w") === "card") { ticketPreview(); return; }
+  if (q.get("w") === "card" || q.get("w") === "player") { ticketPreview(); return; }
   const when = ["break", "opening", "closing"].includes(q.get("w")) ? q.get("w") : "break";
   const b = { kind: q.get("k") || "speech", title: (q.get("t") || "Your message").slice(0, 80), mediaUrl: q.get("u") || "", seconds: Math.max(15, Math.min(600, Number(q.get("s")) || 60)) };
   if (b.mediaUrl && !/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl)) b.mediaUrl = "";
@@ -58,7 +58,7 @@
   addEventListener("resize", placeMedia);
 
   const kind = mediaKind(b);
-  const sampleCard = `<div class="zcard"><h2>The play screen (sample)</h2>${cardGrid("Sample card")}</div>`;
+  const sampleCard = `<div class="zcard"><h2>The play screen (sample)</h2>${cardGrid("Sample play screen")}</div>`;
   const what = b.kind === "speech" ? "Please listen to the host." : b.kind === "slides" ? "Please look at the screen." : "";
   const heading = when === "break" ? "A short break" : when === "opening" ? "A message from your organizer" : "Thank you from your organizer";
   const verdict = !b.mediaUrl ? "No link: guests see your message only." : kind ? "This link plays inside the game." : "<b>This link will NOT play inside the game.</b> It opens in a new tab and takes the guest out of the game. Use a YouTube link, or a direct link to a video (.mp4) or audio (.mp3) file.";
@@ -68,7 +68,7 @@
     const over = secondsLeft !== null && secondsLeft <= 0;
     const act = b.mediaUrl && !over ? (kind ? `<div id="mslot" class="zmslot"></div><a class="zsmall" target="_blank" rel="noopener noreferrer" href="${esc(b.mediaUrl)}">Trouble playing? Open it in a new tab</a>` : `<a class="zbtn s" style="display:inline-flex;align-items:center;text-decoration:none;margin-top:10px" target="_blank" rel="noopener noreferrer" href="${esc(b.mediaUrl)}">${b.kind === "youtube" ? "Watch the video" : "Open"}</a>`) : "";
     const tail = when === "break" ? ` The game continues in ${Math.max(0, secondsLeft)}s.` : when === "opening" ? " The game starts in a moment." : "";
-    const card = over ? `<div class="zcard zbreak" role="status"><h2>${when === "break" ? "The break is over" : "The opening is over"}</h2><div class="zsmall" style="margin:0">The message and the video have gone, and ${when === "break" ? "the numbers carry on" : "the first number comes next"}. This is what your guests see: their card is right there again.</div><button class="zbtn s" id="again" type="button" style="margin-top:10px">Play it again</button></div>`
+    const card = over ? `<div class="zcard zbreak" role="status"><h2>${when === "break" ? "The break is over" : "The opening is over"}</h2><div class="zsmall" style="margin:0">The message and the video have gone, and ${when === "break" ? "the game carries on" : "the game starts next"}. This is what your guests see: their play screen is right there again.</div><button class="zbtn s" id="again" type="button" style="margin-top:10px">Play it again</button></div>`
       : `<div class="zcard zbreak" role="status"><h2>${heading}</h2><div style="font:700 20px var(--sans,inherit);margin:2px 0 4px">${esc(b.title)}</div><div class="zsmall" style="margin:0">${what}${tail}</div>${act}</div>`;
     $app.innerHTML = `<div class="zhead"><b>Corporate Luck by Chance</b></div>
       <div class="zbanner info" role="note"><b>Test only.</b> No game is running. It shows what a guest's phone shows during your ${when === "break" ? "break" : when}.</div>
@@ -89,7 +89,7 @@
   // without a game it uses the sample values in the address: n=<company name> c=<#colour> p=<prize|prize> b=<break title> l=<lucky draw title>. Nothing here ever writes anything. ----------
   function ticketPreview() {
     // names and "how to win" copied from PRIZE_HOUSES in packages/beacon/src/config.ts (a test keeps them identical)
-    const NAMES = {"first":"Champion (1st)","second":"Runner-up (2nd)","third":"3rd place","fourth":"4th place","fifth":"5th place"};
+    const NAMES = {"first":"1st place","second":"2nd place","third":"3rd place","fourth":"4th place","fifth":"5th place"};
     const lin = (h) => { const c = parseInt(h, 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
     const cleanBrand = (b) => {
       if (!b || typeof b !== "object") return null;
@@ -118,16 +118,14 @@
       const luckyTitle = lucky ? lucky.title : d.lucky || "Lucky draw prize";
       const luckyN = lucky && lucky.winners ? lucky.winners : 3;
       $app.innerHTML = `<div class="zhead"><b>Corporate Luck by Chance</b></div>
-        <div class="zbanner info" role="note"><b>PREVIEW.</b> This is a sample screen, not a real game. Nothing is saved, nobody is told, and no game is running.${note ? " " + esc(note) : ""}</div>
+        <div class="zbanner info" role="note"><b>PREVIEW.</b> This is a sample of what players see, not a real game. Nothing is saved, nobody is told, and no game is running.${note ? " " + esc(note) : ""}</div>
         ${brand ? `<div class="zbrand" id="pvbrand">${brand.logo ? `<img class="zblogo" alt="" src="${esc(brand.logo)}">` : ""}${brand.name ? `<b>${esc(brand.name)}</b>` : ""}</div><div class="zpow">Powered by Corporate Luck by Chance</div>` : `<div class="zbrand" id="pvbrand0">CORPORATE LUCK BY CHANCE</div><div class="zsmall" style="margin:4px 0 0">No company name or logo is set yet, so guests see our name. Set yours in the Brand step to see it here.</div>`}
         <div class="zcard"><h2>The play screen <span class="zdemotag">PREVIEW</span></h2>${cardGrid("Sample play screen")}</div>
-        <div class="zcard"><h2>What you can win</h2><ul class="zlist">${prizeLi}</ul></div>
-        <div class="zcard zbreak"><h2>A short break between rounds</h2><div style="font:700 20px var(--sans,inherit);margin:2px 0 4px">${esc(brk ? brk.title : "A message from your organizer")}</div><div class="zsmall" style="margin:0">Please listen to the host. The game continues in ${esc(String(brk && brk.seconds ? brk.seconds : 60))}s.</div></div>
-        <div class="zcard"><h2>Lucky draw</h2><div class="zrow"><span>${esc(luckyTitle)}<br><small class="zsmall" style="margin:0">${luckyN} ${luckyN === 1 ? "person is" : "people are"} picked at random</small></span><i>at the end of the break</i></div></div>`;
+        <div class="zcard"><h2>What you can win</h2><ul class="zlist">${prizeLi}</ul></div>`;
       const b0 = document.getElementById("pvbrand0"); if (b0) { b0.style.background = "#0B5D5B"; b0.style.color = "#ffffff"; }
       const b = document.getElementById("pvbrand"); if (b && brand) { b.style.background = brand.color; b.style.color = brand.fg; }
     }
-    try { document.title = "See what guests see | Corporate Luck by Chance"; } catch {}
+    try { document.title = "See what players see | Corporate Luck by Chance"; } catch {}
     $app.innerHTML = `<p class="zmsg">Loading…</p>`;
     if (!eid) return draw(fromHash(), "");
     fetch(`/api/z/${encodeURIComponent(eid)}/info`, { method: "GET", headers: key ? { "x-organizer": key } : {} })

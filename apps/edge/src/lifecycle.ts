@@ -109,7 +109,7 @@ export async function acceptOver(env: Env, e: any, eid: string, b: any, now: num
   const seat = typeof b?.pid === "string" ? seatOfPid(b.pid) : null;
   if (!b || seat === null) return jsonFn({ error: "Bad report." }, 400);
   const who = await env.DB.prepare("SELECT 1 AS x FROM participant WHERE eid=? AND pid=?").bind(eid, b.pid).first();
-  if (!who) return jsonFn({ error: "Not a participant of this engagement." }, 403);
+  if (!who) return jsonFn({ error: "Not a participant of this game." }, 403);
   const earliest = roundMs(e.start_round + GRACE_ROUNDS) + 20 * e.call_seconds * 1000; // no game ends before 20 numbers
   if (now < earliest) return jsonFn({ ok: true, counted: false });
   if (!(await spend(env, now, 1))) return jsonFn({ error: "Busy day. Please try again after midnight UTC." }, 503);
@@ -212,7 +212,7 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
     const cfg = sch.cfg, endMs = life.end_ms, first = roundMs(sch.start);
     const base = await baseData(env, e, cfg, sch, st, email, now, endMs, first);
     const link = await reportLink(env, eid);
-    const ok = await sendReportMail(env, email, `Your Corporate Luck by Chance engagement report ${eid}: open it before ${istFull(reportLinkUntil(endMs), cfg.tz)}`, bodyFor(eid, base, link), []);
+    const ok = await sendReportMail(env, email, `Your Corporate Luck by Chance game report ${eid}: open it before ${istFull(reportLinkUntil(endMs), cfg.tz)}`, bodyFor(eid, base, link), []);
     if (!ok) return false; // try again at the next call
     st.stage = "done"; await save(); return true;
   }
@@ -221,14 +221,14 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
 
 const bodyFor = (eid: string, d: ReportData, link: string) => [
   `Hello,`, ``,
-  `Your engagement ${eid} has ended. Your complete report is ready: when the game started, how many people took part at each stage, every prize and who won it, the invite tree, all statistics, and the name and mobile number of every participant.`, ``,
+  `Your game ${eid} has ended. Your complete report is ready: when the game started and ended, the rounds and the press window, how many people took part, every prize and who won it, the invite tree, all statistics, and the name and mobile number of every participant.`, ``,
   `Open it here (the PDF is built on your own computer or phone, so this link is all we send):`,
   link, ``,
   `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once ours is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully. Winners confirm the name and mobile number their prize goes to on their own phone; the report shows what they confirmed, whether they changed anything, and whether you have handed the prize over, so open it again after you have ticked "Prize given" in your console.`, ``,
   `What happens to the data:`,
   `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's name, mobile number, seat, join record and invite record from our systems.`,
   `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (which prize, which round, what time, which seat, and the name and mobile number each winner confirmed so the prize can be handed over, with whether it was given).`,
-  `- Everything about this engagement is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
+  `- Everything about this game is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
   `- Backups of our database roll off within ${d.backupDays} days of any deletion.`, ``,
   `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can we.`, ``,
   `You can ask us to delete everything sooner: press Erase in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
@@ -291,9 +291,22 @@ async function baseData(env: LifeEnv, e: any, cfg: EngagementCfg, sch: Awaited<R
   const lucky = cfg.breaks.filter((b) => b.kind === "lucky").map((b, i) => ({ title: b.title, winners: wrows.filter((w: any) => w.pattern === "lucky" && w.ordinal === i + 1).map(winnerOf) }));
   const held = e.pack === 0;
   const early = !held && endMs < (await endBoundMs(env, e)) - 5 * 60_000;
+  // the game itself: when the Organizer or a Host pressed Start, the rounds, the press window and who scored most (the game's own rows keep these; nothing here is computed)
+  let play: ReportData["play"]; let playStart: number | null = null, finished = false, started = false;
+  try {
+    const t = await env.DB.prepare("SELECT state, opts, players, start_ms, result FROM luck_t WHERE eid=?").bind(eid).first<{ state: string; opts: string | null; players: number | null; start_ms: number | null; result: string | null }>();
+    if (t && t.state !== "open") {
+      started = true; finished = t.state === "done" && !!t.result; playStart = t.start_ms;
+      const s = t.opts ? JSON.parse(t.opts) : {};
+      let champion: string | null = null, topPoints: number | null = null;
+      if (t.result) { const top = JSON.parse(t.result).overall?.[0]; if (top) { topPoints = top.points ?? null; champion = (await env.DB.prepare("SELECT name FROM luck_p WHERE eid=? AND seat=?").bind(eid, top.seat).first<{ name: string }>())?.name ?? null; } }
+      play = { rounds: s.rounds ?? 0, diceRounds: s.diceRounds ?? 10, windowSecs: s.windowSecs ?? 0, players: t.players ?? 0, prizes: s.prizeMode === "overall" ? "The overall result" : s.prizeMode === "rounds" ? "Each round" : "Each round and the overall result", champion, topPoints };
+    }
+  } catch { /* the report is still made without the game rows */ }
   return {
-    engagementId: eid, organizerEmail: email, sentAtMs: sentAt, scheduledMs: roundMs(e.start_round), firstNumberMs: first, endMs, wasHeld: held,
-    endReason: held ? "The game did not start." : early ? "Every prize was awarded, so the game ended early." : "All numbers were called (or the organizer ended the game).",
+    engagementId: eid, organizerEmail: email, sentAtMs: sentAt, scheduledMs: roundMs(e.start_round), firstNumberMs: playStart ?? first, endMs, wasHeld: held,
+    endReason: held ? "The game did not start." : finished ? "All dice rounds were played and the phones agreed on the result." : started ? "The game was closed because the phones did not agree on a result." : "The Organizer did not start the game.",
+    ...(play ? { play } : {}),
     rounds: cfg.rounds, callSeconds: e.call_seconds, ticketsPerPerson: cfg.tickets, cap: e.cap, inviteOnly: !!e.closed, numbersCalled: early ? Math.max(1, ...wrows.map((w: any) => (w.idx ?? 0) + 1)) : 75,
     agg: st.agg, people: [], prizes, lucky, timeline: st.tl, breaks: cfg.breaks.map((b) => ({ after: b.after, kind: b.kind, title: b.title })),
     personalDeleteAtMs: personalDeleteAt(endMs), fullDeleteAtMs: fullDeleteAt(endMs), backupDays: BACKUP_DAYS, tz: cfg.tz,
@@ -309,7 +322,7 @@ async function remindReport(env: LifeEnv, e: any, life: any, now: number) {
   const email = contact ? (JSON.parse(contact.v).email as string) : null;
   await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`rptremind/${eid}`, String(now)).run();
   if (!email) return;
-  await sendReportMail(env, email, `Reminder: open your Corporate Luck by Chance report ${eid} before ${istFull(reportLinkUntil(life.end_ms), tzOfRow(e))}`, `Hello,\n\nYour engagement ${eid} report has not been opened yet. The link closes at ${istFull(reportLinkUntil(life.end_ms), tzOfRow(e))} and the participants' details are permanently deleted at ${istFull(personalDeleteAt(life.end_ms), tzOfRow(e))}, and the report cannot be made after that.\n\nOpen it here and save the PDF:\n${await reportLink(env, eid)}\n\nCorporate Luck by Chance`, []);
+  await sendReportMail(env, email, `Reminder: open your Corporate Luck by Chance report ${eid} before ${istFull(reportLinkUntil(life.end_ms), tzOfRow(e))}`, `Hello,\n\nYour game ${eid} report has not been opened yet. The link closes at ${istFull(reportLinkUntil(life.end_ms), tzOfRow(e))} and the participants' details are permanently deleted at ${istFull(personalDeleteAt(life.end_ms), tzOfRow(e))}, and the report cannot be made after that.\n\nOpen it here and save the PDF:\n${await reportLink(env, eid)}\n\nCorporate Luck by Chance`, []);
 }
 
 // ------------------------------------------------------------------------------------------------ games that did not start

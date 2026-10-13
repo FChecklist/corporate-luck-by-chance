@@ -43,7 +43,7 @@ O4 | false | apps/edge/test/pay.test.ts (invoice and mail queued) | Mail is queu
 O5 | false | apps/edge/test/branding.test.ts | Name, colour and logo on the player screen yes; logo upload not re-tested for this product.
 O6 | true | apps/edge/test/roles.test.ts, consent.test.ts (K5) | 
 O7 | false | apps/edge/test/people.test.ts (see and remove) | Remove works; 'end a game' is not built.
-O8 | false |  | The organizer report is still the Bingo report layout; no results section for this game.
+O8 | true | apps/edge/test/no-other-game-words.test.ts | The organizer report now shows the game: when it started and ended, the rounds, the press window, the players, who scored most and the final places. Still plain: no table of every dice round.
 O9 | true | apps/edge/test/cancel.test.ts, reopen.test.ts, reschedule-window.test.ts, credit.test.ts | No refund; credit and 365-day move window.
 O10 | true | apps/edge/test/privacy.test.ts (erase), luck.test.ts R44 | 
 O11 | false | apps/web/public/contact.html | Contact page works (mail link); no auto-reply.
@@ -68,7 +68,7 @@ E1 | false | apps/edge/test/account.test.ts | Queued in the local outbox; not re
 E2 | false | apps/edge/test/pay.test.ts | Same.
 E3 | false | apps/edge/test/people.test.ts | Same.
 E4 | false |  | No reminder mail for the game.
-E5 | false |  | No results mail (the report is the Bingo report).
+E5 | false |  | No separate results mail; the report mail at the end of the game carries the game report.
 E6 | n/a |  | No refunds; a credit mail exists (credit.test.ts).
 E7 | false | apps/edge/test/unplayed.test.ts | Same outbox limit.
 E8 | false |  | No auto-reply.

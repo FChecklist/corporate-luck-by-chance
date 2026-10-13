@@ -135,7 +135,7 @@
       const v = await RUN.fetchView({ pid, device });
       stateNow = v.state;
       if (v.state === "open") {
-        set(`${brand()}${head()}<div class="zcard" role="status"><h2>You are in</h2><p>Waiting for the host to start the game. ${v.joined ? esc(v.joined) + " joined so far." : ""}</p><p class="zsmall">Nobody can know the numbers in advance: the first number is published only when each dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
+        set(`${brand()}${head()}<div class="zcard" role="status"><h2>You are in</h2><p>Waiting for the host to start the game. ${v.joined ? esc(v.joined) + " joined so far." : ""}</p><p class="zsmall">Nobody can know the targets or the dice in advance: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
       } else if (v.phase === "watching") {
         set(`${head()}<div class="zcard" role="status"><h2>${esc(v.message)}</h2><p><a href="/big.html?e=${encodeURIComponent(EID)}">Open the big screen view</a></p></div>`);
       } else {

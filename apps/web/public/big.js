@@ -22,7 +22,7 @@
   async function paint() {
     const v = RUN.view;
     if (!v) { $app.innerHTML = `<p class="msg">${esc(err || "Loading...")}</p>`; return; }
-    if (v.state === "open") { const k = "open" + v.joined; if (k === lastKey) return; lastKey = k; $app.innerHTML = shell("Not started", `<div class="big1"><div class="num">${esc(v.joined)}</div><p>players have joined</p><p class="meta">Waiting for the host to start. The first number of each dice round is published only when that dice round opens.</p></div>`, v.commit); return; }
+    if (v.state === "open") { const k = "open" + v.joined; if (k === lastKey) return; lastKey = k; $app.innerHTML = shell("Not started", `<div class="big1"><div class="num">${esc(v.joined)}</div><p>players have joined</p><p class="meta">Waiting for the host to start. Each target number is published only when its dice round opens.</p></div>`, v.commit); return; }
     const s = RUN.settings(), g = RUN.game, p = RUN.phase(), gi = p.g !== undefined ? p.g : -1;
     const key = [p.kind, gi, p.afterRound || 0, g.done, RUN.targets[gi] || 0, v.agreed ? 1 : 0].join("|");
     if (key === lastKey) return; lastKey = key;
