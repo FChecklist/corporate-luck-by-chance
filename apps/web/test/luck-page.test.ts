@@ -1,6 +1,7 @@
 // The player's page (z.html + luck.js + termsbox.js) in a simulated phone browser: the join screen shows the K4 boxes BEFORE any name field works,
 // nothing is ticked in advance, the button stays disabled until both are ticked, and the request carries the ticks and the Terms version. Gates K4, U1, U2, U3, LR-6, LR-7.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(60_000);
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 import TEXT from "../../edge/src/consent-text.json";

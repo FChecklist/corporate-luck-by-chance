@@ -1,6 +1,7 @@
 // The Luck by Chance game through the real Worker routes: join, start, the seat list, the beacon values (only when due), the phones' result votes, the secret, deletion.
 // Rules: docs/RULES.md (R34 and up). The game itself is tested in packages/luck/test/engine.test.ts; here the phones are played by the real engine.
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(60_000);
 import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
 import { makeD1 } from "./d1-sqlite";

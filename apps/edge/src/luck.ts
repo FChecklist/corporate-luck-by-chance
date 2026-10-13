@@ -8,7 +8,11 @@
 //
 // Routes (all under /api/z/{eid}/luck/):  view (public)  seats (public, after the start)  me (a player)  beacon (public, only values that are due)  start (Organizer or Host)
 //                                         vote (a player)  rank (public)  reveal (public after the game)  tick (platform key / scheduled job)
-import { beaconDueMs, gameEndMs, parseSettings, sha256Hex, totalDiceRounds, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/index";
+// Only scheduling and checking helpers come from the game package: when a number is due (timeline), what an organizer may choose (settings), and the hash for the feed (random).
+// Targets, dice, scores, rankings and prizes are NOT imported here: the phones compute them (apps/edge/test/server-computes-nothing.test.ts keeps it that way).
+import { sha256Hex } from "../../../packages/luck/src/random";
+import { parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/settings";
+import { beaconDueMs, gameEndMs, totalDiceRounds } from "../../../packages/luck/src/timeline";
 import type { Env } from "./worker";
 
 export const LUCK_SCHEMA: string[] = [

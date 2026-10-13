@@ -64,6 +64,7 @@ Fate mode only. In Fate mode the dice is rolled for everybody when the press win
 - R43 Nothing is ever taken from a player: there is no entry-fee field or payment code on any player route, and the game ignores any fee sent to it.
 - R44 24 hours after the end every nickname and every vote is gone; the agreed result keeps only seat numbers until the retention date.
 - R45 A game never reads or writes another game's rows.
+- R58 The server computes nothing about the game: it imports only the timeline, the settings checks and the hash from the game package, never the engine (test: `apps/edge/test/server-computes-nothing.test.ts`). The phones compute targets, dice, scores, rankings and prizes; the server stores, validates, schedules and tallies votes.
 - R46 A player sees their own seat and nickname from their own phone only.
 
 ## H. Product rules (wording and money)

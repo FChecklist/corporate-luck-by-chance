@@ -141,3 +141,13 @@ Earlier deletion: the organizer can press Erase in the console; an AI assistant 
 - `subprocessors.html`/`legal.html` name drand and YouTube; this product uses neither unless an organizer adds a beacon number or a video.
 - Names in non-Latin scripts print as `?` in the PDF report (standard fonts).
 - Deletion is from our live systems within 24 hours of the end; backups roll off within 7 days.
+
+## Corporate Luck by Chance: the game's own tables (migration 0021_luck.sql)
+
+| Table | What it holds | Personal data | Deleted |
+|---|---|---|---|
+| `luck_t` | One row per game: the fingerprint and the sealed secret, the settings, the seed, the start and end time, the agreed result (seat numbers, points, hits, best hit, a one-line tie reason) | None. No names, no numbers, no device ids. | With the game, at the end of day 365 |
+| `luck_p` | The frozen seat list: seat number, the participant id, the nickname the player typed | The nickname | 23 hours after the end of the game (the promise is 24 hours) |
+| `luck_v` | One row per phone that sent a result vote: the participant id, a hash of the result, the result (seat numbers only) | The participant id only | 23 hours after the end of the game |
+
+What the game does NOT keep: any dice, any score or any ranking computed by the server. The phones compute them from public numbers; the server only keeps the result the phones agreed on. No payment code runs on any player route.

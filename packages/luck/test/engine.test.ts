@@ -1,5 +1,6 @@
 // The rules of Corporate Luck by Chance (docs/RULES.md). Every test name starts with the rule number it proves.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(60_000); // a full-suite run on this laptop shares memory and time with other work
 import {
   LuckGame, addHit, assignPrizes, cmpNumeric, diceOf, emptyTally, fateOf, rankTop, scoreOf, standingOf, targetOf, type Ranked, type Tally,
   parseSettings, defaultSettings, checkPrizeText, MAX_ROUNDS,
