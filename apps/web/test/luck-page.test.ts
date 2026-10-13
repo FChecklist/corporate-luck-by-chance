@@ -126,6 +126,15 @@ describe("the play screen (phone first)", () => {
     expect(sent.filter((s) => s.startsWith("POST")).length).toBe(0);
     expect(sent.every((s) => /\/(info|luck\/me|luck\/seats|luck\/beacon)/.test(s))).toBe(true);
   });
+  test("R57: when the game is over the screen shows the final result: places 1 to 5 by nickname with a reason for every decided tie, and the top 10", async () => {
+    const clock = { now: 1_000_000 + 400_000 };
+    const { d } = await openGame(clock, 1); await tick(1500);
+    expect(d.body.textContent).toContain("The game is over");
+    const final = [...d.querySelectorAll(".lt-final li")].map((li: any) => li.textContent as string);
+    expect(final.length).toBe(3); expect(final[0]).toMatch(/^1st: /); expect(final[2]).toMatch(/^3rd: /);
+    for (const li of final) expect(li).toMatch(/\d+ pts/);
+    expect(d.body.textContent).toMatch(/You scored \d+ points/);
+  });
   test("R55: the player page and the big screen use only the engine to draw a number (no Math.random anywhere in the play code)", () => {
     for (const f of ["luck.js", "luck-run.js", "big.js"]) expect([f, /Math\.random/.test(pub(f))]).toEqual([f, false]);
   });

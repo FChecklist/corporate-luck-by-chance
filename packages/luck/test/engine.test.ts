@@ -79,10 +79,10 @@ describe("B. Fair randomness", () => {
       expect(beaconDueMs(s, start, 2 * (g + 1))).toBeGreaterThanOrEqual(revealEndMs(s, start, g)); // published after the previous dice round ended
     }
   });
-  test("R11: targets and dice are spread evenly over 1 to 6 (6,000 draws each)", async () => {
+  test("R11: targets and dice are spread evenly over 1 to 6 (10,000 draws each)", async () => {
     const t = [0, 0, 0, 0, 0, 0], d = [0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < 6000; i++) { t[(await targetOf("U", i, await beacon(i, "u"))) - 1]!++; d[(await diceOf("U", i % 97, i, await beacon(i, "v"))) - 1]!++; }
-    for (let v = 0; v < 6; v++) { expect(t[v]!).toBeGreaterThan(800); expect(t[v]!).toBeLessThan(1200); expect(d[v]!).toBeGreaterThan(800); expect(d[v]!).toBeLessThan(1200); }
+    for (let i = 0; i < 10000; i++) { t[(await targetOf("U", i, await beacon(i, "u"))) - 1]!++; d[(await diceOf("U", i % 97, i, await beacon(i, "v"))) - 1]!++; }
+    for (let v = 0; v < 6; v++) { expect(t[v]!).toBeGreaterThan(1450); expect(t[v]!).toBeLessThan(1880); expect(d[v]!).toBeGreaterThan(1450); expect(d[v]!).toBeLessThan(1880); }
   });
   test("R12: two players in the same dice round roll independently (seats do not all roll the same)", async () => {
     const seen = new Set<number>(); for (let seat = 0; seat < 60; seat++) seen.add(await diceOf(GID, seat, 3, "same-beacon"));
