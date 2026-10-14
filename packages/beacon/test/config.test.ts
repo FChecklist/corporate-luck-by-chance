@@ -12,6 +12,8 @@ const pids = Array.from({ length: 400 }, (_, i) => "q" + i);
 const ok = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); if (!v.ok) throw new Error(v.error); return v.cfg; };
 const bad = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); expect(v.ok).toBe(false); return (v as any).error as string; };
 
+/** The older all-numbers pattern of the shared ticket code: not one of this game's places, so the tests below name it through `never`. */
+const BLACKOUT = "blackout" as never;
 describe("engagement settings", () => {
   test("nothing set gives one card, the three default places with no text, auto marking and no breaks", () => {
     const c = ok({});
@@ -75,14 +77,14 @@ describe("two cards", () => {
   });
   test("a house is completed by the better of the two cards", () => {
     const tk = ticketsFor(E, "q5", 2);
-    const single = tk.map((t) => completionIndexKey([t], "blackout", LOG));
-    expect(completionIndexKey(tk, "blackout", LOG)).toBe(Math.min(...single));
+    const single = tk.map((t) => completionIndexKey([t], BLACKOUT, LOG));
+    expect(completionIndexKey(tk, BLACKOUT, LOG)).toBe(Math.min(...single));
   });
   test("still to win counts the nearer card", () => {
     const tk = ticketsFor(E, "q6", 2); const part = LOG.slice(0, 25);
     const left = (t: any) => ticketNumbers(t).filter((n) => !part.includes(n)).length;
-    expect(stillToWin(tk, "blackout", part)).toBe(Math.min(left(tk[0]), left(tk[1])));
-    expect(stillToWin(tk, "blackout", LOG)).toBe(0);
+    expect(stillToWin(tk, BLACKOUT, part)).toBe(Math.min(left(tk[0]), left(tk[1])));
+    expect(stillToWin(tk, BLACKOUT, LOG)).toBe(0);
   });
 });
 

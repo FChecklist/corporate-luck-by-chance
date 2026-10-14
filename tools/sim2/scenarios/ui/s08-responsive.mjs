@@ -39,7 +39,7 @@ for (const w of WIDTHS) {
     id: `S08-G${w}`, name: `Game pages at ${w} px: join form, ticket, waiting, big screen, preview, pay page, pay link, cancelled game`,
     async run(t) {
       const org = await t.org("o");
-      const g = await t.game(org, { settings: { whoCanJoin: "list", invites: { on: true, per: 2, cats: ["family"] }, brand: { name: "Sim Industries", color: "#6A1B9A" } }, cfg: { opening: [{ kind: "speech", title: "Hello from the sim", seconds: 15 }] }, pay: true });
+      const g = await t.game(org, { settings: { whoCanJoin: "list", invites: { on: true, per: 2, cats: ["family"] }, brand: { name: "Sim Industries", color: "#6A1B9A" } }, pay: true });
       const unpaid = await t.game(org, { pay: false, settings: { whoCanJoin: "anyone" } });
       const link = (await org.api("POST", `/api/z/${unpaid.id}/paylink`, {})).body.url;
       const dead = await t.game(org, { pay: false }); await org.cancel(dead.id);

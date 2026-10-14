@@ -1,6 +1,6 @@
 // The phone-side game: everything a phone (or the organizer's console) needs to play and to check an engagement
 // from the public beacon alone. Pure and deterministic: no server, no phone clock.
-import { generateTicket, type PatternId, type Ticket } from "../../shared/src/ticket";
+import { generateTicket, type Ticket } from "../../shared/src/ticket";
 import { INTERMISSION_ROUNDS, PATTERN_ORDER, breakShift, defaultCfg, keysInPlay, linesFor, roundEid, type BreakCfg, type EngagementCfg, type PatternKey } from "./config";
 import type { ControlState } from "./control";
 import { ticketCompletion, ticketStillNeeds } from "./house-rules";
@@ -9,7 +9,7 @@ import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 import { positionOf, seatOfPid, ticketAt } from "./unique-ticket";
 import { NUMBERS, fetchRound, pickNumber, seededRand, verifyRound, type BeaconOpts, type Round } from "./index";
 
-export const ALL_PATTERNS: readonly PatternId[] = PATTERN_ORDER;
+export const ALL_PATTERNS: readonly PatternKey[] = PATTERN_ORDER; // the places of this game ("first" to "fifth"); PatternId is the older ticket-pattern type
 
 /** The same card on every device for (engagement, participant). The first card keeps its original seed so existing links never change. */
 export const ticketFor = (engagementId: string, pid: string): Ticket => {
