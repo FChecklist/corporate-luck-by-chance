@@ -158,7 +158,7 @@ describe("bring my people list", () => {
     expect(rows).toHaveLength(4); expect(rows.every((x) => x.status === "invited" && x.inviter === "o")).toBe(true);
     expect(rows.every((x) => !old.includes(x.tok_hash))).toBe(true); // different links
     expect(new Set(rows.map((x) => x.tok_hash)).size).toBe(4);
-    expect(JSON.stringify(rows)).not.toMatch(/Ben|Chitra|Asha|Dev|987654/); // still sealed
+    expect(rows.every((x) => /^v1\./.test(x.pii))).toBe(true); expect(JSON.stringify(rows.map(({ pii, ...rest }) => rest))).not.toMatch(/Ben|Chitra|Asha|Dev|987654/); // still sealed (the sealed text is random base64, which can contain "Ben" by chance, so only its prefix is checked)
     const list = await j(await call("GET", `/api/z/${b.id}/people`, undefined, t.master));
     expect(list.people.map((x: any) => x.name).sort()).toEqual(["Asha", "Ben", "Chitra", "Dev"]); expect(list.people.every((x: any) => x.link.startsWith("https://bingo.test/j/") && x.status === "invited")).toBe(true);
     expect(count("SELECT COUNT(*) AS c FROM person WHERE eid='OLD-1'")).toBeGreaterThanOrEqual(3); // the old game keeps its own
