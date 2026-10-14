@@ -1,20 +1,137 @@
-/* Corporate Luck by Chance: styles for the player's page (z.html), the host page (host.html) and the demo. Phone first. */
+/* Corporate Luck by Chance: styles for the player's page (z.html), the host page (host.html) and the demo. Phone first.
+   The dice itself is drawn in luck-dice.css. Colours: each dice face has its own; target = gold, a match = green and gold, a miss = calm blue, score = navy. All text is AA or better. */
+.zapp{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));padding-bottom:max(40px,calc(env(safe-area-inset-bottom) + 24px))}
 .lt-play{text-align:center}
+.lt-game{--hit:#1F7A55;--hitbg:#E2F6E9;--hitink:#0E4A31;--missbg:#E8EEF8;--missink:#223859;--goldink:#4A3300;--navy:#14284B;display:grid;gap:8px;margin:2px 0 0}
+.lt-game .lt-c1{color:#B71C1C}.lt-game .lt-c2{color:#0D47A1}.lt-game .lt-c3{color:#1B5E20}.lt-game .lt-c4{color:#4A148C}.lt-game .lt-c5{color:#BF360C}.lt-game .lt-c6{color:#00574B}
+/* the top row: which round, and the score */
+.lt-top{display:flex;align-items:center;gap:10px}
+.lt-prog{flex:1;min-width:0}
+.lt-progt{margin:0 0 5px;font:700 14px/1.2 var(--sans,inherit);color:var(--ink)}
+.lt-segs{display:flex;gap:3px;list-style:none;margin:0;padding:0}
+.lt-segs li{flex:1;min-width:0;height:10px;border-radius:5px;background:#fff;border:2px solid #8397B3}
+.lt-segs li.hit{background:var(--hit);border-color:var(--hit)}
+.lt-segs li.miss{background:#7487A4;border-color:#7487A4}
+.lt-segs li.now{background:#FFE0CC;border-color:#C2410C}
+.lt-score{flex:0 0 auto;display:grid;justify-items:center;min-width:80px;padding:6px 12px 5px;border-radius:14px;background:var(--navy);color:#fff}
+.lt-score-k{font:700 12px/1.1 var(--sans,inherit);letter-spacing:.08em;text-transform:uppercase;color:#CFE0FF}
+.lt-score b{font:800 28px/1.05 var(--sans,inherit);color:#FFD54F;font-variant-numeric:tabular-nums;display:inline-block}
+.lt-score b.bump{animation:lt-bump .4s ease-out}
+/* the target: first thing a player reads */
+.lt-targetp{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:16px;background:#FFF4CC;border:2px solid #D99A00;text-align:left}
+.lt-tface{flex:0 0 auto;display:grid;place-items:center;width:64px;height:64px;border-radius:18px;background:#fff;border:2px solid #D99A00;--m:48px}
+.lt-tface.lt-tnone{font:800 32px/1 var(--sans,inherit);color:var(--goldink)}
+.lt-ttext{min-width:0}
+.lt-tk{margin:0;font:700 12px/1.2 var(--sans,inherit);letter-spacing:.07em;text-transform:uppercase;color:var(--goldink)}
+.lt-tn{margin:1px 0 0;font:700 18px/1.2 var(--sans,inherit);color:var(--goldink)}
+.lt-tn b{font:800 30px/1 var(--sans,inherit);margin-left:4px;vertical-align:-2px}
+.lt-ts{margin:3px 0 0;font:500 14px/1.3 var(--sans,inherit);color:var(--goldink)}
+/* the dice and the number that comes beside it */
+.lt-stage{--ld-size:clamp(84px,min(30vw,18vh),120px);position:relative;display:flex;align-items:center;justify-content:center;gap:clamp(14px,6vw,30px);padding:16px 10px 24px;border-radius:20px;background:linear-gradient(180deg,#fff,#EAF2FF);border:2px solid #B9CBE6;overflow:hidden}
+.lt-stage:focus{outline:none}
+.lt-stage:focus-visible{outline:4px solid #1D4ED8;outline-offset:2px}
+.lt-stage[data-res="hit"]{background:linear-gradient(180deg,#FFFBE3,#FFE9A3);border-color:#D99A00}
+.lt-stage[data-res="miss"]{background:linear-gradient(180deg,#F4F7FC,#E3EBF7);border-color:#8AA0BE}
+.lt-diebox{position:relative;flex:0 0 auto;width:var(--ld-size);height:var(--ld-size)}
+.lt-said{min-width:0;flex:0 1 128px;text-align:center}
+.lt-said-k{margin:0;font:700 13px/1.2 var(--sans,inherit);letter-spacing:.08em;text-transform:uppercase;color:#46585D}
+.lt-said-n{margin:0;font:800 clamp(56px,17vw,84px)/1.05 var(--sans,inherit);color:#46585D;font-variant-numeric:tabular-nums}
+.lt-stage[data-fresh] .lt-said-n{animation:lt-bump .4s ease-out}
+/* what happened */
+.lt-verdict{margin:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6px 12px;border-radius:14px;font:800 20px/1.2 var(--sans,inherit);color:var(--ink)}
+.lt-verdict small{font:600 14px/1.3 var(--sans,inherit)}
+.lt-verdict.wait{font:600 16px/1.3 var(--sans,inherit);color:var(--ink2)}
+.lt-verdict.hit{background:#FFD54F;color:#3B2A00;font-size:24px}
+.lt-verdict.miss{background:#DCE6F5;color:var(--missink)}
+.lt-stage[data-fresh] ~ .lt-verdict.hit{animation:lt-bang .4s ease-out}
+.lt-clock{margin:0;text-align:center;font:700 17px/1.2 var(--sans,inherit);color:var(--ink)}
+.lt-clock:empty{display:none}
+/* the small "Notify me" button of the page (pwa.js) is not shown while a dice round is on screen: it must never sit on the Press button or the header */
+body:has(.zapp) #cb-notify{display:none!important}
+#cd{display:inline-block;min-width:1.1em;text-align:center;font-variant-numeric:tabular-nums}
+/* the button: big, one thumb, not a thing that can be missed */
+.lt-press{display:block;width:100%;max-width:360px;justify-self:center;min-height:68px;margin:2px auto 4px;padding:0 16px;border:0;border-radius:22px;background:#C2410C;color:#fff;font:800 24px/1.1 var(--sans,inherit);touch-action:manipulation;cursor:pointer;box-shadow:0 6px 0 #7C2D12}
+.lt-press:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #7C2D12}
+.lt-press:focus-visible{outline:4px solid #1D4ED8;outline-offset:3px}
+.lt-press:disabled{background:#DDE6F2;color:#1B2B45;box-shadow:none;cursor:default}
+.lt-press.next{background:var(--navy);box-shadow:0 6px 0 #070F20}
+.lt-hint{margin:0;text-align:center;font:500 13px/1.35 var(--sans,inherit);color:#46585D}
+/* the history: one small chip per dice round */
+.lt-chipsw{margin:12px 0 0}
+.lt-chipsh{margin:0 0 6px;font:700 13px/1.2 var(--sans,inherit);color:var(--ink2)}
+.lt-chips{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.lt-chips:empty::before{content:"Each dice round you play shows up here.";font:500 13px/1.3 var(--sans,inherit);color:#46585D}
+.lt-chip{--m:22px;display:inline-flex;flex:0 0 auto;white-space:nowrap;align-items:center;gap:5px;padding:4px 10px 4px 6px;border-radius:999px;border:2px solid;font:800 14px/1 var(--sans,inherit)}
+.lt-chip.hit{background:#E2F6E9;border-color:#1F7A55;color:#0E4A31}
+.lt-chip.miss{background:#E8EEF8;border-color:#8AA0BE;color:#223859}
+.lt-chip .lt-ar{font-size:13px;opacity:.75}
+.lt-ic{width:14px;height:14px;flex:0 0 auto}
+.lt-chip.fresh{animation:lt-bump .4s ease-out}
+/* colour burst when the dice matches */
+.lt-burst{position:absolute;inset:0;pointer-events:none}
+.lt-conf{position:absolute;left:50%;top:50%;width:9px;height:14px;margin:-7px 0 0 -4px;border-radius:2px;background:var(--c,#F2B705);opacity:0}
+.lt-stage[data-res="hit"][data-fresh] .lt-conf{animation:lt-fly 1.2s cubic-bezier(.15,.7,.3,1) forwards}
+.lt-conf:nth-child(1){--dx:82px;--dy:-8px;--r:180deg;--c:#C62828}
+.lt-conf:nth-child(2){--dx:85px;--dy:51px;--r:227deg;--c:#1565C0}
+.lt-conf:nth-child(3){--dx:86px;--dy:78px;--r:274deg;--c:#2E7D32}
+.lt-conf:nth-child(4){--dx:7px;--dy:74px;--r:321deg;--c:#F2B705}
+.lt-conf:nth-child(5){--dx:-12px;--dy:91px;--r:368deg;--c:#6A1B9A}
+.lt-conf:nth-child(6){--dx:-89px;--dy:75px;--r:415deg;--c:#D84315}
+.lt-conf:nth-child(7){--dx:-70px;--dy:39px;--r:462deg;--c:#00796B}
+.lt-conf:nth-child(8){--dx:-101px;--dy:-13px;--r:509deg;--c:#C62828}
+.lt-conf:nth-child(9){--dx:-115px;--dy:-37px;--r:16deg;--c:#1565C0}
+.lt-conf:nth-child(10){--dx:-42px;--dy:-64px;--r:63deg;--c:#2E7D32}
+.lt-conf:nth-child(11){--dx:-33px;--dy:-87px;--r:110deg;--c:#F2B705}
+.lt-conf:nth-child(12){--dx:43px;--dy:-103px;--r:157deg;--c:#6A1B9A}
+.lt-conf:nth-child(13){--dx:44px;--dy:-62px;--r:204deg;--c:#D84315}
+.lt-conf:nth-child(14){--dx:97px;--dy:-28px;--r:251deg;--c:#00796B}
+@keyframes lt-fly{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--r)) scale(1)}}
+@keyframes lt-bump{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
+@keyframes lt-bang{0%{transform:scale(.92);opacity:.4}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}
+@keyframes lt-fadein{from{opacity:.2}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .lt-conf{display:none}
+  .lt-score b.bump,.lt-stage[data-fresh] .lt-said-n,.lt-chip.fresh{animation:none}
+  .lt-stage[data-fresh] ~ .lt-verdict.hit{animation:lt-fadein .2s ease-out}
+  .lt-press:active:not(:disabled){transform:none}
+}
+/* small phones (320 px) and short screens */
+@media (max-width:350px){
+  .lt-tface{width:56px;height:56px;--m:42px}
+  .lt-tn{font-size:16px}.lt-tn b{font-size:26px}.lt-ts{font-size:13px}
+  .lt-score{min-width:70px;padding:5px 9px 4px}.lt-score b{font-size:24px}
+  .lt-press{font-size:22px}
+}
+@media (max-height:600px) and (orientation:portrait){
+  .lt-game{gap:6px}
+  .lt-stage{padding:10px 10px 18px}
+  .lt-verdict{min-height:46px}
+  .lt-hint{display:none}
+}
+/* phone on its side: two columns, the dice and the button on the right */
+@media (orientation:landscape) and (max-height:520px){
+  .zapp:has(.lt-game) .zhead{display:none}
+  .zapp{display:block;max-width:760px;margin:0 auto;min-height:0;padding:max(8px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  .lt-game{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;grid-template-areas:"top stage" "tgt stage" "clock verdict" "hint btn";align-items:start}
+  .lt-top{grid-area:top}.lt-targetp{grid-area:tgt}.lt-stage{grid-area:stage;align-self:stretch;--ld-size:clamp(64px,24vh,104px);padding:12px 10px 18px}.lt-verdict{grid-area:verdict;min-height:46px}.lt-clock{grid-area:clock}.lt-press{grid-area:btn;margin-top:0;min-height:60px}.lt-hint{grid-area:hint}
+}
+/* a very short screen on its side (a phone with the address bar showing): everything tighter so the button is still on the first screen */
+@media (orientation:landscape) and (max-height:420px){
+  .lt-play>h2{display:none}
+  .zcard.lt-play{padding:8px 10px;margin:6px 0}
+  .lt-game{gap:6px;column-gap:12px;grid-template-areas:"top stage" "tgt stage" "clock verdict" "clock btn"}
+  .lt-hint{display:none}
+  .lt-targetp{padding:6px 10px;gap:10px}
+  .lt-tface{width:50px;height:50px;--m:38px}
+  .lt-tk{font-size:12px}.lt-tn{font-size:16px}.lt-tn b{font-size:24px}.lt-ts{font-size:13px;margin-top:2px}
+  .lt-stage{--ld-size:clamp(60px,22vh,92px);padding:8px 8px 14px;gap:12px}
+  .lt-said-n{font-size:clamp(44px,16vh,64px)}
+  .lt-verdict{min-height:40px;padding:4px 10px;font-size:18px}.lt-verdict.hit{font-size:20px}.lt-verdict small{font-size:13px}
+  .lt-press{min-height:52px;font-size:20px}
+  .lt-clock{align-self:center}
+}
+/* older screens of the page */
 .lt-info{margin:0 0 6px;color:var(--muted);font-size:14px}
-.lt-label{margin:6px 0 0;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:var(--muted)}
-.lt-target{font:800 clamp(120px,46vw,220px)/1 var(--sans,inherit);color:var(--pri);margin:0 0 4px;font-variant-numeric:tabular-nums}
-.lt-target.hit{color:var(--ok)}
-.lt-target.miss{color:var(--muted)}
-.lt-clock{margin:0 0 12px;font-size:20px;font-weight:700;color:var(--ink)}
-#cd{display:inline-block;min-width:1.6em;font-variant-numeric:tabular-nums}
-.lt-dice{display:block;width:100%;max-width:340px;min-height:96px;margin:6px auto;border:0;border-radius:24px;background:var(--pri);color:#fff;font:800 26px/1.2 var(--sans,inherit);touch-action:manipulation;box-shadow:0 6px 0 rgba(0,0,0,.25)}
-.lt-dice:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
-.lt-dice:focus-visible{outline:4px solid var(--acc);outline-offset:3px}
-.lt-dice:disabled{opacity:1;background:var(--sunk,#E9F2F1);color:var(--ink);box-shadow:none}
-.lt-dice.pressed{animation:lt-roll .5s linear infinite}
-@keyframes lt-roll{0%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}100%{transform:rotate(-2deg)}}
-@media (prefers-reduced-motion:reduce){.lt-dice.pressed{animation:none}}
-.lt-result{font-size:20px;font-weight:700;margin:4px 0}
 .lt-totals{margin:10px 0 0;font-size:16px}
 .lt-list{margin:0;padding-left:1.6em}
 .lt-list li{margin:8px 0}
@@ -22,6 +139,7 @@
 .lt-pts{color:var(--muted);font-variant-numeric:tabular-nums}
 .lt-prize{display:block;font-size:14px;color:var(--ink)}
 .lt-final li{font-size:18px}
+.lt-hero{display:flex;justify-content:center;padding:6px 0 14px;--ld-size:92px}
 .trank{margin:0;padding-left:1.4em}.trank li{margin:6px 0}.trank small{display:block;color:var(--muted);font-size:12px}
 .tcen{text-align:center}
 .tcheck{display:flex!important;gap:8px;align-items:flex-start;margin:10px 0;font-size:14px;color:var(--ink)!important}
@@ -39,3 +157,53 @@
 .hprize label{font-size:14px}
 .hprize input{min-height:40px}
 .hbad{background:var(--bad,#B3261E)}
+.offh{margin:0 0 8px;font:700 24px/1.2 var(--sans,inherit);color:var(--ink)}
+/* ---- the lively layer: a green felt table under the dice, colour on every screen, short animations (200 to 400 ms, none with reduce-motion) ---- */
+.lt-stage{background:radial-gradient(ellipse at 30% 35%,#198058 0,#167050 50%,#0F4A38 100%);border:3px solid #0B3E2F;box-shadow:inset 0 0 0 3px rgba(255,255,255,.08),0 6px 14px rgba(11,62,47,.28)}
+.lt-stage[data-res="hit"]{background:radial-gradient(ellipse at 30% 35%,#FFF0A8 0,#FFD54F 48%,#F5A623 100%);border-color:#B87400}
+.lt-stage[data-res="miss"]{background:radial-gradient(ellipse at 30% 35%,#4F72AE 0,#41639C 50%,#2F4A78 100%);border-color:#22385C}
+.lt-said-k{color:#fff}
+.lt-said-n{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.28)}
+.lt-stage[data-res="hit"] .lt-said-k{color:#4A3300}
+.lt-stage[data-res="hit"] .lt-said-n{color:#2D1F00;text-shadow:none}
+.lt-burst::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:5px solid #FFF3B0;opacity:0}
+.lt-stage[data-res="hit"][data-fresh] .lt-burst::after{animation:lt-ring .8s ease-out forwards}
+.lt-game.enter{animation:lt-in .28s ease-out}
+.lt-game.enter .lt-targetp{animation:lt-flip .38s ease-out}
+.lt-press{transition:transform .08s,box-shadow .08s}
+.lt-press.tap{animation:lt-tap .22s ease-out}
+@keyframes lt-ring{0%{opacity:.95;transform:scale(.4)}100%{opacity:0;transform:scale(5.5)}}
+@keyframes lt-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes lt-flip{0%{transform:rotateX(70deg) scale(.96);opacity:.2}100%{transform:none;opacity:1}}
+@keyframes lt-tap{0%{transform:scale(1)}40%{transform:scale(.95)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  .lt-game.enter,.lt-game.enter .lt-targetp,.lt-press.tap,.lt-stage[data-res="hit"][data-fresh] .lt-burst::after{animation:none}
+  .lt-press{transition:none}
+}
+/* every screen of the player's page */
+.zhead{background:linear-gradient(90deg,#0B5D5B,#1B8660 70%,#2BA57A);border-radius:16px;padding:8px 12px;box-shadow:0 3px 0 rgba(6,59,58,.35)}
+.zhead b{color:#fff}
+.zhead b::before{border-radius:8px;box-shadow:0 0 0 2px rgba(255,255,255,.6)}
+.zapp .zcard{border:2px solid #CFE3DE;border-top:5px solid #F2B705;border-radius:16px;box-shadow:0 4px 0 rgba(15,29,28,.05)}
+.lt-count{display:flex;align-items:baseline;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;color:var(--ink)}
+.lt-count span{font:700 17px/1.2 var(--sans,inherit)}
+.lt-count b{font:800 clamp(56px,20vw,84px)/1 var(--sans,inherit);color:#C2410C;font-variant-numeric:tabular-nums;min-width:1.3em;text-align:center}
+.lt-wait{text-align:center;background:linear-gradient(180deg,#FFFDF9,#EAF6F1)}
+.lt-wait .lt-hero{--ld-size:104px}
+.lt-pill{display:inline-block;margin:4px 0;padding:6px 14px;border-radius:999px;background:#14284B;color:#FFD54F;font:800 15px/1.2 var(--sans,inherit)}
+.lt-list li::marker{font-weight:800;color:#46585D}
+.lt-list li:nth-child(1)::marker{color:#8A6500}.lt-list li:nth-child(2)::marker{color:#4B5563}.lt-list li:nth-child(3)::marker{color:#8A4A1D}
+.lt-list li.me{background:#FFF4CC;box-shadow:inset 0 0 0 2px #F2B705}
+.lt-final{list-style:none;padding:0}
+.lt-final li{margin:8px 0;padding:10px 12px;border-radius:14px;background:#EAF2F1;color:var(--ink)}
+.lt-final li:nth-child(1){background:linear-gradient(90deg,#FFE9A3,#FFD54F);color:#3B2A00;font-size:20px}
+.lt-final li:nth-child(2){background:#E3E8EF;color:#1F2A37}
+.lt-final li:nth-child(3){background:#F6D9BE;color:#4A2A10}
+.lt-final li small,.lt-final li .lt-pts,.lt-final li .lt-prize{color:inherit}
+.lt-final li.me{box-shadow:inset 0 0 0 3px #14284B;padding:10px 12px;border-radius:14px}
+.lt-fin{margin:0 0 10px;font:600 17px/1.35 var(--sans,inherit)}
+.lt-fin b{font:800 38px/1 var(--sans,inherit);color:#C2410C;margin:0 2px;font-variant-numeric:tabular-nums}
+/* the buttons of the join form and the other screens look like the Press button */
+.zapp .zbtn:not(:disabled){background:#C2410C;box-shadow:0 5px 0 #7C2D12;border-radius:18px}
+.zapp .zbtn:not(:disabled):active{transform:translateY(3px);box-shadow:0 2px 0 #7C2D12}
+.zapp .zbtn:disabled{background:#DDE6F2;color:#1B2B45;box-shadow:none}

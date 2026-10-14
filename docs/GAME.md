@@ -20,15 +20,18 @@ The product description is `docs/SPEC.md`.
 
 | Page | For | Script |
 |---|---|---|
-| `z.html` | the player (phone) | `luck.js`, `luck-run.js`, `luck-engine.js` |
-| `big.html` | the big screen (no sign-in) | `big.js`, `luck-run.js`, `luck-engine.js` |
+| `z.html` | the player (phone): the target, the rolling dice, the score | `luck.js`, `luck-dice.js` (the drawn dice, its roll and landing, the words), `luck-dice.css`, `luck.css`, `luck-run.js`, `luck-engine.js` |
+| `big.html` | the big screen (no sign-in): the target as a dice face and a number | `big.js`, `luck-dice.js`, `luck-run.js`, `luck-engine.js` |
 | `host.html` | the host: choose rounds, press window and prizes, start | `host.js` |
-| `demo.html` | try five dice rounds on one page | `demo.js` |
+| `demo.html` | try five dice rounds on one page (works with no connection once opened) | `demo.js`, `luck-dice.js` |
+| `offline.html` | the plain page the installed app shows when a page is not saved and there is no connection | |
 
 ## Tests
 
 - `bun test packages/luck` (the game, R01 to R33).
 - `bun test apps/edge/test/luck.test.ts` (the game through the real Worker routes, R34 to R47).
 - `bun test apps/web/test/luck-page.test.ts` (the join screen and the play screen in a simulated phone browser).
+- `bun test apps/web/test/luck-dice.test.ts` (the dots of every face, the cube, the roll and landing, the colours' contrast, a whole demo) and `apps/web/test/pwa.test.ts` (the installable app).
+- `node tools/sim2/scenarios/ui/run.mjs --only S11-` (real Chrome: the installable app and offline page, a dice round at 320, 360 and 430 px, forced outcomes with accessibility checks, the real player page, every phone size).
 - `bun tools/sim2/luck-sim.ts` (1,000 phones, a full game).
 - One heavy command at a time on this laptop. See `docs/RUNNING.md`.

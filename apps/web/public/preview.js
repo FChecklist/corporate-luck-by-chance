@@ -4,7 +4,7 @@
 (function () {
   "use strict";
   const $app = document.getElementById("app");
-  const cardGrid = (label) => `<div class="lt-play" role="group" aria-label="${label}"><p class="lt-label">Target</p><div class="lt-target">4</div><p class="lt-clock">10 s left to press</p><button class="lt-dice" type="button" disabled>Press the dice</button></div>`;
+  const cardGrid = (label) => '<div class="lt-play" role="group" aria-label="' + label + '">' + window.LuckDice.playHtml({ roundText: "Round 1 of 10", segs: ["now", "later", "later", "later", "later", "later", "later", "later", "later", "later"], kicker: "Dice round 1 of 10", target: 4, total: 0, status: "Press the dice to roll it.", clock: "10 s left to press", button: { text: "Press the dice", disabled: true }, hint: "Every dice lands at the same moment, when the timer ends.", chips: [] }) + '</div>';
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const q = new URLSearchParams(location.hash.replace(/^#/, ""));
   if (q.get("w") === "card" || q.get("w") === "player") { ticketPreview(); return; }

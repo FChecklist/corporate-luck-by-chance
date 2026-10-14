@@ -72,44 +72,81 @@
 
 
   // ---------- the game: this phone plays it from the public numbers ----------
+  // The numbers (target, dice, points) come from the engine, exactly as before. This part only SHOWS them: the target first, a dice that tumbles while the window is open
+  // and slows down onto the number when the window closes, then what it scored (luck-dice.js).
   const RUN = window.LuckRun.create({ base: BASE, eid: EID });
-  const LE = window.LuckEngine;
+  const LE = window.LuckEngine, LD = window.LuckDice;
   const pressed = {};
-  let lastKey = "", stateNow = "", cdTimer = null;
+  let lastKey = "", stateNow = "", cdTimer = null, lastV = null, usedKeys = false, toldTarget = "", shownGi = -2;
   const secsTo = (ms) => Math.max(0, Math.ceil((ms - RUN.now()) / 1000));
   const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"));
   const listHtml = (rows, mine) => (rows && rows.length ? `<ol class="trank lt-list">${rows.map((x) => `<li${x.seat === mine ? ' class="me"' : ""}><b>${esc(RUN.nameOf(x.seat))}</b> <span class="lt-pts">${x.points} pts</span>${x.line ? `<small>${esc(x.line)}</small>` : ""}</li>`).join("")}</ol>` : "");
   const prizeFor = (settings, which, place) => { const t = which === "overall" ? settings.prizes.overall : settings.prizes.rounds[which - 1]; return (t && t[place - 1]) || ""; };
+  document.addEventListener("keydown", (e) => { if (e.key === "Tab" || e.key === "Enter" || e.key === " ") usedKeys = true; });
+  document.addEventListener("pointerdown", () => { usedKeys = false; });
+  const keyOf = (v) => { const p = RUN.phase(), gi = p.g !== undefined ? p.g : -1; return [p.kind, gi, p.afterRound || 0, gi >= 0 && pressed[gi] ? 1 : 0, RUN.game ? RUN.game.done : 0, RUN.game ? RUN.game.finished : 0, RUN.targets[gi] || 0, RUN.error ? 1 : 0, v.agreed ? 1 : 0].join("|"); };
+  // the dice rounds of the round that dice round gi belongs to, as small chips; only those BEFORE index `upTo` (the one that is landing now is added when it has landed)
+  const chipsOf = (g, s, seat, gi, upTo) => { const first = (LE.roundOf(s, gi) - 1) * s.diceRounds, out = []; for (let i = first; i < upTo; i++) { const r = g.results[i]; if (!r) continue; const d = r.dice[seat]; out.push({ no: LE.diceNoOf(s, i), t: r.target, d, hit: d === r.target, pts: r.points[seat] || 0 }); } return out; };
+  const segsOf = (g, s, seat, gi, upTo) => { const first = (LE.roundOf(s, gi) - 1) * s.diceRounds, out = []; for (let k = 0; k < s.diceRounds; k++) { const i = first + k, r = i < upTo ? g.results[i] : null; out.push(r ? (r.dice[seat] === r.target ? "hit" : "miss") : i === gi ? "now" : "later"); } return out; };
 
   async function paint(v) {
+    lastV = v;
     const g = RUN.game, s = RUN.settings(), p = RUN.phase(), seat = v.you ? v.you.seat : -1;
     const gi = p.g !== undefined ? p.g : -1;
-    const key = [p.kind, gi, p.afterRound || 0, gi >= 0 && pressed[gi] ? 1 : 0, g.done, RUN.targets[gi] || 0, RUN.error ? 1 : 0, v.agreed ? 1 : 0].join("|");
+    const key = keyOf(v);
     if (key === lastKey) return; lastKey = key;
-    const info = gi >= 0 ? `Dice round ${LE.diceNoOf(s, gi)} of ${s.diceRounds}, round ${LE.roundOf(s, gi)} of ${s.rounds}` : "";
     const me = seat >= 0 ? g.total[seat] : null;
     const roundTotal = me && gi >= 0 ? g.roundTallies[LE.roundOf(s, gi) - 1][seat].points : 0;
     const totals = me ? `<p class="lt-totals">This round <b>${roundTotal}</b> &middot; Total <b>${me.points}</b>${g.done ? ` &middot; ${standing(seat)}` : ""}</p>` : "";
     const noise = RUN.error ? `<p class="zsmall tcen" role="status">Connecting again...</p>` : "";
-    let body = "";
-    if (p.kind === "before") body = `<div class="zcard" role="status"><h2>The game starts in <span id="cd" data-until="${v.startMs}">${secsTo(v.startMs)}</span> s</h2><p>${s.rounds} rounds of ${s.diceRounds} dice rounds. In each one a target number appears. Press the dice. If your dice shows the target you score that many points, otherwise nothing. Pure luck: nobody can know a result in advance.</p><p class="zsmall">Keep this page open.</p></div>`;
-    else if (p.kind === "window") {
-      const t = RUN.targets[gi];
-      body = `<div class="zcard lt-play"><p class="lt-info">${esc(info)}</p><p class="lt-label">Target</p><div class="lt-target" role="status" aria-label="Target number ${t || "loading"}">${t || "..."}</div>
-        <p class="lt-clock"><span id="cd" data-until="${p.closesMs}">${secsTo(p.closesMs)}</span> s left to press</p>
-        <button class="lt-dice ${pressed[gi] ? "pressed" : ""}" id="press" ${pressed[gi] || !t ? "disabled" : ""}>${pressed[gi] ? "Rolling..." : "Press the dice"}</button>
-        <p class="zsmall tcen">${pressed[gi] ? "Pressed. The dice shows when the window closes." : "The dice is rolled for everyone when the window closes. Pressing is your moment."}</p>${totals}</div>`;
-    } else if (p.kind === "reveal") {
-      const r = g.results[gi];
-      if (!r) body = `<div class="zcard lt-play" role="status"><p class="lt-info">${esc(info)}</p><p class="lt-label">Rolling...</p><div class="lt-target">?</div>${noise}</div>`;
-      else {
-        const d = r.dice[seat], hit = d === r.target;
-        body = `<div class="zcard lt-play" role="status"><p class="lt-info">${esc(info)}</p><p class="lt-label">You rolled</p><div class="lt-target ${hit ? "hit" : "miss"}">${d}</div>
-          <p class="lt-result">${hit ? `Target was ${r.target}: +${r.target} points` : `Target was ${r.target}: 0 points`}</p>${totals}</div>${listHtml(await RUN.top(), seat)}`;
-      }
+    let body = "", after = null;
+    if (p.kind === "before") body = `<div class="zcard lt-play" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><div class="lt-count"><span>The game starts in</span><b id="cd" data-until="${v.startMs}">${secsTo(v.startMs)}</b><span>s</span></div><p>${s.rounds} ${s.rounds === 1 ? "round" : "rounds"} of ${s.diceRounds} dice rounds. Each dice round shows a target number. Press the dice. Roll the target and you score that many points. Any other number scores 0. Pure luck: nobody can know a result in advance.</p><p class="zsmall">Keep this page open.</p></div>`;
+    else if (p.kind === "window" || p.kind === "reveal") {
+      const inWindow = p.kind === "window", t = RUN.targets[gi] || 0, r = inWindow ? null : g.results[gi], dv = r && seat >= 0 ? r.dice[seat] : 0;
+      const dieKey = "g" + gi, pk = LD.peek(dieKey), landedAlready = !!(pk && pk.landed);
+      const gain = r && seat >= 0 ? r.points[seat] || 0 : 0;
+      const showTotal = me ? me.points - (r && !landedAlready ? gain : 0) : 0; // the running score does not jump before the dice has landed
+      const pr = !!pressed[gi];
+      const status = inWindow ? (pr ? "Pressed. Your dice lands when the timer ends." : t ? "Press the dice to roll it." : "Waiting for the target...") : r ? "Slowing down..." : "Rolling...";
+      const btn = inWindow ? { text: pr ? "Rolling..." : "Press the dice", disabled: pr || !t } : { text: pr || r ? "Rolling..." : "Window closed", disabled: true };
+      body = LD.playHtml({
+        roundText: `Round ${LE.roundOf(s, gi)} of ${s.rounds}`, segs: segsOf(g, s, seat, gi, gi), kicker: `Dice round ${LE.diceNoOf(s, gi)} of ${s.diceRounds}`, target: t, total: showTotal, status,
+        clock: inWindow ? `<span id="cd" data-until="${p.closesMs}">${secsTo(p.closesMs)}</span> s left to press` : `Next in <span id="cd" data-until="${p.endsMs}">${secsTo(p.endsMs)}</span> s`,
+        button: btn, hint: "Every dice lands at the same moment, when the timer ends.", chips: chipsOf(g, s, seat, gi, gi), enter: gi !== shownGi,
+      }) + (r ? `<div class="zcard" id="lt-top10" hidden><h2>Top 10</h2>${listHtml(await RUN.top(), seat)}${me ? `<p class="zsmall">${standing(seat)}</p>` : ""}</div>` : "") + noise;
+      after = () => {
+        const dieEl = document.getElementById("die"); if (!dieEl) return;
+        const ctl = LD.attach(dieEl, dieKey), pb = document.getElementById("press");
+        if (inWindow) {
+          if (pr) ctl.roll();
+          if (t && toldTarget !== "t" + gi) { toldTarget = "t" + gi; LD.announce(`Round ${LE.roundOf(s, gi)} of ${s.rounds}. Dice round ${LE.diceNoOf(s, gi)} of ${s.diceRounds}. Target number ${t}. ${LD.targetWords(t)}`); }
+          if (pb && !pb.disabled) {
+            if (usedKeys) { try { pb.focus({ preventScroll: true }); } catch (e) { pb.focus(); } }
+            pb.addEventListener("click", () => {
+              if (pressed[gi]) return; pressed[gi] = true; LD.vibrate(40);
+              pb.disabled = true; pb.textContent = "Rolling..."; pb.classList.add("tap");
+              ctl.roll();
+              const vd = document.getElementById("lt-verdict"); if (vd) vd.textContent = "Pressed. Your dice lands when the timer ends.";
+              const st = document.getElementById("lt-stage"); if (st && usedKeys) st.focus({ preventScroll: true }); // the button is now off: keep the keyboard place on the dice
+              LD.announce("Rolling. Your dice lands when the timer ends.");
+              lastKey = keyOf(lastV || v);
+            });
+          }
+        } else if (!r || dv < 1) { ctl.roll(); }
+        else {
+          const chip = { no: LE.diceNoOf(s, gi), t: r.target, d: dv, hit: dv === r.target, pts: gain };
+          const fill = (fresh) => { if (RUN.phase().g !== gi) return; LD.showResult({ target: r.target, dice: dv, total: me ? me.points : 0, seg: LE.diceNoOf(s, gi) - 1, chip, fresh }); const pb2 = document.getElementById("press"); if (pb2) pb2.textContent = "Next dice round soon"; const t10 = document.getElementById("lt-top10"); if (t10) t10.hidden = false; };
+          if (landedAlready) { ctl.show(dv); fill(false); }
+          else {
+            const sinceReveal = RUN.now() - (p.endsMs - s.revealSecs * 1000);
+            if (ctl.state() === "idle" && sinceReveal > 1500) { ctl.show(dv); fill(false); } // opened late: no use in rolling a dice for something that is over
+            else { ctl.land(dv, Math.max(700, Math.min(LD.LAND_MS, p.endsMs - RUN.now() - 700))); ctl.whenLanded(() => fill(true)); }
+          }
+        }
+      };
     } else if (p.kind === "break") {
       const r = p.afterRound;
-      body = `<div class="zcard" role="status"><h2>Round ${r} is over</h2><p>Next round starts in <span id="cd" data-until="${p.endsMs}">${secsTo(p.endsMs)}</span> s.</p>${totals}</div>
+      body = `<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>Round ${r} is over</h2><div class="lt-count"><span>Next round starts in</span><b id="cd" data-until="${p.endsMs}">${secsTo(p.endsMs)}</b><span>s</span></div>${totals}</div>
         <div class="zcard"><h2>Round ${r} top 10</h2>${listHtml(await RUN.roundTop(r), seat)}</div><div class="zcard"><h2>Overall top 10</h2>${listHtml(await RUN.top(), seat)}</div>`;
     } else {
       const fr = g.finished ? await RUN.finalResult() : null;
@@ -118,15 +155,15 @@
         const top5 = fr.overall.slice(0, 5).map((x) => { const pz = s.prizeMode !== "rounds" ? prizeFor(s, "overall", x.place) : ""; return `<li${x.seat === seat ? ' class="me"' : ""}><b>${ord(x.place)}: ${esc(RUN.nameOf(x.seat))}</b> <span class="lt-pts">${x.points} pts</span>${pz ? `<span class="lt-prize">${esc(pz)}</span>` : ""}${x.line ? `<small>How this was decided: ${esc(x.line)}</small>` : ""}</li>`; }).join("");
         const rest = fr.overall.slice(5);
         const rounds = s.prizeMode !== "overall" ? fr.rounds.map((l, i) => `<details><summary>Round ${i + 1} winners</summary>${l.slice(0, 5).map((x) => `<p class="zsmall"><b>${ord(x.place)}</b> ${esc(RUN.nameOf(x.seat))} (${x.points} pts)${prizeFor(s, i + 1, x.place) ? " - " + esc(prizeFor(s, i + 1, x.place)) : ""}${x.line ? "<br>" + esc(x.line) : ""}</p>`).join("")}</details>`).join("") : "";
-        body = `<div class="zcard" role="status"><h2>The game is over</h2>${me ? `<p>You scored <b>${me.points}</b> points. ${standing(seat)}</p>` : ""}<ol class="trank lt-list lt-final">${top5}</ol>${rest.length ? `<h3>Places 6 to 10</h3>${listHtml(rest, seat)}` : ""}</div>${rounds ? `<div class="zcard">${rounds}</div>` : ""}
+        body = `<div class="zcard" role="status"><h2>The game is over</h2>${me ? `<p class="lt-fin">You scored <b>${me.points}</b> points. ${standing(seat)}</p>` : ""}<ol class="trank lt-list lt-final">${top5}</ol>${rest.length ? `<h3>Places 6 to 10</h3>${listHtml(rest, seat)}` : ""}</div>${rounds ? `<div class="zcard">${rounds}</div>` : ""}
           <p class="zsmall tcen">Every phone worked this out from the same public numbers. The result is published when enough phones agree.</p>`;
       }
     }
     set(`${brand()}${head()}${body}`);
-    const pb = document.getElementById("press");
-    if (pb) pb.addEventListener("click", () => { pressed[gi] = true; try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) { /* no vibration on this phone */ } lastKey = ""; paint(v); });
+    shownGi = p.kind === "window" || p.kind === "reveal" ? gi : -2;
+    if (after) after();
   }
-  function standing(seat) { const st = LE.standingOf(RUN.game.total, seat); return st.of > 1 ? `You are in the top ${st.percent}% of ${st.of} players.` : ""; }
+  function standing(seat) { const st = LE.standingOf(RUN.game.total, seat); return st.of > 1 ? (st.percent <= 50 ? `You are in the top ${st.percent}% of ${st.of} players.` : `You are ${ord(st.ahead + 1)} of ${st.of} players.`) : ""; } // "top 100%" confused people: in the lower half the place is said as a place
   const tickCd = () => document.querySelectorAll("#cd[data-until]").forEach((el) => { el.textContent = secsTo(Number(el.dataset.until)); });
 
   const tick = async () => {
@@ -135,7 +172,7 @@
       const v = await RUN.fetchView({ pid, device });
       stateNow = v.state;
       if (v.state === "open") {
-        set(`${brand()}${head()}<div class="zcard" role="status"><h2>You are in</h2><p>Waiting for the host to start the game. ${v.joined ? esc(v.joined) + " joined so far." : ""}</p><p class="zsmall">Nobody can know the targets or the dice in advance: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
+        set(`${brand()}${head()}<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>You are in</h2><p>Waiting for the host to start the game.</p>${v.joined ? `<p><span class="lt-pill">${esc(v.joined)} joined so far</span></p>` : ""}<p class="zsmall">Nobody can know the targets or the dice in advance: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
       } else if (v.phase === "watching") {
         set(`${head()}<div class="zcard" role="status"><h2>${esc(v.message)}</h2><p><a href="/big.html?e=${encodeURIComponent(EID)}">Open the big screen view</a></p></div>`);
       } else {

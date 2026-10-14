@@ -16,3 +16,8 @@
 .lb-podium li{font-size:clamp(20px,3vw,52px)}
 
 .top .zblogo{height:44px;width:auto;max-width:180px;object-fit:contain;margin-right:14px;vertical-align:middle;border-radius:6px;background:rgba(255,255,255,.9)}
+/* the target as a dice face beside its number (the same faces as on the phones) */
+.lb-tface{display:flex;align-items:center;justify-content:center;gap:clamp(12px,2.6vw,50px);--m:clamp(110px,20vw,320px)}
+.lb-tface .ld-mini{box-shadow:0 0 0 clamp(3px,.5vw,8px) var(--acc),inset 0 -6px 12px rgba(0,0,0,.25)}
+.lb-tface .num{font-size:clamp(110px,22vw,420px)}
+.lb-say{margin:.2em 0 .4em;font-size:clamp(16px,2vw,34px);color:var(--ink)}

@@ -7,9 +7,9 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
-const CACHE = "luck-game-v1"; // bump when the game files change shape, so every phone saves a matching set
-const FILES = ["/z.html", "/zc.html", "/big.html", "/host.html", "/luck.js", "/rights.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
-  "/app.css", "/z.css", "/luck.css", "/luck-big.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png",
+const CACHE = "luck-game-v2"; // bump when the game files change shape, so every phone saves a matching set
+const FILES = ["/z.html", "/zc.html", "/big.html", "/host.html", "/offline.html", "/demo.html", "/demo.js", "/luck.js", "/luck-dice.js", "/rights.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
+  "/app.css", "/z.css", "/luck.css", "/luck-dice.css", "/luck-big.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-192.png", "/icon-maskable-512.png",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 
 // A saved copy must be a plain answer (not a redirect) or the browser refuses to show it from the saved set.
@@ -34,7 +34,7 @@ async function saveAll() {
 
 self.addEventListener("install", (e) => e.waitUntil(saveAll().then(() => self.skipWaiting(), () => self.skipWaiting())));
 self.addEventListener("activate", (e) => e.waitUntil((async () => {
-  for (const k of await caches.keys()) if (k !== CACHE && k.startsWith("cb-game-")) await caches.delete(k);
+  for (const k of await caches.keys()) if (k !== CACHE && k.startsWith("luck-game-")) await caches.delete(k);
   await self.clients.claim();
 })()));
 self.addEventListener("message", (e) => {
@@ -76,13 +76,16 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin || url.pathname.startsWith("/api/") || url.pathname === "/zsw.js") return;
   const key = keyOf(url.pathname);
-  if (!key) return; // payment page, legal pages and anything else stay normal
+  if (!key) { // payment page, legal pages and anything else stay normal; only when there is no connection at all the visitor sees our plain offline page instead of the browser's error
+    if (req.mode === "navigate") e.respondWith(fetch(req).catch(async () => (await (await caches.open(CACHE)).match("/offline.html")) || Response.error()));
+    return;
+  }
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     if (req.mode === "navigate") {
       try { const res = await fetch(key, { cache: "no-store" }); if (res.ok) { const c = await clean(res); cache.put(key, c.clone()); return c; } }
       catch {}
-      return (await cache.match(key)) || Response.error();
+      return (await cache.match(key)) || (await cache.match("/offline.html")) || Response.error();
     }
     const hit = await cache.match(key);
     const refresh = fetch(key).then(async (res) => { if (res.ok) { const c = await clean(res); cache.put(key, c.clone()); return c; } return res; }).catch(() => null);

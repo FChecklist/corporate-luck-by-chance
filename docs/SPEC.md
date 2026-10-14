@@ -40,8 +40,14 @@ Why Presence mode needs a server timestamp: after a window closes the dice resul
 - **Ties are certain.** In a simulation of 20 games with 1,000 to 5,000 players, there was a tie inside the top 10 in 19 to 20 games out of 20, a tie inside the top 5 in 10 to 16 games out of 20 (also 10 of 20 with 10 rounds), and a tie for first place in 0 to 3 games out of 20. This is why the no-tie rule (section 6) is not optional.
 
 ## 5. What each player sees
-- A huge target number, a big dice to press, a countdown ring, and "dice round 4 of 10, round 2 of 5".
-- After the reveal: "You rolled 3, target was 3: +3 points" or "You rolled 5, target was 3: 0".
+- **The target first**, in plain words and colour: "Dice round 4 of 10. Target number 4. Roll a 4 and you score 4 points. Any other number scores 0.", with the target drawn as a small dice face (its dots, in the colour of that number). Above it: "Round 2 of 5", a row of ten marks (one per dice round: match, miss, or still to come) and the score badge.
+- **A real drawn dice** (CSS only, no images, no libraries): a realistic ivory cube (cream rounded faces, black dots 1 to 6 with opposite faces adding up to 7, a soft shadow on a green table, the 6 on top at rest). Pressing the big "Press the dice" button makes it tumble on the screen. In a real game the number does not exist until the window closes, so the dice keeps tumbling and, when the window closes, slows down over about a second and a half and stops on the number the phone worked out. (On the free demo the number is known at once, so it tumbles for about 0.7 seconds, then slows down for 1.5 seconds.) The number never depends on the animation: the animation only shows it.
+- **Beside the dice** the number comes in big type ("You rolled 4"). The number, the points and the score badge appear only after the dice has stopped.
+- **A match** gets a colour burst and the words "+4 points"; **a miss** gets calm colours and "Not this time, 0 points".
+- **Reduce motion:** with the phone's "reduce motion" setting there is no tumbling: the dice shows its number after a short fade.
+- **Screen readers** hear the target when a dice round opens and the result after the dice has stopped (one polite status region).
+- **Every phone:** 320 to 430 px wide, upright and on its side, no sideways scroll, the target, the dice, the button and the score in view on a 360 x 640 screen, a Press button of at least 68 px, text of at least 12 px, notch and home-bar safe. It installs like an app (home screen, full screen) and the game is saved on the phone. An offline page shows when there is no connection, and the free demo plays with no connection.
+- After the reveal: the history is a row of small chips, one per dice round: the target face, the face you rolled, a tick or a cross, and the points.
 - Their points this round and in total, and their standing in plain words ("you are in the top 8%"), computed on their own phone.
 - **The top-10 list** after every round, in this order: place, nickname, points. Players choose a nickname when they join; the organizer sees real names only for prize hand-over (decision in section 14: nickname or masked number).
 - The final ceremony: 1st to 5th with a short "how this was decided" line, then the top-10 list.

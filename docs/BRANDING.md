@@ -30,7 +30,6 @@ Who gets e-mail: only the Organizer and Hosts. Players give a display name only,
 
 ## Not true yet
 
-- The app icons (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`) are still the sister product's: `tools/make-icons.py` draws a bingo ball with the letter B and a card grid on a teal square. They need a Luck by Chance mark.
 - The manifest description says "The whole game is saved on your phone and plays from your own device". That is not how this product works: the server decides every move. The sentence should be replaced.
 - `apps/edge/wrangler.toml` sends mail "from" `bingo@veridian-aios.com`. The sender name and address need a Luck by Chance one before launch.
 - The report page title is "Your engagement report | Corporate Luck by Chance"; the console and e-mails still say "engagement" in places where the player-facing pages say "tournament".

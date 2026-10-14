@@ -7,7 +7,7 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const BASE = (q.get("api") || "").replace(/\/$/, "");
   const RUN = window.LuckRun.create({ base: BASE, eid: EID });
-  const LE = window.LuckEngine;
+  const LE = window.LuckEngine, LD = window.LuckDice;
   const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"));
   const secsTo = (ms) => Math.max(0, Math.ceil((ms - RUN.now()) / 1000));
   let lastKey = "", err = "", INFO = null;
@@ -15,6 +15,7 @@
   const logoOf = (b) => (b && typeof b.logo === "string" && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(b.logo) ? b.logo : "");
   const brandHtml = () => (INFO && INFO.brand && (INFO.brand.name || logoOf(INFO.brand)) ? `<span class="brand">${logoOf(INFO.brand) ? `<img class="zblogo" alt="" src="${esc(logoOf(INFO.brand))}">` : ""}${INFO.brand.name ? esc(INFO.brand.name) : "Corporate Luck by Chance"}</span>` : `<span class="brand">Corporate Luck by Chance</span>`);
   if (EID) fetch(BASE + `/api/z/${encodeURIComponent(EID)}/info`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { INFO = j; lastKey = ""; }).catch(() => {});
+  const tgtFace = (t, hit) => (t ? `<div class="lb-tface">${LD.miniHtml(t, "Target dice face " + t)}<div class="num${hit ? " hit" : ""}">${t}</div></div><p class="lb-say">Roll a ${t} and you score ${LD.pts(t)}. Any other number scores 0.</p>` : `<div class="lb-tface"><div class="num">...</div></div>`);
   const rows = (list, podium) => (list.length ? `<ol class="${podium ? "lb-podium" : ""}">${list.map((x) => `<li><b>${esc(RUN.nameOf(x.seat))}</b><span>${x.points} pts</span>${x.line ? `<small>${esc(x.line)}</small>` : ""}</li>`).join("")}</ol>` : "");
   const shell = (status, body, commit) => `<header class="top">${brandHtml()}<span class="meta">${esc(status)}</span></header><main class="main1">${body}</main>
     <footer class="meta">Nicknames only. Nothing else about you is shown. <a href="/privacy.html">Privacy</a>${commit ? ` &middot; Game fingerprint <span class="mono">${esc(commit.slice(0, 12))}</span>` : ""}</footer>`;
@@ -29,8 +30,8 @@
     const info = gi >= 0 ? `Round ${LE.roundOf(s, gi)} of ${s.rounds} &middot; dice round ${LE.diceNoOf(s, gi)} of ${s.diceRounds}` : "";
     let body = "", status = "Live";
     if (p.kind === "before") body = `<div class="big1"><p class="meta">The game starts in</p><div class="num"><span id="cd" data-until="${v.startMs}">${secsTo(v.startMs)}</span></div><p class="meta">${esc(v.players)} players &middot; ${s.rounds} rounds</p></div>`;
-    else if (p.kind === "window") body = `<div class="lb-stage"><div class="lb-target"><p class="meta">${info}</p><div class="lab">Target</div><div class="num">${RUN.targets[gi] || "..."}</div><div class="cd"><span id="cd" data-until="${p.closesMs}">${secsTo(p.closesMs)}</span> s to press</div></div><div class="lb-top"><h2>Top 10</h2>${rows(await RUN.top())}</div></div>`;
-    else if (p.kind === "reveal") { const r = g.results[gi]; const hits = r ? r.dice.reduce((a, d) => a + (d === r.target ? 1 : 0), 0) : 0; body = `<div class="lb-stage"><div class="lb-target"><p class="meta">${info}</p><div class="lab">${r ? "Target" : "Rolling"}</div><div class="num hit">${r ? r.target : "?"}</div>${r ? `<div class="cd">${hits} of ${v.players} players hit it</div>` : ""}</div><div class="lb-top"><h2>Top 10</h2>${rows(await RUN.top())}</div></div>`; }
+    else if (p.kind === "window") body = `<div class="lb-stage"><div class="lb-target"><p class="meta">${info}</p><div class="lab">Target</div>${tgtFace(RUN.targets[gi])}<div class="cd"><span id="cd" data-until="${p.closesMs}">${secsTo(p.closesMs)}</span> s to press</div></div><div class="lb-top"><h2>Top 10</h2>${rows(await RUN.top())}</div></div>`;
+    else if (p.kind === "reveal") { const r = g.results[gi]; const hits = r ? r.dice.reduce((a, d) => a + (d === r.target ? 1 : 0), 0) : 0; body = `<div class="lb-stage"><div class="lb-target"><p class="meta">${info}</p><div class="lab">${r ? "Target" : "Rolling"}</div>${r ? tgtFace(r.target, true) : "<div class=\"lb-tface\"><div class=\"num\">?</div></div>"}${r ? `<div class="cd">${hits} of ${v.players} players hit it</div>` : ""}</div><div class="lb-top"><h2>Top 10</h2>${rows(await RUN.top())}</div></div>`; }
     else if (p.kind === "break") body = `<div class="lb-stage"><div class="lb-top"><h2>Round ${p.afterRound} top 10</h2>${rows(await RUN.roundTop(p.afterRound))}</div><div class="lb-top"><h2>Overall top 10</h2>${rows(await RUN.top())}<p class="meta">Next round in <span id="cd" data-until="${p.endsMs}">${secsTo(p.endsMs)}</span> s</p></div></div>`;
     else {
       status = "Finished"; const fr = g.finished ? await RUN.finalResult() : null;

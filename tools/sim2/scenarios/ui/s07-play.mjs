@@ -57,8 +57,8 @@ async function agreed(t, ps, eid, { extra = [], max = 45 } = {}) {
   return await rankOf(eid);
 }
 const finalOf = async (page) => (await page.innerText(".lt-final").catch(() => "")).replace(/\s+/g, " ").trim();
-/** a phone's "You rolled D / Target was T: +T points | 0 points" line, when it is on the screen */
-const rollOf = async (page) => { const x = (await guestText(page)); const m = /You rolled\s+(\d)\s+Target was (\d): (\+(\d+) points|0 points)/i.exec(x); return m ? { dice: +m[1], target: +m[2], pts: m[4] ? +m[4] : 0 } : null; };
+/** what a phone shows once its dice has landed: the number on the dice, the target, the points in the score line (read from the dice and the words, not from layout) */
+const rollOf = (page) => page.evaluate(() => { const d = document.querySelector("#die[data-state='landed']"); if (!d) return null; const t = Number((document.querySelector(".lt-tn b") || {}).textContent), v = (document.getElementById("lt-verdict") || {}).textContent || "", m = /\+(\d+) point/.exec(v); return { dice: Number(d.dataset.value), target: t, pts: m ? Number(m[1]) : 0 }; }).catch(() => null);
 
 export default [
   {

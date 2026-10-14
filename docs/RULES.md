@@ -82,3 +82,12 @@ Fate mode only. In Fate mode the dice is rolled for everybody when the press win
 - A modified browser cannot be made impossible; a result counts only when enough phones agree (R39).
 - Clearing browser data gives a new device id; the place is on one phone only (the same rule as the other Corporate Games).
 - Presence mode and the golden shoot-out are not built.
+
+## I. The play screen (presentation only; the numbers still come from the engine)
+- R59 Each dice round opens with the target in words ("Target number 4. Roll a 4 and you score 4 points. Any other number scores 0.") and as a drawn dice face with that many dots (tests: `apps/web/test/luck-page.test.ts`, `apps/web/test/luck-dice.test.ts`; Chrome: `tools/sim2/scenarios/ui/s11-pwa-dice.mjs`).
+- R60 The dice is drawn (a realistic ivory cube: cream faces, black dots 1 to 6, opposite faces adding up to 7, a soft shadow, no images). Pressing the button makes it tumble; it slows down and stops on the number when that number exists (in a real game when the press window closes, on the demo after about two seconds). The face turned to the player, the dots on it and the number beside it are the same number as the engine's.
+- R61 The number, the points and the running score appear only after the dice has stopped. A match shows "+N points" with a colour burst; a miss shows "Not this time, 0 points". The history is a row of chips (target face, rolled face, tick or cross, points).
+- R62 With the phone's reduce-motion setting there is no tumbling: the number appears after a short fade.
+- R63 A screen reader hears the target when a dice round opens and the result after the dice has stopped, through one polite status region.
+- R64 The screen fits phones from 320 to 430 px wide, upright and on its side: no sideways scroll, a Press button of at least 44 px, text of at least 12 px, all colours at least WCAG AA, the target, the dice, the button and the score in view on a 360 x 640 screen.
+- R65 The app is installable (manifest with name, short name, start page, scope, standalone, colours, icons 192 and 512 plain and maskable), a service worker keeps the game on the phone, a plain offline page shows when a page is not saved, and the free demo plays with no connection (test: `apps/web/test/pwa.test.ts`, scenario S11-01).

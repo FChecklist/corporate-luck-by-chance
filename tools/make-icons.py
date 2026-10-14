@@ -1,36 +1,48 @@
 """Makes the app icons for Corporate Luck by Chance (run once: python tools/make-icons.py).
-A teal square with a white bingo ball: a yellow ring, the letter B, a small card grid under it."""
+A teal square with an ivory dice: ivory face, five black dots, turned a little, with a soft shadow.
+The maskable icons keep the dice inside the middle 80 percent circle, so any round or rounded mask on a phone leaves it whole."""
+import math
 import os
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "apps", "web", "public")
-TEAL, TEAL_D, YELLOW, WHITE = "#0B5D5B", "#063B3A", "#FFC93C", "#FFFFFF"
+TEAL, IVORY, EDGE = "#0B5D5B", "#FFFDF9", "#D9E4E2"
+PIPS = [(0.27, 0.27, "#151515"), (0.73, 0.27, "#151515"), (0.27, 0.73, "#151515"), (0.73, 0.73, "#151515"), (0.5, 0.5, "#151515")]
+SS = 4  # draw at four times the size, then shrink: smooth edges
 
-def font(size):
-    for f in ("C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/segoeuib.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
-        if os.path.exists(f):
-            return ImageFont.truetype(f, size)
-    return ImageFont.load_default()
 
-def mk(size, pad):
-    im = Image.new("RGB", (size, size), TEAL)
+def dice(side):
+    """the dice face as a transparent picture, `side` pixels wide"""
+    im = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    s = size * (1 - 2 * pad)          # the safe area
-    c = size / 2
-    r = s * 0.46                      # the ball
-    d.ellipse([c - r, c - r, c + r, c + r], fill=YELLOW)
-    r2 = r * 0.84
-    d.ellipse([c - r2, c - r2, c + r2, c + r2], fill=WHITE)
-    f = font(int(r * 1.25))
-    d.text((c, c - r * 0.24), "B", font=f, fill=TEAL, anchor="mm")
-    # a tiny 5 x 5 card under the letter
-    g = r * 0.5; cell = g / 5; x0 = c - g / 2; y0 = c + r * 0.26
-    for i in range(5):
-        for j in range(5):
-            on = (i + j) % 2 == 0 or (i == 2 and j == 2)
-            d.rectangle([x0 + j * cell + 1, y0 + i * cell * 0.62 + 1, x0 + (j + 1) * cell - 1, y0 + (i + 1) * cell * 0.62 - 1], fill=TEAL_D if on else "#CFEDEA")
+    r = int(side * 0.2)
+    d.rounded_rectangle([0, 0, side - 1, side - 1], r, fill=EDGE)
+    d.rounded_rectangle([int(side * 0.02), int(side * 0.02), side - 1 - int(side * 0.02), side - 1 - int(side * 0.05)], r, fill=IVORY)
+    pr = side * 0.105
+    for x, y, c in PIPS:
+        cx, cy = x * side, y * side * 0.97
+        d.ellipse([cx - pr, cy - pr + pr * 0.08, cx + pr, cy + pr + pr * 0.08], fill="#00000030")
+        d.ellipse([cx - pr, cy - pr, cx + pr, cy + pr], fill=c)
+        d.ellipse([cx - pr * 0.55, cy - pr * 0.6, cx - pr * 0.1, cy - pr * 0.2], fill="#FFFFFF55")
     return im
 
-for name, size, pad in [("icon-192.png", 192, 0.08), ("icon-512.png", 512, 0.08), ("icon-maskable-512.png", 512, 0.20), ("apple-touch-icon.png", 180, 0.08)]:
-    mk(size, pad).save(os.path.join(OUT, name), optimize=True)
+
+def mk(size, frac):
+    n = size * SS
+    bg = Image.new("RGBA", (n, n), TEAL)
+    side = int(n * frac)
+    die = dice(side).rotate(-10, resample=Image.BICUBIC, expand=True)
+    x, y = (n - die.width) // 2, (n - die.height) // 2
+    shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    sh = Image.new("RGBA", die.size, (0, 0, 0, 0))
+    sh.putalpha(die.getchannel("A").point(lambda a: int(a * 0.38)))
+    shadow.paste(sh, (x + int(n * 0.012), y + int(n * 0.03)), sh)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(n * 0.015))
+    bg = Image.alpha_composite(bg, shadow)
+    bg.paste(die, (x, y), die)
+    return bg.convert("RGB").resize((size, size), Image.LANCZOS)
+
+
+for name, size, frac in [("icon-192.png", 192, 0.56), ("icon-512.png", 512, 0.56), ("icon-maskable-192.png", 192, 0.46), ("icon-maskable-512.png", 512, 0.46), ("apple-touch-icon.png", 180, 0.58)]:
+    mk(size, frac).save(os.path.join(OUT, name), optimize=True)
     print("wrote", name)
