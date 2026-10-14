@@ -41,7 +41,7 @@ const ORG_ENDPOINTS: Endpoint[] = [
   { m: "GET", path: "z/{id}/life", what: "When the game ends and when each kind of data is deleted" },
   { m: "GET", path: "z/{id}/prizes", what: "Winners by seat number: reward line, seat, whether they confirmed their details, whether the prize was given. Names and mobile numbers are shown only to the owner in the console." },
   { m: "POST", path: "z/{id}/prizegiven", what: "Tick (or untick) that a prize was handed over", body: "{round, pattern, ordinal, seat, given: true|false} (copy round, pattern, ordinal and seat from /prizes)" },
-  { m: "POST", path: "z/{id}/announce", what: "A message to every guest's phone (spoken and shown within about a minute) and the big screen. Only once published. 160 characters; empty text clears it; one message per 5 seconds.", body: "{text}" },
+  { m: "POST", path: "z/{id}/announce", what: "A message to every guest's phone and the big screen (shown in a strip at the top within a few seconds). Only once published. 160 characters; empty text clears it; one message per 5 seconds.", body: "{text}" },
   { m: "POST", path: "z/{id}/unbind", what: "Change of phone: lets the person with this seat move it to a new phone (the first device that opens the game link keeps it)", body: "{seat: seat number}" },
   { m: "POST", path: "z/{id}/mark", what: "Flag a seat as Organizer, Host or Co-host (they may play and may invite without a limit; flag them before the game starts)", body: "{seat: seat number, role: organizer|host|co-host|none}" },
   { m: "POST", path: "z/{id}/publish", what: "Hand-over, not a publish: the organizer must press Publish themselves. -> {needsOrganizer:true, consoleUrl} while a draft; afterwards {payUrl, shareUrl}. Give them the link." },

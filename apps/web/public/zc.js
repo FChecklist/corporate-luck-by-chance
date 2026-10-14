@@ -670,8 +670,8 @@
   // ---------- step 9: game day ----------
   const MSGS = ["Welcome! The game starts soon.", "Please take your seats", "Dinner is served", "Rewards at the stage in 10 minutes", "We start in 5 minutes", "Thank you for joining"];
   function announceBlock() {
-    const avail = !!S.cf;
-    return `<div class="zc-block"><h3>Message to everyone</h3>${small(avail ? "Shown and spoken on every phone and on the big screen. It reaches phones within about a minute." : (S.info && S.info.cap > 2000 ? "Messages are available for games of up to 2,000 people." : "Messages become available once this game is set up."))}
+    const avail = !S.draft && !isCancelled() && !didNotStart(); // the message rides with the public game view every phone and the big screen already read (luck/view), so it needs no pause file
+    return `<div class="zc-block" id="annblock"><h3>Message to everyone</h3>${small(avail ? "Shown at the top of every phone and of the big screen. It reaches them within a few seconds." : "Messages become available once this game is published.")}
       <div class="zc-chips">${MSGS.map((c) => `<button type="button" class="zc-chip" data-chip="${esc(c)}">${esc(c)}</button>`).join("")}</div>
       ${lbl("annText", "Or write your own")}<textarea id="annText" class="zc-in zc-ta" rows="2" maxlength="160" placeholder="Write a short message"></textarea>
       <div class="zc-foot"><button class="zc-btn zc-btn-s" type="button" id="annSend"${avail ? "" : " disabled"}>Send to everyone</button> <button class="zc-btn zc-btn-s zc-btn-alt" type="button" id="annClear"${avail ? "" : " disabled"}>Clear message</button></div>${S.annNote ? `<p class="zc-small"><b>${esc(S.annNote)}</b></p>` : ""}</div>`;
@@ -724,7 +724,7 @@
     return `<div class="zc-block"><h3>Run the game</h3>${rowl("Game", `<b id="tstate">${state}</b>`)}${rowl("Players who joined", `<b>${Number(v.joined != null ? v.joined : S.people.length) || 0}</b>`)}
         <a class="zc-btn zc-gap" id="runt" href="/host.html?e=${eu}">Open the game page</a>${small("There you choose the number of rounds, the press window and the prizes, and press Start. Starting closes the list of players.")}</div>
       <div class="zc-block"><h3>Big screen</h3><a class="zc-chip" id="bigopen" href="${esc(bigLink())}" target="_blank" rel="noopener">Open the big screen</a>${small("For the laptop on the room screen or a shared video call. It shows the target number, the countdown and the top-10 list, with nicknames only.")}</div>`
-      + standings + playBlock() + cont(9);
+      + announceBlock() + standings + playBlock() + cont(9);
   }
 
   // ---------- step 10: after the game ----------
@@ -765,7 +765,7 @@
     ["Can I change things later?", "Yes, until the game starts. Open the step and change it."],
     ["How do I add my logo?", "Open step 4, type your company name, pick a colour and add a small logo. Tap See what players see to check it."],
     ["What do players see?", "A target number and a dice button on their phone. No app to install, and they type only a nickname."],
-    ["Is my guests' data safe?", "It is encrypted. Names and numbers are erased within 24 hours after the game."],
+    ["Is my guests' data safe?", "It is encrypted in transit and at rest. Names and numbers are erased within 24 hours after the game."],
     ["How is the winner chosen?", "Every player presses the dice in every dice round; a dice that shows the target scores that many points. The most points wins. If points are equal, the highest single hit, then the most hits, then who reached the score first decide, and a public random number is the last step. There are no ties."],
     ["How do I start the game?", "Open Game day, open the game page, choose the rounds and the press window, and press Start. The Organizer and Hosts can do this."],
     ["Who can do what?", "The Organizer can do everything, including the account (keys, e-mail, AI link). A Host can do everything in the game except the account and adding Hosts. A Co-host invites people and can pay. Open step 5 to see it."],
@@ -874,7 +874,7 @@
     const sugs = (S.sugs || []).length ? `<div class="zc-block"><h3>Ideas to improve Corporate Luck by Chance</h3>${small("Suggested by organizers' AI assistants. We review them all.")}${S.sugs.map((x) => rowl(esc(x.title) + (x.yours ? " · yours" : ""), `<i>${x.votes} · ${esc(x.status.replace("_", " "))}</i>`)).join("")}</div>` : "";
     const T = S.aiTrail;
     const audit = `<div class="zc-block"><h3>What your AI assistant did</h3>${T ? (T.length ? T.slice(0, 40).map((t) => `<div class="zc-rowl"><span>${esc(dmy(t.at_ms))}<br><small class="zc-small zc-nomargin">${esc(t.method)} ${esc(t.path)} → ${esc(String(t.status))} · from ${esc(t.ip || "?")} ${esc(t.country || "")} · ${esc((t.ua || "").slice(0, 60))} · key ${esc(t.key_id || "")}</small></span></div>`).join("") : small("Your AI assistant has not made any call yet.")) : `<button type="button" class="zc-mini" id="aiaudit">Show the AI activity log</button>`}${small("Every call your AI assistant makes is recorded with the time, the key used and where it came from. It is kept for 365 days.")}</div>`;
-    const close = `<div class="zc-block"><h3>Close my account</h3>${small("This deletes your account and all your games. Payment records stay, as the law requires. It cannot be undone.")}<button type="button" class="zc-mini zc-danger" id="closeacct">Close my account</button></div>`;
+    const close = `<div class="zc-block"><h3>Close my account</h3>${small("This deletes your account and all your games. We keep billing data for audit and tax reasons. It cannot be undone.")}<button type="button" class="zc-mini zc-danger" id="closeacct">Close my account</button></div>`;
     return `<section class="zc-card zc-acct" id="acct"><button type="button" class="zc-sech" data-acct="1" aria-expanded="${open}" style="background:var(--surface-1)"><span class="zc-num zc-num-dark">A</span><span class="zc-syntx"><b>Your account</b><br><span class="zc-hint">These are for the Organizer only: your AI link, sign-in keys and records. Closing your account deletes your games.</span></span><span class="zc-st">${open ? "&#9650;" : "&#9660;"}</span></button>${open ? `<div class="zc-secb">${aiBlock()}${credits}${keys}${sugs}${audit}${close}</div>` : ""}</section>`;
   }
   // ---------- notes above the steps ----------
@@ -1448,7 +1448,7 @@
     all("[data-chip]", (b) => (b.onclick = () => { const t = $("annText"); if (t) { t.value = b.dataset.chip; t.focus(); } }));
     if ($("annSend")) $("annSend").onclick = async () => {
       const t = ($("annText").value || "").trim(); if (!t) { S.annNote = "Write a message first."; return redraw(); }
-      try { await call("POST", `/api/z/${eid}/announce`, { text: t }); S.annNote = "Sent. Phones show and speak it within about a minute."; } catch (e) { S.annNote = e.message; }
+      try { await call("POST", `/api/z/${eid}/announce`, { text: t }); S.annNote = "Sent. Phones and the big screen show it within a few seconds."; } catch (e) { S.annNote = e.message; }
       refreshEng();
     };
     if ($("annClear")) $("annClear").onclick = async () => { try { await call("POST", `/api/z/${eid}/announce`, { text: "" }); S.annNote = "Message cleared."; } catch (e) { S.annNote = e.message; } refreshEng(); };

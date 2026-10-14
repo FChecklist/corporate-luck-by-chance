@@ -10,7 +10,7 @@ const K4: Record<string, string> = (TEXT as any).K4, VER: string = (TEXT as any)
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
-async function openPlayerPage(search = "?e=GAME-1") {
+async function openPlayerPage(search = "?e=GAME-1", opts: { pid?: boolean; ann?: { id: string; text: string } | null } = {}) {
   const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/z.html" + search, width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   const sent: { url: string; method: string; body: any }[] = [];
@@ -20,10 +20,11 @@ async function openPlayerPage(search = "?e=GAME-1") {
     if (u.includes("/api/consent/text")) return ok({ version: VER, kind: "K4", boxes: Object.entries(K4).map(([id, text]) => ({ id, text })) });
     if (u.endsWith("/info")) return ok({});
     if (u.endsWith("/join")) return ok({ pid: "1x000000000001" });
-    if (u.includes("/luck/me")) return ok({ phase: "waiting", state: "open", joined: 1, serverNow: Date.now(), commit: "ab".repeat(32) });
+    if (u.includes("/luck/me")) return ok({ phase: "waiting", state: "open", joined: 1, serverNow: Date.now(), commit: "ab".repeat(32), ann: opts.ann ?? null });
     return ok({}, 404);
   };
   w.document.body.innerHTML = '<main id="app"></main>';
+  if (opts.pid) w.localStorage.setItem("luck:GAME-1:pid", "1x000000000001");
   new Function("globalThis", pub("luck-engine.js"))(w); // the built engine, exactly as shipped
   for (const f of ["termsbox.js", "luck-dice.js", "luck-run.js", "luck.js"]) new Function("window", "document", "location", "localStorage", "fetch", "history", "navigator", "setTimeout", "clearTimeout", "setInterval", "clearInterval", pub(f))(w, w.document, w.location, w.localStorage, w.fetch, w.history, w.navigator, (fn: any, ms?: number) => setTimeout(fn, ms), clearTimeout, (fn: any, ms?: number) => setInterval(fn, ms), clearInterval);
   await tick(40);
@@ -178,6 +179,26 @@ describe("the play screen (phone first)", () => {
     expect(final.length).toBe(3); expect(final[0]).toMatch(/^1st: /); expect(final[2]).toMatch(/^3rd: /);
     for (const li of final) expect(li).toMatch(/\d+ pts/);
     expect(d.body.textContent).toMatch(/You scored \d+ points/);
+  });
+  test("message to everyone: the player page shows the organizer's message in a status strip above the game; no message, no strip", async () => {
+    const withMsg = await openPlayerPage("?e=GAME-1", { pid: true, ann: { id: "a1b2c3d4", text: "Dinner is served" } });
+    const bar = withMsg.d.getElementById("annbar") as any; expect(bar).toBeTruthy();
+    expect(bar.textContent).toBe("Dinner is served"); expect(bar.hidden).toBe(false); expect(bar.getAttribute("role")).toBe("status"); expect(withMsg.d.body.firstElementChild).toBe(bar);
+    expect(withMsg.d.getElementById("app")!.textContent).toContain("Waiting for the host to start"); // the game itself is untouched
+    const none = await openPlayerPage("?e=GAME-1", { pid: true, ann: null });
+    expect(none.d.getElementById("annbar")).toBeNull();
+  });
+  test("message to everyone: showAnn keeps one strip, changes its text only for a new message id, and hides it when the message is cleared; the text is never read as markup", async () => {
+    const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/big.html?e=G" }); w.crypto = globalThis.crypto; w.document.body.innerHTML = '<main id="app"></main>';
+    new Function("globalThis", pub("luck-engine.js"))(w);
+    new Function("window", "document", pub("luck-run.js"))(w, w.document);
+    const R = w.LuckRun.create({ base: "", eid: "G" });
+    R.showAnn({ id: "m1", text: "<img src=x onerror=alert(1)> Hello" });
+    const bar = w.document.getElementById("annbar"); expect(bar.textContent).toBe("<img src=x onerror=alert(1)> Hello"); expect(bar.querySelector("img")).toBeNull();
+    R.showAnn({ id: "m1", text: "ignored: same id" }); expect(bar.textContent).toContain("Hello");
+    R.showAnn({ id: "m2", text: "Second" }); expect(bar.textContent).toBe("Second"); expect(w.document.querySelectorAll("#annbar").length).toBe(1);
+    R.showAnn(null); expect(bar.hidden).toBe(true);
+    R.showAnn({ id: "m2", text: "Second again" }); expect(bar.hidden).toBe(false); expect(bar.textContent).toBe("Second again"); // a cleared message that is sent again, even with the same id, is shown
   });
   test("R55: the player page and the big screen use only the engine to draw a number (no Math.random anywhere in the play code)", () => {
     for (const f of ["luck.js", "luck-run.js", "big.js"]) expect([f, /Math\.random/.test(pub(f))]).toEqual([f, false]);

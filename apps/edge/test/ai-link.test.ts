@@ -248,6 +248,8 @@ describe("what the organizer's AI may and may not do now", () => {
     const o = await liveEngagement("CAP-8"); const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h));
     expect((await call("POST", `/ai/${hk.hostKey}/z/CAP-8/announce`, { text: "Hello" })).status).toBe(200);
     expect((await call("GET", `/ai/${hk.hostKey}/z/CAP-8/summary`)).status).toBe(200);
+    expect((await call("GET", `/ai/${hk.hostKey}/z/CAP-8/luck/view`)).status).toBe(200); // the Host manual offers the live view of the game
+    for (const sub of ["start", "end", "tick"]) expect((await call("POST", `/ai/${hk.hostKey}/z/CAP-8/luck/${sub}`, { settings: { rounds: 1 } })).status).toBe(403); // but a Host's work link cannot run the game
     for (const [m, p, b] of [["PATCH", "/z/CAP-8/settings", { cap: 9 }], ["POST", "/z/CAP-8/roster", { people: [{ phone: "9876543210" }] }], ["POST", "/z/CAP-8/unbind", { phone: "9876543210" }], ["POST", "/z/CAP-8/mark", { phone: "9876543210", role: "host" }], ["POST", "/org/host", {}], ["POST", "/z", eng("CAP-H")], ["POST", "/z/CAP-8/erase", {}]] as const)
       expect((await call(m, `/ai/${hk.hostKey}${p}`, b)).status).toBe(403);
   });

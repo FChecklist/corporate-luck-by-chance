@@ -195,12 +195,13 @@ describe("console (organizer page)", () => {
     const t = await p.waitFor((x) => /sign-in has expired|sign in again/i.test(x), 4000);
     expect(t).toMatch(/sign-in has expired|sign in again/i);
   });
-  test("Game day (step 9): the game page and the big screen are one tap away; the step has no pause or end buttons, no message to phones and no prize list of its own", async () => {
+  test("Game day (step 9): the game page and the big screen are one tap away, the message-to-everyone box is there, and the step has no pause or end buttons and no prize list of its own", async () => {
     const o = await organizer(); await make(o, "UI-DAY"); await regKey(o, "UI-DAY"); await publish(o, "UI-DAY");
     const p = await consolePage(o, "UI-DAY");
     await p.waitFor((x) => /Hello|Last step/.test(x)); openStep(p, 9); const t = await p.waitFor((x) => /Run the game/.test(x));
     expect(t).toMatch(/Not started yet/); expect(p.$("#runt")!.getAttribute("href")).toBe("/host.html?e=UI-DAY"); expect(p.$("#bigopen")!.getAttribute("href")).toMatch(/\/big\.html\?e=UI-DAY$/);
-    expect(t).not.toMatch(/Message to everyone|End the game|Prizes handed over|first number|numbers called|Lucky draws/); expect(p.$('[data-ctl="pause"]')).toBeNull(); expect(p.$("#annSend")).toBeNull();
+    expect(t).toMatch(/Message to everyone/); expect(p.$("#annblock")).toBeTruthy(); expect(p.$("#annSend")).toBeTruthy(); expect(p.$("#annSend")!.hasAttribute("disabled")).toBe(false); expect(p.$("#annText")).toBeTruthy();
+    expect(t).not.toMatch(/End the game|Prizes handed over|first number|numbers called|Lucky draws/); expect(p.$('[data-ctl="pause"]')).toBeNull();
     expect(p.errors).toEqual([]);
   });
   test("the role pill, the payment pill and the one-payment notice: pending shows the notice; paid hides it and says who paid", async () => {

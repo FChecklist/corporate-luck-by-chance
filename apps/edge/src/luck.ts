@@ -226,7 +226,10 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
 
   if ((sub === "view" || sub === "me") && method === "GET") {
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
-    const head: Record<string, unknown> = { serverNow: now, state: t.state, commit: t.commit_hash, joined, startMs: t.start_ms, endMs: t.end_ms, players: t.players, ...(t.state !== "open" ? { settings: settingsOf(t) } : {}), agreed: !!t.result, endedAfterRound: (JSON.parse(t.opts ?? "{}") as { endedAfterRound?: number }).endedAfterRound ?? null };
+    // the organizer's latest "message to everyone" (kv ann/<id>, written by POST /api/z/<id>/announce) rides along with the public view every phone and the big screen already read
+    let ann: { id: string; text: string } | null = null;
+    { const a = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`ann/${eid}`).first<{ v: string }>(); if (a) { try { const x = JSON.parse(a.v); if (typeof x?.id === "string" && typeof x?.text === "string" && x.text) ann = { id: x.id, text: x.text }; } catch { /* a damaged row shows no message */ } } }
+    const head: Record<string, unknown> = { serverNow: now, ann, state: t.state, commit: t.commit_hash, joined, startMs: t.start_ms, endMs: t.end_ms, players: t.players, ...(t.state !== "open" ? { settings: settingsOf(t) } : {}), agreed: !!t.result, endedAfterRound: (JSON.parse(t.opts ?? "{}") as { endedAfterRound?: number }).endedAfterRound ?? null };
     if (sub === "view") return json(head);
     const q = c.url.searchParams, who = await playerOf(c, q.get("pid"), q.get("device")); if (who instanceof Response) return who;
     if (t.state === "open") return json({ ...head, phase: "waiting", message: "You are in. Waiting for the host to start." });
