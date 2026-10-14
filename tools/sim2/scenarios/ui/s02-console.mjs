@@ -207,39 +207,27 @@ export default [
     },
   },
   {
-    id: "S02-09", name: "Step 4: brand moments by tapping: an opening message, a during-game message, a closing message and a lucky draw",
+    id: "S02-09", name: "Step 4 offers the brand only: no opening, during-game or closing message and no lucky draw on the screen, and saving it stores none",
     async run(t) {
       const { org, x, eid } = await startGameUi(t);
       await openStep(x.page, 4);
-      await chip(x.page, "opN", 1); await chip(x.page, "midN", 1); await chip(x.page, "clN", 1); await x.page.click('[data-luckyadd="1"]');
-      await x.page.fill("#f-op-0-t", "Welcome to the Diwali game"); await x.page.fill("#f-mid-0-t", "A word from our sponsor"); await x.page.fill("#f-cl-0-t", "Thank you all");
-      await chip(x.page, "lucky.0.win", 3); await chip(x.page, "lucky.0.pt", "hamper");
-      await saveStep(x.page, 4);
+      const txt = await t.text(x.page, "#sec4");
+      t.check("the brand fields are there (company name, colour, logo)", !!(await x.page.$("#f-brand-name")) && !!(await x.page.$("#brandlogo")), txt.slice(0, 120));
+      t.check("no opening / during-game / closing message and no lucky draw is offered", !(await x.page.$('[data-luckyadd], #f-op-0-t, #f-mid-0-t, #f-cl-0-t, [data-chip-group="opN"]')) && !/lucky draw|opening message|closing message|between rounds/i.test(txt), txt.slice(0, 200));
+      await x.page.fill("#f-brand-name", "Sim Industries"); await x.page.click('#sec4 [data-save="4"]'); await x.page.waitForTimeout(900);
       const i = (await org.info(eid)).body;
-      t.check("opening / during / closing saved", i.opening?.length === 1 && i.breaks?.length >= 1 && i.closing?.length === 1, JSON.stringify({ o: i.opening?.length, b: i.breaks?.length, c: i.closing?.length }));
-      t.check("opening text is stored", /Welcome to the Diwali game/.test(JSON.stringify(i.opening)), JSON.stringify(i.opening)?.slice(0, 120));
-      t.check("a lucky draw is among the moments", /lucky|draw/i.test(JSON.stringify(i.breaks)), JSON.stringify(i.breaks)?.slice(0, 200));
-      await t.shot(x.page, "step4-moments");
+      t.check("the stored game has the brand and no opening, break or closing", (i.opening || []).length === 0 && (i.breaks || []).length === 0 && (i.closing || []).length === 0, JSON.stringify({ o: i.opening?.length, b: i.breaks?.length, c: i.closing?.length }));
+      await t.shot(x.page, "step4-brand-only");
     },
   },
   {
-    id: "S02-10", name: "Step 4: the moment kinds (YouTube, video file, audio file) accept a link and refuse a bad one; 'Test it' appears",
+    id: "S02-10", name: "The server refuses what no player sees (an opening message) with a plain sentence, and refuses to End a game that has not started",
     async run(t) {
-      const { org, x, eid } = await startGameUi(t);
-      await openStep(x.page, 4);
-      await chip(x.page, "midN", 3); await x.page.waitForTimeout(300);
-      await chip(x.page, "mid.0.k", "yt"); await chip(x.page, "mid.1.k", "vid"); await chip(x.page, "mid.2.k", "aud");
-      const inputs = await x.page.$$eval("#sec4 input[type=text],#sec4 input[type=url]", (els) => els.map((e) => e.id));
-      t.note("inputs after choosing kinds: " + inputs.join(","));
-      const txt = await t.text(x.page, "#sec4");
-      t.check("'Test it' is offered for linked moments", /Test it/i.test(txt), txt.slice(0, 100));
-      const f0 = await x.page.$("#f-mid-0-u,#f-mid-0-l,#f-mid-0-m"); if (f0) await f0.fill("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-      const f1 = await x.page.$("#f-mid-1-u,#f-mid-1-l,#f-mid-1-m"); if (f1) await f1.fill("https://example.com/clip.mp4");
-      const f2 = await x.page.$("#f-mid-2-u,#f-mid-2-l,#f-mid-2-m"); if (f2) await f2.fill("not a link at all");
-      await x.page.click('#sec4 [data-save="4"]'); await x.page.waitForTimeout(900);
-      const after = await t.text(x.page, "#sec4");
-      t.check("a link that is not a link is refused with a message, or not stored", /link|address|http/i.test(after) || !JSON.stringify((await org.info(eid)).body.breaks).includes("not a link"), after.slice(-200));
-      await t.shot(x.page, "step4-links");
+      const { org, eid } = await startGameUi(t);
+      const m = await org.settings(eid, { opening: [{ kind: "text", title: "Welcome to the game" }] });
+      t.check("an opening message is refused (no-moments)", m.status === 400 && m.body?.code === "no-moments" && /no opening or closing messages/.test(m.body?.error || ""), JSON.stringify(m.body)?.slice(0, 160));
+      const e = await org.api("POST", `/api/z/${eid}/luck/end`, {});
+      t.check("ending a game that has not started is refused", e.status === 409 && e.body?.code === "not-started", e.status + " " + JSON.stringify(e.body)?.slice(0, 120));
     },
   },
   {

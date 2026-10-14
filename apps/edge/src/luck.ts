@@ -7,12 +7,13 @@
 // No dice, no score and no ranking is ever computed or stored by the server. Nothing is asked of a player but a nickname.
 //
 // Routes (all under /api/z/{eid}/luck/):  view (public)  seats (public, after the start)  me (a player)  beacon (public, only values that are due)  start (Organizer or Host)
+//                                         end (Organizer or Host: the game ends when the round now being played is over)
 //                                         vote (a player)  rank (public)  reveal (public after the game)  tick (platform key / scheduled job)
 // Only scheduling and checking helpers come from the game package: when a number is due (timeline), what an organizer may choose (settings), and the hash for the feed (random).
 // Targets, dice, scores, rankings and prizes are NOT imported here: the phones compute them (apps/edge/test/server-computes-nothing.test.ts keeps it that way).
 import { sha256Hex } from "../../../packages/luck/src/random";
 import { parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/settings";
-import { beaconDueMs, gameEndMs, totalDiceRounds } from "../../../packages/luck/src/timeline";
+import { beaconDueMs, gameEndMs, phaseAt, roundOf, totalDiceRounds } from "../../../packages/luck/src/timeline";
 import type { Env } from "./worker";
 
 export const LUCK_SCHEMA: string[] = [
@@ -157,6 +158,22 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
     return json({ ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s), commit: t.commit_hash, secretShownAt: "reveal" });
   }
 
+  if (sub === "end" && method === "POST") { // O7: End the game. Nothing is computed here: the game just gets fewer rounds, so every phone (which reads the settings) stops after that round and the beacon feed stops with it.
+    if (!c.allowed) return json({ error: "Only the Organizer or a Host can end the game." }, 403);
+    if (t.state === "open") return json({ error: "The game has not started yet.", code: "not-started" }, 409);
+    const s = settingsOf(t), ph = phaseAt(s, t.start_ms!, now);
+    const was = (JSON.parse(t.opts ?? "{}") as { endedAfterRound?: number }).endedAfterRound;
+    if (was) return json({ ok: true, again: true, endedAfterRound: was, endsMs: t.end_ms }); // pressed twice: the same answer
+    if (t.state === "done" || ph.kind === "over") return json({ error: "The game is over.", code: "over" }, 409);
+    if (ph.kind === "before") return json({ error: "The first dice round has not begun yet. Nothing has been played.", code: "not-yet" }, 409);
+    const cur = ph.kind === "break" ? ph.afterRound : roundOf(s, ph.g);
+    if (cur >= s.rounds) return json({ ok: true, last: true, endedAfterRound: s.rounds, endsMs: t.end_ms, message: "This is the last round. The game ends by itself when it is over." });
+    const s2 = { ...s, rounds: cur }, endMs = gameEndMs(s2, t.start_ms!);
+    if (!(await c.spend(env, now, 2))) return c.BUSY();
+    await env.DB.prepare("UPDATE luck_t SET opts=?, end_ms=? WHERE eid=? AND state='running'").bind(JSON.stringify({ ...s2, endedAfterRound: cur }), endMs, eid).run();
+    return json({ ok: true, endedAfterRound: cur, rounds: cur, endsMs: endMs });
+  }
+
   if (sub === "reveal" && method === "GET") {
     if (t.state !== "done") return json({ commit: t.commit_hash, revealed: false, note: "The secret is shown when the game is over. This fingerprint cannot be changed after that." });
     return json({ commit: t.commit_hash, revealed: true, secret: t.secret, seed: t.seed, eid, how: "commit = sha256('LBC-COMMIT|' + secret); seed = sha256('LBC-SEED|' + secret + '|' + eid + '|' + sha256('LBC-ROSTER|' + sorted player ids joined by comma)); beacon value i = sha256('LBC-BEACON|' + seed + '|' + i). The game id used in every draw is the eid. The code is packages/luck/src." });
@@ -209,7 +226,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
 
   if ((sub === "view" || sub === "me") && method === "GET") {
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
-    const head: Record<string, unknown> = { serverNow: now, state: t.state, commit: t.commit_hash, joined, startMs: t.start_ms, endMs: t.end_ms, players: t.players, ...(t.state !== "open" ? { settings: settingsOf(t) } : {}), agreed: !!t.result };
+    const head: Record<string, unknown> = { serverNow: now, state: t.state, commit: t.commit_hash, joined, startMs: t.start_ms, endMs: t.end_ms, players: t.players, ...(t.state !== "open" ? { settings: settingsOf(t) } : {}), agreed: !!t.result, endedAfterRound: (JSON.parse(t.opts ?? "{}") as { endedAfterRound?: number }).endedAfterRound ?? null };
     if (sub === "view") return json(head);
     const q = c.url.searchParams, who = await playerOf(c, q.get("pid"), q.get("device")); if (who instanceof Response) return who;
     if (t.state === "open") return json({ ...head, phase: "waiting", message: "You are in. Waiting for the host to start." });

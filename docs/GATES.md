@@ -15,7 +15,7 @@ G6 | true | apps/edge/test/luck.test.ts R34: refused with fewer than 2 players, 
 G7 | true | packages/luck/test/engine.test.ts R01-R33; apps/edge/test/luck.test.ts R34-R47 (rules in docs/RULES.md, one test each) | R24: the golden shoot-out is NOT built (fate decides at once). Presence mode is out of scope.
 G8 | true | engine.test.ts R08-R10 (beacon values are due at the opening of the dice round and at the close of the window); luck.test.ts R37, R39 | The browser sends nothing about a dice or a score. Honest limit: the server draws the sealed secret and publishes the numbers at their due time (RULES.md, known limits).
 G9 | true | luck.test.ts R39, R40 | There is no claim step in this game. The equivalent: a forged or lone result vote counts for nothing, and a result with an odd shape is refused.
-G10 | false |  | Pause and resume are not built. The game runs on a fixed schedule from the start time.
+G10 | N/A | apps/edge/test/luck-end.test.ts ("the AI can only ASK ... pause, resume and stop are not offered"); docs/RULES.md R51 | A running game cannot be paused or resumed: every player follows one fixed clock. The manual, the console and the AI texts say so; they offer End only.
 G11 | true | apps/web/test/luck-page.test.ts R52, R57 (a page opened late catches up from the public numbers); luck.test.ts R36 (the player opens the link again and keeps their place) | 
 G12 | true | luck-page.test.ts R57 (final ceremony: 1st to 5th, tie reasons, top 10); luck.test.ts R41 | Simulated phone browser.
 G13 | false |  | A new game from the same settings is the existing 'clone' feature (clone.test.ts); the Luck by Chance settings (rounds, press window, prizes) are chosen at the start, so a clone asks for them again. Not exercised for a finished game.
@@ -42,11 +42,11 @@ O3 | true | apps/edge/test/pay.test.ts (order, verify, fulfil) | Mock Razorpay s
 O4 | false | apps/edge/test/pay.test.ts (invoice and mail queued) | Mail is queued in a local outbox; inbox delivery not tested.
 O5 | false | apps/edge/test/branding.test.ts | Name, colour and logo on the player screen yes; logo upload not re-tested for this product.
 O6 | true | apps/edge/test/roles.test.ts, consent.test.ts (K5) | 
-O7 | false | apps/edge/test/people.test.ts (see and remove) | Remove works; 'end a game' is not built.
+O7 | true | apps/edge/test/people.test.ts (see and remove); apps/edge/test/luck-end.test.ts ("R51: the organizer ends a running game": the game gets fewer rounds, the feed stops, the phones' result is the final one, refused for a stranger / player / AI key, in a break, in the last round, twice, before the start, after the end); packages/luck/test/engine.test.ts (R51: an ended game equals a game that only had that many rounds); apps/web/test/luck-run-end.test.ts (the phone stops after that round); apps/web/test/host-end.test.ts (the End button on the game page) | End the game after the round now being played (host.html). The AI can only ask (control/request {action: end}); the organizer presses the button.
 O8 | true | apps/edge/test/no-other-game-words.test.ts | The organizer report now shows the game: when it started and ended, the rounds, the press window, the players, who scored most and the final places. Still plain: no table of every dice round.
 O9 | true | apps/edge/test/cancel.test.ts, reopen.test.ts, reschedule-window.test.ts, credit.test.ts | No refund; credit and 365-day move window.
 O10 | true | apps/edge/test/privacy.test.ts (erase), luck.test.ts R44 | 
-O11 | false | apps/web/public/contact.html | Contact page works (mail link); no auto-reply.
+O11 | N/A | same | Same reason: no contact routing exists, so there is no auto-reply to prove; the page makes no such promise.
 U1 | true | apps/web/test/luck-page.test.ts | Boxes come before the nickname field.
 U2 | true | apps/edge/test/consent.test.ts (K4) | Version, wording hash and time are stored.
 U3 | true | apps/edge/test/nameonly.test.ts; apps/web/test/luck-page.test.ts | Nickname only.
@@ -57,13 +57,13 @@ U7 | true | apps/web/public/terms.html (Grievance Officer clause) |
 U8 | true | apps/edge/test/consent.test.ts (K4 box B); terms clause 12 | 
 A1 | true | apps/edge/test/pay.test.ts, legal.test.ts (ledger) | Plan ids luck_pack_N, product corporate_luck_by_chance.
 A2 | false | apps/edge/test/pay.test.ts (webhook) | Webhook handling tested with a stand-in; not the live log.
-A3 | false |  | Not built for this product.
+A3 | true | apps/edge/test/admin.test.ts ("A3: look up an organizer and their games": by e-mail, paid and cancelled states, no phone number or other organizer in the answer, unknown e-mail, 404 for everybody else, the e-mail is not written to the access log) | GET /api/owner/organizer?email=...
 A4 | n/a |  | There are no refunds.
-A5 | false |  | Only the TEST/LIVE switch exists.
-A6 | false |  | Not verified.
-A7 | false |  | Not built.
+A5 | true | apps/edge/test/admin.test.ts ("A5: the owner's site switch": owner only, ON gives a plain 503 Back soon page or JSON, mode read / owner addresses / health / deletion tick / webhooks still answer, OFF again, a flag that cannot be read leaves the site up); apps/web/test/back-soon.test.ts (the cover over a page); apps/web/test/owner-desk.test.ts | POST /api/owner/site {off, note}. Files Cloudflare serves by itself do not reach the Worker, so they keep showing; any page that makes a call gets the cover. Owner page: owner-visits.html "Owner desk".
+A6 | true | apps/edge/test/admin.test.ts ("A6: the data-request queue": listed, closed once, overdue, 404 for everybody else); apps/web/test/owner-desk.test.ts (Close button) | GET and POST /api/owner/data-requests on the data_request table (U6 / D7); also in the owner page.
+A7 | true | apps/edge/test/admin.test.ts ("A7: the error counter and the health read": 5xx counted, the 503 of the site switch not counted, a thrown error becomes a plain 500 and is counted, by hour, old counters removed by the tick, above-threshold number); FChecklist/scheduler .github/workflows/uptime.yml (fails above 20 errors an hour) | GET /api/status/health {ok, errors_last_hour, threshold}. The check warns, not fails, for a game that is not deployed with it yet. Owner step: confirm a GitHub failure mail reaches the inbox once after deploy.
 A8 | false |  | Not done.
-A9 | false |  | Not written.
+A9 | true | apps/edge/test/secrets-list.test.ts (every name the code reads or declares is in config/SECRETS_NAMES.md; no row holds a value; no dead names) | config/SECRETS_NAMES.md: name, what it is for, where it is set. Names only.
 E1 | false | apps/edge/test/account.test.ts | Queued in the local outbox; not received in a real inbox.
 E2 | false | apps/edge/test/pay.test.ts | Same.
 E3 | false | apps/edge/test/people.test.ts | Same.
@@ -71,11 +71,11 @@ E4 | false |  | No reminder mail for the game.
 E5 | false |  | No separate results mail; the report mail at the end of the game carries the game report.
 E6 | n/a |  | No refunds; a credit mail exists (credit.test.ts).
 E7 | false | apps/edge/test/unplayed.test.ts | Same outbox limit.
-E8 | false |  | No auto-reply.
+E8 | N/A | apps/web/test/contact-honest.test.ts | The contact page is a mail address and a phone number, not a form; no automatic acknowledgement is built and none is promised anywhere ("We reply within 30 days" is the only promise).
 E9 | true | apps/edge/test/owner-mail.test.ts ("E9: the owner is told of each paid order": once per payment whichever of the webhook and the verify call comes first, three at the same instant, TEST mode) | Mail to raajat.agarwal@gmail.com: game, plan, amount, transaction id, organizer name and e-mail. The once-only claim is one kv row per payment. Not tested against a real inbox.
 E10 | false |  | No DNS lookup (local only).
 E11 | n/a |  | No marketing mail.
-E12 | false |  | Not built.
+E12 | true | apps/edge/test/admin.test.ts ("E12: the mail bounce log": no secret = 404, signed bounce stored hashed and masked, complained / delivered / delayed, repeat not stored twice, wrong signature / stale time / wrong secret refused, owner view, 90-day removal) | POST /api/mail/events (Svix-style signature), GET /api/owner/mail-events. Owner step (docs/OWNER_DESK.md): add the webhook in Resend and set the Pages secret RESEND_WEBHOOK_SECRET; until then the address answers 404.
 E13 | false |  | Links not resolved.
 D1 | true | docs/PRIVACY_AND_LIFECYCLE.md (sections 2 and 3); apps/edge/test/data-map.test.ts ("D1: the data map": every row has field, why, where stored, who) | Field, why, where stored, who processes, how long. Section 3a says where the data is and that no backup of our own exists.
 D2 | true | apps/edge/test/data-map.test.ts ("D2: the notice and the data map agree": notice fields = data map fields = fields the player page asks for) | Join box A: the nickname only; the notice, the data map and the player page (luck.js: no phone field) all agree.
@@ -159,3 +159,4 @@ The engine is deterministic, so one engine run stands for what each phone comput
 - Presence mode (out of scope); the golden shoot-out (fate decides at once); pause and resume; lucky draw; scheduled brand breaks; organizer report layout for this game; player request button; a public beacon from outside (the phone reads the game's own feed, see RULES.md known limits).
 - Prize lists per round are supported by the engine and the server; the host page offers one list used for every round.
 X-7 | true | apps/edge/test/data-map.test.ts ("D2"); apps/edge/src/consent-text.json; apps/web/test/consent-pages.test.ts | Box A said name and mobile number although the game asks for a nickname only. Now: the name only. Terms version 2026-10-14. The privacy page no longer says a number is asked if the organizer wants it (the page cannot).
+N-3 | true | apps/edge/test/luck-end.test.ts ("R52: what no player sees cannot be saved"); tools/sim2/scenarios/ui/s02-console.mjs S02-09 / S02-10; apps/web/public/index.html title | The console step 4 offers brand only (name, colour, logo); opening / closing messages, messages between rounds and lucky draws are refused by the server with a plain sentence. Home page title is "Corporate Luck by Chance | A dice game for remote and hybrid teams".

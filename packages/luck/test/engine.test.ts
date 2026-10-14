@@ -230,3 +230,32 @@ describe("F. Same result on every phone", () => {
     expect(t).toEqual({ seat: 3, points: 11, hits: 3, best: 6, reachedAt: 15 });
   });
 });
+
+describe("I. The organizer ends the game", () => {
+  test("R51: a game ended after round 1 of 3 is the same game as one that had only 1 round: same rankings, same prizes, finished at once", async () => {
+    const full = small(3, { prizes: { overall: ["Hamper", "Book"], rounds: [["Pen"], ["Mug"], ["Cap"]] } }), short = small(1, { prizes: { overall: ["Hamper", "Book"], rounds: [["Pen"]] } });
+    const b = await bs(60), seats = 30;
+    const a = new LuckGame(GID, full, seats), c = new LuckGame(GID, short, seats);
+    for (let k = 0; k < 10; k++) { await a.addDiceRound(k, b[2 * k]!, b[2 * k + 1]!); await c.addDiceRound(k, b[2 * k]!, b[2 * k + 1]!); }
+    expect(a.finished).toBe(false); expect(a.endAfterRound(1)).toBe(true); expect(a.finished).toBe(true); expect(a.settings.rounds).toBe(1);
+    expect((await a.overallRanking()).map((r) => [r.seat, r.points, r.line])).toEqual((await c.overallRanking()).map((r) => [r.seat, r.points, r.line]));
+    expect((await a.roundRanking(1)).map((r) => r.seat)).toEqual((await c.roundRanking(1)).map((r) => r.seat));
+    const win = async (g: LuckGame) => assignPrizes(g.settings, [await g.roundRanking(1)], await g.overallRanking());
+    expect(await win(a)).toEqual(await win(c));
+    expect((await win(a)).map((w) => w.ranking)).not.toContain("round-2"); // no prize for a round that was never played
+  });
+  test("R51: ending is refused when it would not make the game shorter or would undo dice rounds already played", async () => {
+    const g = new LuckGame(GID, small(3), 10), b = await bs(60);
+    for (let k = 0; k < 15; k++) await g.addDiceRound(k, b[2 * k]!, b[2 * k + 1]!); // into round 2
+    for (const n of [0, 1.5, -1, 3, 4, NaN]) expect([n, g.endAfterRound(n)]).toEqual([n, false]); // 1 would cut off dice rounds already played; 3 and 4 are not shorter
+    expect(g.settings.rounds).toBe(3); expect(g.finished).toBe(false);
+    expect(g.endAfterRound(2)).toBe(true); expect(g.settings.rounds).toBe(2); expect(g.finished).toBe(false); // round 2 is still being played
+    for (let k = 15; k < 20; k++) await g.addDiceRound(k, b[2 * k]!, b[2 * k + 1]!);
+    expect(g.finished).toBe(true);
+  });
+  test("R51: the timeline of a shortened game ends when its last round ends, and the break after the last round is not needed", () => {
+    const s3 = small(3), s1 = { ...s3, rounds: 1 }; const start = 1_000_000;
+    expect(gameEndMs(s1, start)).toBe(revealEndMs(s1, start, 9)); expect(gameEndMs(s1, start)).toBeLessThan(gameEndMs(s3, start));
+    expect(phaseAt(s1, start, gameEndMs(s1, start)).kind).toBe("over"); expect(phaseAt(s3, start, gameEndMs(s1, start)).kind).toBe("break");
+  });
+});

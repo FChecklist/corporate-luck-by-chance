@@ -4,7 +4,7 @@
 // and not in the software (or the other way round), a test fails: this ends the drift where the manual said something the software no longer did.
 //
 // who:  ai       the AI does it by itself, through the address in `call` (or the step link in `go`)
-//       handover the AI prepares everything and gives the organizer a link that opens the exact confirm screen: ONE tap by the organizer (publish, erase, pause, stop)
+//       handover the AI prepares everything and gives the organizer a link that opens the exact confirm screen: ONE tap by the organizer (publish, erase, end)
 //       human    only the organizer, never the AI (payment, guest names and numbers, sign-in)
 
 export type Who = "ai" | "handover" | "human";
@@ -45,7 +45,7 @@ export const FUNCTIONS: Fn[] = [
   { id: "announce", name: "Message every guest", who: "ai", what: "Up to 160 characters, spoken and shown on every phone and the big screen; published games only; one every 5 seconds.", go: "go/say?id={id}", call: "POST z/{id}/announce", body: "{text}", say: "Ask before sending; keep it short and kind." },
   { id: "who-joined", name: "Who has joined", who: "ai", what: "Head-count and seat numbers; never names or mobile numbers.", go: "go/who?id={id}", call: "GET z/{id}/participants", say: "Report counts only." },
   { id: "mark-seat", name: "Mark Organizer, Host or Co-host seats; change of phone", who: "handover", what: "By seat number. The AI cannot find a person's seat from a name; the organizer reads the number in the console.", call: "POST z/{id}/mark | POST z/{id}/unbind", body: "{seat, role} | {seat}", console: "/zc.html?e={id}", say: "Ask for the seat number, or send the organizer to the console." },
-  { id: "pause-stop", name: "Pause, resume or stop a running game", who: "handover", what: "The AI asks; the organizer approves with one tap in their own console.", call: "POST z/{id}/control/request", body: "{action: pause|resume|stop, note}", console: "/zc.html?e={id}&do=pause", say: "Give the hand-over link; the organizer presses the button." },
+  { id: "end-game", name: "End a running game", who: "handover", what: "The AI asks; the organizer presses End on the game page. The round being played is finished and counted, then the game is over. A running game cannot be paused.", call: "POST z/{id}/control/request", body: "{action: end, note}", console: "/zc.html?e={id}&do=end", say: "Give the hand-over link; the organizer presses the button." },
   { id: "results", name: "Results and prizes", who: "ai", what: "Winners by seat number and whether each prize was handed over.", call: "GET z/{id}/results | GET z/{id}/prizes", say: "Winners are shown as seat numbers; names stay in the console." },
   { id: "prize-given", name: "Tick a prize as handed over", who: "ai", what: "Records that a prize was given, with the date.", call: "POST z/{id}/prizegiven", body: "{round, pattern, ordinal, seat, given}", say: "Copy the values from the prizes list." },
   { id: "report", name: "The report after the game", who: "ai", what: "Status only: it is e-mailed to the organizer about 3 minutes after the game ends and opens for 22 hours.", call: "GET z/{id}/reportlink", say: "Remind the organizer to save the report within 22 hours; it holds guest data that is erased at 23 hours." },

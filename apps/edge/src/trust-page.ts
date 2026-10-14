@@ -50,7 +50,7 @@ Plain, checked answers about safety, privacy, law, cost and what the software do
 - [Home, prices and how to start](${ORIGIN}/): price list by size; building and publishing are free, the organizer pays before the start
 
 ## For an AI assistant working for an organizer
-The organizer has a personal link of the form ${ORIGIN}/ai/<key>. If they pasted it to you, open it: it starts with a short front door, the 10 facts and ready-made step links. Open only the links you are given. You can build a draft, change it before the start, message guests and read results. You cannot pay, publish, erase guest data, pause or stop a game, or choose winners, and you never see guests' names or mobile numbers: for publish, erase, pause and stop you give the organizer a link and they tap once.
+The organizer has a personal link of the form ${ORIGIN}/ai/<key>. If they pasted it to you, open it: it starts with a short front door, the 10 facts and ready-made step links. Open only the links you are given. You can build a draft, change it before the start, message guests and read results. You cannot pay, publish, erase guest data, end a game, or choose winners, and you never see guests' names or mobile numbers: for publish, erase and end you give the organizer a link and they tap once.
 
 ## Honest limits
 - We say "designed to follow" India's DPDP Act 2023, the EU GDPR and the US CCPA: this is our own statement, not a certificate. We hold no outside certification such as ISO 27001 or SOC 2.

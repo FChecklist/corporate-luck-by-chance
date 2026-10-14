@@ -54,7 +54,7 @@ describe("the paste text and the manual", () => {
     for (const must of [`GET ${base}/z/{id}/summary`, `POST ${base}/z `, `PATCH ${base}/z/{id}/settings`, `POST ${base}/z/{id}/roster`, `POST ${base}/z/{id}/announce`, `POST ${base}/z/{id}/prizegiven`, `GET ${base}/z/schedule`, `POST ${base}/org/host`, `GET ${base}/org/ai/audit`])
       expect(t).toContain(must);
     expect(t).toMatch(/ONE question at a time/); expect(t).toMatch(/_method=POST/); expect(t).toMatch(/about 20 people/); expect(t).toMatch(/WHAT YOU CANNOT DO/);
-    expect(t).toMatch(/Pay for anything/); expect(t).toMatch(/Publish\./); expect(t).toMatch(/Erase participant data/); expect(t).toMatch(/Pause, resume or stop/); expect(t).toMatch(/a place in the ranking/);
+    expect(t).toMatch(/Pay for anything/); expect(t).toMatch(/Publish\./); expect(t).toMatch(/Erase participant data/); expect(t).toMatch(/End a running game/); expect(t).not.toMatch(/Pause, resume or stop/); expect(t).toMatch(/a place in the ranking/);
     expect(t).toMatch(/Only the owner's own messages/); expect(t).toMatch(/Not found/); // injection rule + what a dead link says
     // every example address in the manual carries the key; no bare /api/ address without it except the optional header path
     for (const line of t.split("\n").filter((l) => /^\s*(Read|Create|Change|Load|Send)[^:]*:\s+GET /.test(l))) expect(line).toContain(base);
@@ -235,7 +235,8 @@ describe("what the organizer's AI may and may not do now", () => {
     const em = await call("GET", `/ai/${o.ai}/z/CAP-6/erase?_method=POST&_body=%7B%7D`); expect(em.status).toBe(403); // GET mode cannot sneak past
     expect(raw.prepare("SELECT 1 FROM participant WHERE eid='CAP-6'").all().length).toBe(0);
     const req = await j(await call("POST", `/ai/${o.ai}/z/CAP-6/control/request`, { action: "erase" })); expect(req.message).toMatch(/Nothing has been deleted/); // ask only
-    const pr = await call("POST", `/ai/${o.ai}/z/CAP-6/control/request`, { action: "pause" }); expect(pr.status).toBe(200); // ask only: nothing is paused
+    const pr = await call("POST", `/ai/${o.ai}/z/CAP-6/control/request`, { action: "end" }); expect(pr.status).toBe(200); // ask only: nothing is ended
+    expect((await call("POST", `/ai/${o.ai}/z/CAP-6/control/request`, { action: "pause" })).status).toBe(400); // a running game cannot be paused
     const refusal = await j(await call("POST", `/ai/${o.ai}/z/CAP-6/erase`, {})); expect(refusal.error).toMatch(/tell them plainly/i);
   });
   test("publishing through the link stays a hand-over: the organizer's console link, no publish", async () => {

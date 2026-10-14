@@ -20,6 +20,7 @@ import { LINK_MAIL_TTL_MS, aiLinkMail, coHostLinkMail, hostLinkMail, newUseAlert
 import { cancelGame, cancelPreview, reopenGame, teamEmails } from "./cancel";
 import { LEGAL_SCHEMA } from "./legal";
 import { RIGHTS_SCHEMA, leaveRoute, requestRoute } from "./rights";
+import { ADMIN_SCHEMA, adminRoute, adminTick, countError, maintenanceGate } from "./admin";
 import { LEDGER_SCHEMA } from "./ledger";
 import { LEDGERC_SCHEMA, ledgerCTick, ownerLedger } from "./ledgerc";
 import { CREDIT_SCHEMA, activeCreditSummary, creditAppliedFor, creditRoute } from "./credit";
@@ -171,6 +172,8 @@ export const SCHEMA: string[] = [
   // ledger C: txn_id, fee/tax/method/bank reference on a payment, every payment attempt (success and failure), refunds, commission sync marks (0023_ledger_c.sql)
   ...LEDGERC_SCHEMA,
   ...RIGHTS_SCHEMA,
+  // the owner's desk: the mail service's bounce / complaint / delivery events (admin.ts)
+  ...ADMIN_SCHEMA,
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
@@ -180,6 +183,9 @@ const cfgOf = (e: { tickets?: number; config?: string | null }): EngagementCfg =
   return defaultCfg();
 };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+/** Luck by Chance shows players nothing but the company name, colour and logo above the game, and the prizes: no opening or closing message, no message between rounds, no lucky draw. A request that carries any of them is refused (a game must not save or sell what no player will ever see). */
+const NO_MOMENTS_MSG = "Luck by Chance has no opening or closing messages, no messages between rounds and no lucky draws. Players see your company name, colour and logo, and the prizes you write for each place.";
+const noMoments = (b: any): Response | null => (b && ["opening", "closing", "breaks"].some((k) => Array.isArray(b[k]) && b[k].length > 0) ? json({ error: NO_MOMENTS_MSG, code: "no-moments" }, 400) : null);
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
 const randHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -338,7 +344,16 @@ let lastNudge = 0;
 /** The names of the secrets this Worker needs in production (STRICT_KEYS=1) and does not have. Empty when strict mode is off (local runs and tests). */
 export const missingKeys = (env: Env): string[] => (env.STRICT_KEYS === "1" ? ["DATA_KEY", "PHONE_SALT", "ORGANIZER_SECRET", "CRON_KEY", "INBOUND_SECRET"].filter((k) => !String((env as any)[k] ?? "").trim()) : []);
 const keysMissing = (env: Env) => missingKeys(env).length > 0;
+/** The front door: the owner's site switch (admin.ts) first, then the real handler; every 5xx answer is counted for the error signal (A7). */
 export async function handle(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
+  const off = await maintenanceGate(req, env, now).catch(() => null);
+  if (off) return off;
+  let res: Response;
+  try { res = await handleCore(req, env, now, waitUntil); } catch (e) { await countError(env.DB, now); return json({ error: "Something went wrong. Please try again.", code: "server-error" }, 500); }
+  if (res.status >= 500) await countError(env.DB, now);
+  return res;
+}
+async function handleCore(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
   if (keysMissing(env)) return new Response(JSON.stringify({ error: "The service is not configured. Please try again later." }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store" } });
   const pn = new URL(req.url).pathname;
   if (pn === "/ai" || pn.startsWith("/ai/")) return aiLink(req, env, now, waitUntil);
@@ -540,9 +555,8 @@ export const AI_MANIFEST = {
     { do: "See who joined (names and ids only, never phone numbers)", call: "GET /api/z/{id}/participants" },
     { do: "See how the game is going, the way everybody sees it (no key needed): whether it has started, how many players, when it started and ends, the rounds and the press window, and whether the phones have agreed on the result", call: "GET /api/z/{id}/luck/view -> {state: open|running|done, joined, startMs, endMs, players, settings, agreed}" },
     { do: "See the winners of the top places, by seat number, once the game has finished", call: "GET /api/z/{id}/results" },
-    { do: "Ask the organizer to pause, resume or stop (they approve in their console)", call: "POST /api/z/{id}/control/request {action: pause|resume|stop, note}" },
+    { do: "Ask the organizer to end a running game (they press End on the game page; the round being played is finished first)", call: "POST /api/z/{id}/control/request {action: end, note}" },
     { do: "Ask for ALL participant names and mobile numbers of this game to be deleted (nothing is deleted until the organizer confirms in their console)", call: "POST /api/z/{id}/control/request {action: 'erase', note}" },
-    { do: "Read the current pause status", call: "GET /api/z/{id}/control" },
     { do: "Send a message to every guest's phone and the big screen (160 characters; empty text clears it; once published)", call: "POST /api/z/{id}/announce {text}" },
     { do: "See the winners to hand rewards to, by seat number (names and numbers stay in the console), and tick a reward as given", call: "GET /api/z/{id}/prizes ; POST /api/z/{id}/prizegiven {round: 1, pattern: <first|second|third|fourth|fifth>, ordinal: 1, seat, given}" },
     { do: "Change of phone: let one person move their place to a new phone", call: "POST /api/z/{id}/unbind {seat} (the seat number; the console takes a mobile number, an AI never does)" },
@@ -570,7 +584,7 @@ export const AI_MANIFEST = {
     "Choose, change or remove a target number, a dice, a score, a place in the ranking or anyone's reward (nobody can, not even the organizer: the software decides, and a result stands only when enough phones report exactly the same result)",
     "Start the game, or choose its rounds, press window or prize texts: the Organizer or a Host does these on the game page",
     "Erase participant data (you may ASK; the organizer confirms)",
-    "Pause, resume or stop a running game (you may ASK; only the organizer's own browser holds that signing key)",
+    "End a running game (you may ASK; only the organizer presses End, on the game page)",
     "Create or retire the organizer's own sign-in keys, change their e-mail or delete the account, or sign in with Google",
     "Make a pay link that anyone can open (POST /api/z/{id}/paylink answers 403 to an AI key: only the Organizer, a Host or a Co-host makes one)",
     "Write or run code on the platform",
@@ -604,6 +618,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
 
   if (req.method === "GET" && p === "/api/z/ai-manifest") return json(AI_MANIFEST);
   { const mr = await modeRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => purgeTestData(env, n)); if (mr) return mr; } // TEST/LIVE switch, allow-list, purge (mode.ts): owner only, except the public read of the word TEST or LIVE
+  { const ar = await adminRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => spend(env, now, n)); if (ar) return ar; } // the owner's desk (admin.ts): site switch, organizer lookup, data requests, mail events, error counts; the health read; the mail webhook
   if (p === "/api/v/b") return beaconRoute(req, env as VisitEnv, now, (n) => spend(env, now, n)); // public-page visit tracking (visits.ts); never the live game
   if (p === "/api/owner/ledger") { // OWNER ONLY (platform key, never through an AI work link): this website's own payment ledger (C). Anybody else gets the same 404 as an unknown address.
     if (!(a.plat && req.headers.get("x-cb-link") !== "1") || req.method !== "GET") { await logAccess(env.DB, now, "denied:ledger-c", null, null, 0, false, a.kind ?? "anonymous"); return json({ error: "Not found" }, 404); }
@@ -1062,7 +1077,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (sub === "/request" && req.method === "POST") { // the AI (or organizer) asks; the organizer's browser approves by signing
       if (!can(a, ce)) return deny(a);
       const b = await body(req);
-      if (!b || !["pause", "resume", "stop", "erase"].includes(b.action)) return json({ error: "Ask for pause, resume, stop or erase." }, 400);
+      if (!b || !["end", "erase"].includes(b.action)) return json({ error: "Ask for end or erase. A running game cannot be paused: every player follows one fixed clock." }, 400);
       if (!(await spend(env, now))) return BUSY();
       if (b.action === "erase") { // the AI may ASK to delete all participant data; only the organizer's own confirmation in their console does it
         await nudge(env, cid!, `delreq-${day(now)}`, now, `Your AI assistant asked to delete all participant data: game ${cid}`, `Your AI assistant asked to delete all participant data for ${cid}. Nothing is deleted yet.\n\nTo confirm, press Confirm in your console: ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${cid}\n\nNot you? Press Dismiss.`);
@@ -1144,6 +1159,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!b || !ID.test(b.id ?? "") || !Number.isInteger(b.startRound) || !Number.isInteger(b.callSeconds) || b.callSeconds % 3 || b.callSeconds < 6 || !Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000)
       return json({ error: "Check the game details." }, 400);
     if (roundMs(b.startRound) > now + MAX_AHEAD_MS) return json({ error: TOO_FAR, code: "too-far" }, 400);
+    { const nm = noMoments(b); if (nm) return nm; }
     const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz });
     if (!vc.ok) return json({ error: vc.error }, 400);
     const have = await env.DB.prepare("SELECT org FROM engagement WHERE id=?").bind(b.id).first<{ org: string | null }>();
@@ -1216,6 +1232,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const jobKey = req.headers.get("x-cron-key") ?? "";
     const jobSecret = (env.CRON_KEY ?? "").trim(); // a secret pasted in with a trailing line break still matches
     if (!a.plat && !(jobSecret.length >= 16 && jobKey.trim() === jobSecret)) return deny(a);
+    await adminTick(env.DB, now); // old error counters and old mail events go (admin.ts)
     await remindUnpaid(env, now);
     let luckClosed = 0; try { luckClosed = await luckTick(env, now); } catch { /* tried again next minute */ } // games whose result never reached agreement
     const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
@@ -1524,7 +1541,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!can(a, e)) return deny(a);
     const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
     const c = cfgOf(e), origin = (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin;
-    const links = { console: `${origin}/zc.html?e=${e.id}`, ...(isDraft ? { publishHandover: `${origin}/zc.html?e=${e.id}&do=publish` } : { guest: `${origin}/z.html?e=${e.id}`, bigScreen: `${origin}/big.html?e=${e.id}` }), ...(unpaid && !isDraft ? { pay: `${origin}/pay.html?e=${e.id}` } : {}), testBrandMoment: `${origin}/preview.html`, demo: `${origin}/demo.html` };
+    const links = { console: `${origin}/zc.html?e=${e.id}`, ...(isDraft ? { publishHandover: `${origin}/zc.html?e=${e.id}&do=publish` } : { guest: `${origin}/z.html?e=${e.id}`, bigScreen: `${origin}/big.html?e=${e.id}` }), ...(unpaid && !isDraft ? { pay: `${origin}/pay.html?e=${e.id}` } : {}), seeWhatPlayersSee: `${origin}/preview.html`, demo: `${origin}/demo.html` };
     const nextSteps = [
       { step: "Name the prizes", who: "the organizer, or the AI if told what each prize is", done: c.rewards.some((r) => r.text.length > 0) },
       { step: "Publish (free): the organizer confirms their e-mail and mobile and taps once", who: "the organizer", done: !isDraft, ...(isDraft ? { link: `${origin}/zc.html?e=${e.id}&do=publish` } : {}) },
@@ -1697,6 +1714,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!b) return json({ error: "Check the details." }, 400);
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     if (b.coHostLimit !== undefined && (!Number.isInteger(b.coHostLimit) || b.coHostLimit < COHOST_LIMIT_MIN || b.coHostLimit > COHOST_LIMIT_MAX)) return json({ error: `A Co-host can list ${COHOST_LIMIT_MIN} to ${COHOST_LIMIT_MAX} people.` }, 400);
+    { const nm = noMoments(b); if (nm) return nm; }
     const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, invites: b.invites !== undefined ? b.invites : b.guestInvites, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz }, cfgOf(e)); // guestInvites is the console's name for invites
     if (!vc.ok) return json({ error: vc.error }, 400);
     const next = { start_round: b.startRound ?? e.start_round, call_seconds: b.callSeconds ?? e.call_seconds, cap: b.cap ?? e.cap, closed: b.whoCanJoin !== undefined ? (b.whoCanJoin === "list" ? 1 : 0) : b.closed === undefined ? e.closed : b.closed ? 1 : 0, cohost_limit: b.coHostLimit ?? e.cohost_limit ?? null }; // whoCanJoin "list" is the same switch as the older `closed`

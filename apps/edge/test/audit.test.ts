@@ -72,7 +72,7 @@ describe("what is recorded, and sealed", () => {
   });
   test("classify names the events", () => {
     expect(classify("POST", "/api/z/EVT1/announce", 200, "organizer", {})?.event).toBe("announce");
-    expect(classify("POST", "/api/z/EVT1/control/request", 200, "ai_key", { action: "pause" })?.event).toBe("pause");
+    expect(classify("POST", "/api/z/EVT1/control/request", 200, "ai_key", { action: "end" })?.event).toBe("end_request");
     expect(classify("POST", "/api/z/EVT1/unbind", 200, "organizer", {})?.event).toBe("unbind");
     expect(classify("POST", "/api/z/EVT1/prizegiven", 200, "cohost", {})?.event).toBe("prize");
     expect(classify("GET", "/api/z/EVT1/results", 200, "participant", null)).toBeNull(); // plain reads by phones are not logged

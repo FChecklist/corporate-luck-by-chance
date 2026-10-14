@@ -86,7 +86,7 @@ describe("the guided path, followed like an outside AI", () => {
     g = await pick(g, /DIWALI-1002/); expect(g).toMatch(/Game DIWALI-1002: draft/); expect(g).toMatch(/Publish \(free\)/);
     const menu = g; expect(menu).not.toMatch(/Send a message to every guest/); // nobody can see a draft
     expect(choicesOf(menu).find((c) => /Erase all guest data/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=erase`);
-    expect(choicesOf(menu).find((c) => /Pause or stop/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=pause`);
+    expect(choicesOf(menu).find((c) => /End the game/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=end`);
     const links = await pick(menu, /Show the links/); expect(links).toContain(`${ORIGIN}/zc.html?e=DIWALI-1002`); expect(links).toMatch(/appear after you publish/);
     expect(await pick(menu, /How many have joined/)).toMatch(/0 people have joined DIWALI-1002/);
     const helper = await pick(menu, /Host link/); expect(helper).toMatch(/only the owner enters those, in the console/); expect(helper).not.toMatch(/#host=cbh_/); // the AI never handles a Host's mobile number or e-mail
@@ -124,13 +124,13 @@ describe("every function in the list does what the list says", () => {
       "reuse-list": async () => { await A("POST", "z", { id: "FN-TEST-2", startRound: FUT, callSeconds: 9, cap: 100 }); const r = await A("POST", `z/FN-TEST-2/reuse`, { from: ID }); expect(r.status).not.toBe(403); expect(r.status).not.toBe(404); },
       publish: async () => { const r = await j(await A("POST", `z/${ID}/publish`, {})); expect(r.needsOrganizer).toBe(true); expect(r.consoleUrl).toContain(ID); },
       pay: async () => { expect(existsSync(join(root, "apps/web/public/pay.html"))).toBe(true); expect((await A("POST", `z/${ID}/checkout`, {})).status).not.toBe(200); },
-      links: async () => { const s = await j(await A("GET", `z/${ID}/summary`)); expect(s.links.testBrandMoment).toBe(`${ORIGIN}/preview.html`); },
+      links: async () => { const s = await j(await A("GET", `z/${ID}/summary`)); expect(s.links.seeWhatPlayersSee).toBe(`${ORIGIN}/preview.html`); },
       helpers: async () => { const r = await A("POST", "org/host", { email: "host@acme.com", mobile: "9876500009" }); expect(r.status).toBe(403); expect((await j(r)).error).toMatch(/console/); expect((await A("POST", "org/cohost", { label: "Ravi", phone: "9876500002", e: ID })).status).toBe(403); },
       people: async () => { for (const [m, p] of [["GET", `z/${ID}/people`], ["POST", `z/${ID}/people`], ["GET", `z/${ID}/people/export`], ["GET", `z/${ID}/waiting`], ["POST", `z/${ID}/waiting/all`]]) expect((await A(m!, p!, m === "POST" ? { people: [{ name: "X", phone: "9876543210" }], decision: "admit" } : undefined)).status).toBe(403); },
       announce: async () => { const r = await A("POST", `z/${ID}/announce`, { text: "hi" }); expect(r.status).toBe(400); expect((await j(r)).next).toMatch(/publish/i); },
       "who-joined": async () => { const r = await j(await A("GET", `z/${ID}/participants`)); expect(r.total).toBe(0); expect(JSON.stringify(r).replace(/"joinPhone":(true|false)/, "")).not.toMatch(/phone|mobile/i); },
       "mark-seat": async () => { expect((await A("POST", `z/${ID}/mark`, { seat: 1, role: "host" })).status).not.toBe(403); expect((await A("POST", `z/${ID}/unbind`, { seat: 1 })).status).not.toBe(403); expect((await A("POST", `z/${ID}/unbind`, { phone: "9876543210" })).status).toBe(403); /* a phone number is never accepted from an AI */ },
-      "pause-stop": async () => { const r = await j(await A("POST", `z/${ID}/control/request`, { action: "pause", note: "x" })); expect(r.ok).toBe(true); expect(r.message).toMatch(/must approve/); },
+      "end-game": async () => { const r = await j(await A("POST", `z/${ID}/control/request`, { action: "end", note: "x" })); expect(r.ok).toBe(true); expect(r.message).toMatch(/must approve/); expect((await A("POST", `z/${ID}/luck/end`, {})).status).toBe(403); /* the AI cannot end it itself */ expect((await A("POST", `z/${ID}/control/request`, { action: "pause" })).status).toBe(400); /* a running game cannot be paused */ },
       results: async () => { expect((await A("GET", `z/${ID}/results`)).status).toBe(200); expect((await A("GET", `z/${ID}/prizes`)).status).toBe(200); },
       "prize-given": async () => { expect((await A("POST", `z/${ID}/prizegiven`, { round: 1, pattern: "third", ordinal: 1, seat: 1, given: true })).status).not.toBe(403); },
       report: async () => { const r = await j(await A("GET", `z/${ID}/reportlink`)); expect(r.url).toBeNull(); expect(r.note).toMatch(/e-mail/); },
@@ -148,10 +148,10 @@ describe("every function in the list does what the list says", () => {
   test("every refusal an AI gets also says what to do next, never contains the key, and names the console page for that game", async () => {
     const o = await organizer(); await call("POST", `/ai/${o.key}/z`, { id: "NXT-1", startRound: Math.floor((T / 1000 - 1692803367) / 3) + 1 + 4000, callSeconds: 9, cap: 100 });
     const cases: [string, string, unknown, RegExp][] = [
-      ["PATCH", "z/NXT-1/settings", { startRound: 5 }, /schedule/], ["PATCH", "z/NXT-1/settings", { breaks: [{ kind: "speech", title: "x" }] }, /2 or more characters/],
-      ["PATCH", "z/NXT-1/settings", { tickets: 1, breaks: [1, 2, 3, 4].map(() => ({ kind: "speech", title: "A word" })) }, /Brand moments are not used/], ["POST", "z/NXT-1/erase", {}, /hand-over link/],
+      ["PATCH", "z/NXT-1/settings", { startRound: 5 }, /schedule/], ["PATCH", "z/NXT-1/settings", { breaks: [{ kind: "speech", title: "x" }] }, /Read the error/],
+      ["PATCH", "z/NXT-1/settings", { tickets: 1, breaks: [1, 2, 3, 4].map(() => ({ kind: "speech", title: "A word" })) }, /Read the error/], ["POST", "z/NXT-1/erase", {}, /hand-over link/],
       ["GET", "z/NOPE-1/summary", undefined, /history/], ["POST", "z/NXT-1/announce", { text: "hello" }, /publish/i],
-      ["PATCH", "z/NXT-1/settings", { breaks: [{ kind: "youtube", title: "Film", mediaUrl: "http://x.com/a" }] }, /https/],
+      ["PATCH", "z/NXT-1/settings", { breaks: [{ kind: "youtube", title: "Film", mediaUrl: "http://x.com/a" }] }, /Read the error/],
     ];
     for (const [m, p, b, re] of cases) { const r = await call(m, `/ai/${o.key}/${p}`, b); expect(r.status).toBeGreaterThanOrEqual(400); const body = await j(r); expect([p, body.next]).toEqual([p, expect.stringMatching(re)]); expect(JSON.stringify(body)).not.toContain(o.key); }
     expect(nextHint(500, "weird", "B", ORIGIN, "z/NXT-1/summary")).toMatch(/ONCE more/);

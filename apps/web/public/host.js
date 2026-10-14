@@ -27,6 +27,16 @@
     const where = p.kind === "before" ? "Starts at " + timeOf(v.startMs) : p.kind === "over" ? "All dice rounds are done" : p.kind === "break" ? `Standings break after round ${p.afterRound}` : `Round ${E.roundOf(v.settings, p.g)} of ${v.settings.rounds}, dice round ${E.diceNoOf(v.settings, p.g)} of ${v.settings.diceRounds}`;
     return `<p><b>${esc(where)}</b></p><p class="zsmall">Started ${esc(timeOf(v.startMs))}, due to end ${esc(timeOf(v.endMs))}.</p>`;
   }
+  // End the game: the round now being played is finished and counted, then the game is over for everybody (the server gives the game fewer rounds; every phone reads that and stops)
+  function endBlock(v) {
+    const E = window.LuckEngine; if (v.state !== "running" || !E || !v.settings || !v.startMs) return "";
+    if (v.endedAfterRound) return `<p class="zsmall">You ended the game. It stops after round ${esc(v.endedAfterRound)}.</p>`;
+    const now = (v.serverNow || Date.now()) + (Date.now() - (S.fetchedAt || Date.now())), p = E.phaseAt(v.settings, v.startMs, now);
+    if (p.kind === "before" || p.kind === "over") return "";
+    const cur = p.kind === "break" ? p.afterRound : E.roundOf(v.settings, p.g);
+    if (cur >= v.settings.rounds) return `<p class="zsmall">This is the last round. The game ends by itself.</p>`;
+    return `<div class="hrow"><button class="zbtn" id="end">End the game after round ${esc(cur)}</button></div><p class="zsmall">The round being played is finished and counted first. Then the game is over for everybody. This cannot be undone.</p>`;
+  }
   function paint() {
     const v = S.view; if (!v) { $app.innerHTML = `<p class="zmsg">${esc(S.msg || "Loading...")}</p>`; return; }
     let body = "";
@@ -40,12 +50,16 @@
         <p class="zsmall">There is no tie: if players are equal, the highest single hit, then the most hits, then who reached the score first decide, and a number from the public beacon is the last step. The game starts 20 seconds after you press Start.</p>
         <button class="zbtn" id="start">Start the game</button></div>`;
     } else {
-      body = `<div class="zcard"><h2>${v.state === "done" ? "Finished" : "Running"}</h2><p>${esc(v.players || v.joined)} players</p>${progress(v)}${v.state === "done" ? `<p>${v.agreed ? "The result was agreed by the players' phones." : "The phones did not agree on a result."}</p>` : ""}${links()}</div>
+      body = `<div class="zcard"><h2>${v.state === "done" ? "Finished" : "Running"}</h2><p>${esc(v.players || v.joined)} players</p>${progress(v)}${endBlock(v)}${v.state === "done" ? `<p>${v.agreed ? "The result was agreed by the players' phones." : "The phones did not agree on a result."}</p>` : ""}${links()}</div>
         <div class="zcard"><h2>Check the draw</h2><p class="zsmall">Fingerprint (shown before anybody joined): <span class="mono">${esc((v.commit || "").slice(0, 32))}</span></p><p class="zsmall">After the game <a href="${esc(BASE)}/api/z/${esc(EID)}/luck/reveal" target="_blank" rel="noopener">show the secret and the seed</a>. Anybody can re-compute every number from it.</p></div>`;
     }
     $app.innerHTML = `<div class="zhead"><b>Corporate Luck by Chance</b><span class="zsmall">${esc(EID)}</span></div>${S.msg ? `<div class="zbanner warn" role="alert">${esc(S.msg)}</div>` : ""}${body}`;
     document.querySelectorAll(".hchip").forEach((b) => b.addEventListener("click", () => { grab(); const k = b.dataset.k, val = b.dataset.v; S[k] = k === "prizeMode" ? val : Number(val); paint(); }));
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
+    on("end", async () => {
+      if (!confirm("End the game for everybody after the round now being played? This cannot be undone.")) return;
+      try { await call("POST", `/api/z/${EID}/luck/end`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load();
+    });
     on("start", async () => {
       grab();
       const list = (a) => a.map((x) => x.trim()); const trim = (a) => { const l = list(a); while (l.length && !l[l.length - 1]) l.pop(); return l; };

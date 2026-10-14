@@ -474,8 +474,8 @@ describe("the console for an AI that works in the browser", () => {
     await publish(o, "UI-ACT1");
     const e = await page(o, `/zc?e=UI-ACT1&do=erase`, "zc.html", ZC_SCRIPTS, { "cbz-org": o.token });
     await e.waitFor((x) => /Delete all participant data now/.test(x)); await until(() => /solid/.test((e.$("#erase") as any).style.outline)); expect(e.text()).toMatch(/Your AI assistant brought you here/);
-    const c = await page(o, `/zc?e=UI-ACT1&do=pause`, "zc.html", ZC_SCRIPTS, { "cbz-org": o.token });
-    await c.waitFor((x) => /Run the game/.test(x)); await until(() => /solid/.test((c.$("#runt") as any).style.outline)); // the game page is where the game is run: the link to it is outlined
+    const c = await page(o, `/zc?e=UI-ACT1&do=end`, "zc.html", ZC_SCRIPTS, { "cbz-org": o.token });
+    await c.waitFor((x) => /Run the game/.test(x)); expect(c.text()).toMatch(/press the End button there/); await until(() => /solid/.test((c.$("#runt") as any).style.outline)); // the game page is where the game is run: the link to it is outlined
     const n = await page(o, `/zc?e=UI-ACT1`, "zc.html", ZC_SCRIPTS, { "cbz-org": o.token }); await n.waitFor((x) => /Last step: pay before the start/i.test(x)); expect(n.text()).not.toMatch(/brought you here/); // an ordinary visit shows no such banner
   }, 90_000);
 

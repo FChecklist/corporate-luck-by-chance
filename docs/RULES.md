@@ -73,6 +73,10 @@ Fate mode only. In Fate mode the dice is rolled for everybody when the press win
 - R49 The Terms boxes (K1 to K6) are enforced by the server and recorded in `consent_log` (tests: `apps/edge/test/consent.test.ts`).
 - R50 A paid game can be moved within 365 days of the payment day; there is no refund, a cancelled game becomes credit (tests: `apps/edge/test/reschedule-window.test.ts`, `credit.test.ts`, `cancel.test.ts`).
 
+## I. Ending the game
+- R51 The Organizer or a Host can end a running game from the game page. The round being played is finished and counted, then the game is over for everybody: the game simply has fewer rounds from then on. A running game cannot be paused: every player follows one fixed clock. Tests: `packages/luck/test/engine.test.ts` (R51), `apps/edge/test/luck-end.test.ts`, `apps/web/test/host-end.test.ts`.
+- R52 The console saves only what players see: the company name, colour and logo, and the prizes. Opening and closing messages, messages between rounds and lucky draws do not exist in this game; a request that carries them is refused with a plain sentence (test: `apps/edge/test/luck-end.test.ts`, R52).
+
 ## Known limits (stated, not hidden)
 - The server draws the secret and publishes the beacon values at their due time. The server is therefore trusted to draw the secret fairly and not to look; afterwards anybody can re-check every number. A public beacon from outside (the other Corporate Games use drand) is not wired into this build; the phone reads the game's own feed.
 - A modified browser cannot be made impossible; a result counts only when enough phones agree (R39).

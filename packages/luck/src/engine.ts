@@ -80,18 +80,27 @@ export class LuckGame {
   readonly roundTallies: Tally[][] = []; readonly total: Tally[]; readonly results: DiceRoundResult[] = [];
   readonly lastBeacon: string[] = []; // B of the last dice round of each finished round: it makes that round's fate numbers
   private next = 0; private latestB = ""; // B of the latest dice round played: it makes the fate numbers of the overall standings
-  constructor(readonly gameId: string, readonly settings: LuckSettings, readonly seats: number) {
+  private cfg: LuckSettings;
+  constructor(readonly gameId: string, settings: LuckSettings, readonly seats: number) {
+    this.cfg = settings;
     this.total = Array.from({ length: seats }, (_, i) => emptyTally(i));
     for (let r = 0; r < settings.rounds; r++) this.roundTallies.push(Array.from({ length: seats }, (_, i) => emptyTally(i)));
   }
+  /** The settings as they are now. They change in one way only: the organizer ended the game after a round (endAfterRound), so the game has fewer rounds. */
+  get settings(): LuckSettings { return this.cfg; }
   get done(): number { return this.next; }
-  get finished(): boolean { return this.next >= totalDiceRounds(this.settings); }
+  get finished(): boolean { return this.next >= totalDiceRounds(this.cfg); }
+  /** The organizer ended the game after round `n`: the game has `n` rounds from now on. Refused (false) if more dice rounds than that were already played, or if n is not smaller than the rounds it has. */
+  endAfterRound(n: number): boolean {
+    if (!Number.isInteger(n) || n < 1 || n >= this.cfg.rounds || n * this.cfg.diceRounds < this.next) return false;
+    this.cfg = { ...this.cfg, rounds: n }; return true;
+  }
 
   /** Plays dice round g. They must come in order: dice round g needs both A_g and B_g, and B_g only exists after the press window closed. */
   async addDiceRound(g: number, beaconA: string, beaconB: string): Promise<DiceRoundResult> {
     if (g !== this.next) throw new Error(`dice round ${g} is out of order (expected ${this.next})`);
     if (!beaconA || !beaconB) throw new Error("both beacon values are needed");
-    const s = this.settings, r = roundOf(s, g);
+    const s = this.cfg, r = roundOf(s, g);
     const target = await targetOf(this.gameId, g, beaconA);
     const dice = new Uint8Array(this.seats), points = new Uint8Array(this.seats);
     const rt = this.roundTallies[r - 1]!;

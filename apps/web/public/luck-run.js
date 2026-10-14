@@ -16,6 +16,8 @@
       const v = await j(path); R.view = v; R.skew = (v.serverNow || Date.now()) - Date.now(); R.error = "";
       if (v.state !== "open" && !R.seatsLoaded) { const s = await j(`/api/z/${eid}/luck/seats`); R.names = []; for (const [seat, name] of s.seats) R.names[seat] = name; R.seatsLoaded = true; }
       if (v.state !== "open" && !R.game) R.game = new E.LuckGame(eid, v.settings, v.players);
+      // the organizer ended the game after a round: the settings now carry fewer rounds, and this phone stops after that round with everybody else
+      if (R.game && v.settings && v.settings.rounds < R.game.settings.rounds) R.game.endAfterRound(v.settings.rounds);
       return v;
     };
     // pull every beacon value that is due, then play every dice round for which both values have arrived (one slice of work per call keeps the screen alive)
