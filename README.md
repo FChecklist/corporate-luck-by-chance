@@ -2,7 +2,7 @@
 
 A company event game of pure luck. An organizer makes a game, shares one link, and the players open it on their phones. In each dice round a target number from 1 to 6 appears, everybody presses the dice, and a player whose dice shows the target scores that many points. Ten dice rounds make a round; a game has 10 rounds by default (1 to 20). The phones do the work: each phone computes every player's score from public random numbers, so the server does almost nothing while the game runs. The software decides everything; there is always a clear 1st to 5th and a top 10 with no ties. Players never pay and never stake money; there are no cash prizes. Adults (18+) only.
 
-**Everything is local. Nothing is deployed.** There is no live site, no live database and no live payment. The names `corporate-luck-by-chance.pages.dev` and the Cloudflare ids in the config files are placeholders for the day the owner says go.
+**The site is live** on Cloudflare Pages (project `corporate-luck-by-chance`, database `corporate-luck-by-chance`). What is live right now is in `/version.json` on the site (the commit and the build time); the last deploys are listed in `docs/DEPLOYS.md`. Whether payments are real follows the site's TEST / LIVE mode (`/api/mode`).
 
 ## Layout
 

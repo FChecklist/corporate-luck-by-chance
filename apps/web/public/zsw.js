@@ -8,7 +8,7 @@
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
 const CACHE = "luck-game-v1"; // bump when the game files change shape, so every phone saves a matching set
-const FILES = ["/z.html", "/zc.html", "/big.html", "/host.html", "/luck.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
+const FILES = ["/z.html", "/zc.html", "/big.html", "/host.html", "/luck.js", "/rights.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
   "/app.css", "/z.css", "/luck.css", "/luck-big.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 

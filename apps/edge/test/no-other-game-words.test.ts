@@ -24,7 +24,7 @@ describe("the report of a game says what happened in a game of dice", () => {
     engagementId: "WORD-1", organizerEmail: "boss@acme.com", sentAtMs: 1_800_000_000_000, scheduledMs: 1_799_990_000_000, firstNumberMs: 1_799_990_100_000, endMs: 1_799_995_000_000, endReason: "All dice rounds were played and the phones agreed on the result.", wasHeld: false,
     rounds: 1, callSeconds: 9, ticketsPerPerson: 1, cap: 100, inviteOnly: false, numbersCalled: 75, people: [],
     prizes: [{ round: 1, label: "1st place", text: "Gift hamper", winners: [{ seat: 3, name: "Asha", phone: "9876543210", role: null, verified: true, callNo: 1, atMs: 1_799_995_000_000 }] }],
-    lucky: [], timeline: [{ callNo: 1, atMs: 1_799_990_100_000, present: 5, late: 0 }], breaks: [], personalDeleteAtMs: 1_800_050_000_000, fullDeleteAtMs: 1_830_000_000_000, backupDays: 7,
+    lucky: [], timeline: [{ callNo: 1, atMs: 1_799_990_100_000, present: 5, late: 0 }], breaks: [], personalDeleteAtMs: 1_800_050_000_000, fullDeleteAtMs: 1_830_000_000_000,
     play: { rounds: 10, diceRounds: 10, windowSecs: 10, players: 6, prizes: "Each round and the overall result", champion: "Asha", topPoints: 41 }, ...extra,
   });
   const text = (b: Uint8Array) => Buffer.from(b).toString("latin1").replace(/\\([()])/g, "$1"); // a PDF writes ( and ) with a backslash in front
