@@ -278,7 +278,9 @@ export default [
       const m30 = await H.mailbox.list({ to: org.email, subject: "lapse" });
       t.check("30 days before: a 'lapses on' e-mail", m30.length >= 1, m30.map((m) => m.subject).join(" | "));
       await H.clock.advanceWithTicks(27 * H.DAY, 6 * H.HOUR);
-      const m3 = await H.mailbox.list({ to: org.email, subject: "lapse" });
+      // the mail log forgets rows older than 3 days (the tick does it every hour), so the 30-day mail is gone by now: count it from the earlier look
+      const key = (m) => `${m.id ?? ""}|${m.at ?? ""}|${m.subject}`, now3 = await H.mailbox.list({ to: org.email, subject: "lapse" }), seen3 = new Set(now3.map(key));
+      const m3 = [...m30.filter((m) => !seen3.has(key(m))), ...now3];
       t.check("3 days before: a second e-mail, one of each only", m3.length >= 2 && m3.length <= 3, m3.map((m) => m.subject).join(" | "));
       await H.clock.set(cr0.expiresMs - 120_000); await H.clock.advanceWithTicks(60_000, 30_000); // stops one minute before the end of day 365
       const cr1 = (await org.api("GET", "/api/org/credit")).body.credits[0];

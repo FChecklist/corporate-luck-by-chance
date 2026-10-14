@@ -81,13 +81,15 @@ export default [
     },
   },
   {
-    id: "S02-03", name: "Step 2 by tapping: 500 players, own number 321, 2 tickets, 12 s, 3 rounds, anyone with the link, guest invites on",
+    id: "S02-03", name: "Step 2 by tapping: 500 players, own number 321, anyone with the link, guest invites on",
     async run(t) {
       const { org, x, eid } = await startGameUi(t);
       await openStep(x.page, 2);
       await chip(x.page, "cap", 500); t.check("cap chip 500 selected", await chipOn(x.page, "cap", 500));
       await x.page.fill("#f-cap", "321");
-      await chip(x.page, "tix", 2); await chip(x.page, "spd", 12); await chip(x.page, "rnd", 3); await chip(x.page, "who", "anyone");
+      t.check("step 2 offers no cards, number speed or rounds (the rounds and the press window are chosen on the game page)", !(await x.page.$('[data-ck="tix"],[data-ck="spd"],[data-ck="rnd"]')));
+      await chip(x.page, "who", "anyone");
+      t.check("step 2 does not offer a mobile number for guests (the player page has no place for one, so the game could not be joined)", !(await x.page.$('[data-ck="gj"]')));
       await x.page.click('[data-bool="inv"]'); await x.page.waitForTimeout(400);
       const txt = await t.text(x.page, "#sec2");
       t.check("switching guest invites on shows the kinds of guests", /Family|Colleagues|Friends/i.test(txt), txt.slice(-300));
@@ -96,7 +98,6 @@ export default [
       await saveStep(x.page, 2);
       const i = (await org.info(eid)).body, s = (await org.summary(eid)).body;
       t.check("cap 321 (typed number wins over chip)", i.cap === 321, String(i.cap));
-      t.check("2 tickets, 12 s between numbers, 3 rounds", i.tickets === 2 && i.callSeconds === 12 && (i.rounds === 3 || i.rounds?.length === 3 || i.rounds?.n === 3), JSON.stringify({ t: i.tickets, c: i.callSeconds, r: i.rounds }));
       t.check("who can join = anyone", s.whoCanJoin === "anyone", String(s.whoCanJoin));
       t.check("invites on", i.invites?.on === true, JSON.stringify(i.invites));
       await t.shot(x.page, "step2-done");
@@ -137,6 +138,9 @@ export default [
       const { org, x, eid } = await startGameUi(t);
       await openStep(x.page, 3);
       let bad = [];
+      const offered = await x.page.$$eval("#sec3 [data-hc]", (els) => els.map((e) => e.dataset.hc));
+      t.check("step 3 offers the five places", offered.join(",") === ALL_HOUSES.join(","), offered.join(","));
+      if (offered.length !== ALL_HOUSES.length) return;
       for (const id of ALL_HOUSES) {
         // only this house on
         for (const other of ALL_HOUSES) if (other !== id) await houseOn(x.page, other, false).catch(() => {});
@@ -319,7 +323,7 @@ export default [
       await openStep(x.page, 1); await chip(x.page, "occ", "Team event"); await chip(x.page, "time", "19:00"); await saveStep(x.page, 1);
       await openStep(x.page, 2); await chip(x.page, "cap", 100); await chip(x.page, "who", "list"); await saveStep(x.page, 2);
       await openStep(x.page, 3); await chip(x.page, "bundle", "Simple"); await saveStep(x.page, 3);
-      await openStep(x.page, 4); await x.page.fill("#f-brand-name", "Phone Co"); await chip(x.page, "brand.color", "#6A1B9A"); await chip(x.page, "opN", 1); await x.page.fill("#f-op-0-t", "Hello everyone"); await saveStep(x.page, 4);
+      await openStep(x.page, 4); await x.page.fill("#f-brand-name", "Phone Co"); await chip(x.page, "brand.color", "#6A1B9A"); await saveStep(x.page, 4);
       await openStep(x.page, 5); await x.page.click('#sec5 [data-save="5"]'); await x.page.waitForTimeout(500);
       await openStep(x.page, 6); await x.page.click('#sec6 [data-save="6"]'); await x.page.waitForTimeout(500);
       const prog0 = await t.text(x.page, ".zc-prog,[class*=prog]");
