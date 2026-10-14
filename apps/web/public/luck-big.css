@@ -21,3 +21,5 @@
 .lb-tface .ld-mini{box-shadow:0 0 0 clamp(3px,.5vw,8px) var(--acc),inset 0 -6px 12px rgba(0,0,0,.25)}
 .lb-tface .num{font-size:clamp(110px,22vw,420px)}
 .lb-say{margin:.2em 0 .4em;font-size:clamp(16px,2vw,34px);color:var(--ink)}
+/* the organizer's message to everyone, large enough to read across a room */
+.lt-annbar{font-size:clamp(22px,2.6vw,44px);padding:clamp(10px,1.4vw,22px) 4vw}
