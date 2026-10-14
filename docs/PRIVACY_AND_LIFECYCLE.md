@@ -8,10 +8,10 @@ Short version: a player gives a nickname and nothing else. (A number appears onl
 
 The wording is in `apps/edge/src/consent-text.json` (point K4); the page fetches it from `GET /api/consent/text?kind=K4`. Two boxes, never ticked in advance, both before any name field works:
 
-- A: the name is used for this game only and deleted within 24 hours after it ends; who invited the player is recorded until then.
-- B: the player is 18 or older, or is on a parent's or guardian's device with their permission.
+- A: the name is used for this game only and deleted within 24 hours after it ends; who invited the player is recorded until then; the final places are kept for 365 days as seat numbers, without names; billing data is kept for audit and tax reasons (that is the organizer's, not the player's); the notice is available in Hindi on request.
+- B: the player is 18 or older. Nothing else: there is no "or on a parent's device" alternative (adults only, Terms clause 12).
 
-The Join button stays disabled until both are ticked, and the server refuses a join without them. The server stores one row per acceptance in `consent_log`: the place id, the point (K4), the game id, the Terms version, the boxes, a hash of the exact wording, and the time. It holds no name, number, address or device. When the Terms version changes, the next join asks again.
+The Join button stays disabled until both are ticked, and the server refuses a join without them. The server stores one row per acceptance in `consent_log`: the place id, the point (K4), the game id, the Terms version, the boxes, a hash of the exact wording, and the time. It holds no name, number, address or device. When the Terms version changes (it is `TERMS_VERSION` in `apps/edge/src/brand.ts`, today 2026-10-15; the wording file `consent-text.json` carries the same value), the next join asks again.
 
 <!-- notice:start -->
 asked_from_player: name
@@ -37,7 +37,7 @@ The block above is read by `apps/edge/test/data-map.test.ts`: it fails when the 
 | How the player joined (direct, or through an invite link), who invited them, invite category, role flag (organizer, host, co-host), "removed" flag | Invite counts; the organizer can remove a person | `seat.src`, `seat.inv`, `seat.cat`, `seat.role`, `seat.blocked`, and a row in `person` (sealed, hashed key, inviter, status) | CF | 23 h after the end |
 | Consent record: seat id, point, game id, Terms version, boxes, hash of the wording, time | To show the boxes were ticked | `consent_log` | CF | K4 rows: 23 h after the end. Organizer rows stay with the account |
 | The phones' result votes: the player id, a hash of the result, the result (seat numbers, points, hits) | A result counts only when enough different phones send the same one | `luck_v` (no names) | CF | 23 h after the end |
-| A request the player made to see, correct or delete their data: player id, kind, a short note, three times | To answer within the promised time (7 days) | `data_request` (no name, no number) | CF; the organizer and the owner are told by e-mail (Resend) | 23 h after the game ends |
+| A request the player made to see, correct or delete their data, or to name another person who may use these rights for them (DPDP Act s14; kind `nomination`; the person is named by e-mail to the Grievance Officer): player id, kind, a short note, three times | To answer within the promised time (7 days) | `data_request` (no name, no number) | CF; the organizer and the owner are told by e-mail (Resend) | 23 h after the game ends |
 | Game settings and the seal: the fingerprint of the sealed secret, the secret (shown after the game), the settings, the seed, start and end time, number of players | Anybody can check the draw after the game | `luck_t` (no names) | CF | Until the end of day 365 |
 | The agreed result: seat numbers, points, hits, best hit, a one-line tie reason | The result screen; the phones map seat numbers to nicknames from the seat list | `luck_t.result` (no names) | CF | Until the end of day 365 |
 | Winners record: the seat numbers of first to fifth place | Proof of who won, with no name | `winner` | CF | Until the end of day 365 |
@@ -63,6 +63,7 @@ Every action that writes something (join, consent, claim, start, pause, console 
 | For a **player's** action, the personal part: full network address, browser string, browser and system name, network number, the raw device id and its hash, the time and zone the phone says it has, the fields sent (for a join: the name; passwords, codes, keys and place words are replaced by "[redacted]") | Security, disputes, fair play | `audit_pii.sealed`, sealed under a **per-game key** whose salt is in `eng_key` | CF | **Destroyed 23 h after the end** (crypto-shredding: the salt and the blobs are deleted, so the key can never be made again) |
 | For a player's action, the non-personal core: event type, server time, country, status, request reference, a hash of the personal part | Counts, hash chain | `audit_log` | CF | Until the end of day 365 |
 | For the **organizer, host, co-host or an AI key**: the same fields, whole, sealed with the platform key | Security, disputes | `audit_log.sealed` | CF | Until the end of day 365 |
+| For an **anonymous visitor** (no game and no organizer: a refused request, a failed payment, a wrong key): the same fields, whole, sealed with the platform key, but the network address is first cut to its first part (IPv4 /24, IPv6 /48, `truncateIp` in `audit.ts`). These rows live in their own chain, `anon` | Security, disputes | `audit_log.sealed`, chain `anon` | CF | **90 days** (`sweepAudit`), not 365 |
 | Owner access log: when the owner read or downloaded a log | Accountability | `audit_access` (no personal data) | CF | Kept |
 | Deletion certificate and anonymous statistics (counts by event, country, AI vendor) | Proof that deletion happened | `audit_cert`, `audit_stats` (no personal data) | CF | Kept |
 
@@ -83,7 +84,7 @@ Every action that writes something (join, consent, claim, start, pause, console 
 | Game settings the organizer chose: occasion name, start time, size limit, invite-only, invitation policy, time zone, brand name, accent colour and small logo (not personal) | To run the game | `engagement` (`config` column) | CF | End of day 365 (a draft nobody published: 30 days) |
 | Host name, e-mail or mobile (sealed), label | A Host runs the game | `organizer_key` (`email_sealed`, `pii`, `label`) | CF, Resend | Host: while the key lives. A Co-host's name and mobile are deleted with the players' data (23 h after the end) |
 | Sign-in codes and links (hash only) | Sign-in | `login_code` | CF | 10 minutes; row deleted 1 day after expiry |
-| Mail outbox | A mail that failed is retried | `outbox` | CF | A sent mail keeps no body; an unsent one 3 days |
+| Mail outbox | A mail that failed is retried | `outbox` | CF | A sent mail keeps no body; every row goes after 3 days. `purgeOutbox` runs from the 5-minute tick every hour |
 | Mail delivery events from the mail service (bounced, complained, delivered): a one-way hash of the address, the address with its middle hidden (j***@example.com), the subject line, the kind, the time | So the owner can see which mails did not arrive and tell the organizer | `mail_bounce` (no name, no full address) | CF; the mail service (Resend) sends the event | 90 days |
 | AI work link: log of each call (time, key id, call, status, network address, program, country) | The organizer can see what their AI did | `ai_audit` | CF | 365 days |
 | Partner (refer and earn): name, random code, hashes of phone and e-mail | Commission | `partner`, `commission` | CF | While active; commissions kept as accounting records without a link to a person |
@@ -106,6 +107,8 @@ No place or bank details are ever stored or logged. Players never pay.
 | Resend | Sending e-mail | Organizer and host e-mail addresses and the mail text. Never players: players give no e-mail | United States, as published by Resend |
 | Razorpay (through IT Services by Rajat Agarwal) | Taking payment from the organizer | Payer details and amount | India, as published by Razorpay |
 | Google (optional) | "Continue with Google" for organizers and hosts | The e-mail address the person signs in with | United States, as published by Google |
+| IT Services payment service (`itservices-rajat-agarwal.pages.dev`) | Starts the Razorpay payment and records each payment for the organizer's invoice and our accounts (never players) | Payer details and amount | Cloudflare |
+| GitHub | Runs the scheduled jobs (the 5-minute deletion timer) and keeps a private copy of the payment records (organizers' payments only, never players) | Payment records; no player data | United States, as published by GitHub |
 
 **Supabase is not used by this product.** There are no third-party trackers: the only monitoring is our own (`rum.js`, `v.js`). A player's phone contacts drand (a public random beacon) and, only if the organizer adds a video break, YouTube in privacy mode.
 
@@ -124,7 +127,7 @@ No place or bank details are ever stored or logged. Players never pay.
 4. What stays: `luck_t` (no names), `winner` (seat numbers), `life`, the organizer's details, the security log's non-personal core, payments and invoices.
 5. **00:00 IST at the end of day 365** after the end (`fullDeleteAt`): `eraseEverything` deletes the rest of the game (`luck_t`, `winner`, `life`, the engagement, the Co-hosts, the security log and its keys, `data_request`). Before that, the organizer's invoice details are copied into `legal_party` (see 2g).
 6. A game nobody paid for and that never started is treated the same way: its people's data is erased 23 hours after it was meant to end, and the game is closed (`unplayedPass`). A cancelled game erases 23 hours after the cancel.
-7. The caller is the scheduled job (`apps/cron`, every minute, calls `POST /api/lifecycle/tick`). Any organizer request also nudges it as a safety net.
+7. The caller is the scheduled job: `POST /api/lifecycle/tick` every 5 minutes (Supabase `pg_cron`, and GitHub Actions in the `scheduler` repository). Any organizer request also nudges it as a safety net. The tick also forgets mail-log rows older than 3 days (every hour) and the health address `GET /api/status/health` raises `ok: false` with `overdue_purge` when a game is more than 30 minutes past its 23-hour deletion and still holds players.
 
 Earlier deletion: the organizer can press Erase in the console; an AI assistant can only ask (the organizer confirms); the organizer can reply "delete" from the registered e-mail address (needs a confirmation code). **A player can do it too**: "Leave this game" (`POST /api/z/<id>/leave`) and "What do you hold about me / delete me" (`POST /api/z/<id>/datareq`, `apps/edge/src/rights.ts`). The player proves who they are with the player id and the phone's own device id. Before the Organizer presses start, the seat and the details are deleted. After the start the seat stays on the frozen seat list (the result is worked out from that list), blocked, with the nickname replaced by "Left player" and nothing personal left; a nickname already printed in the agreed result is not in `luck_t.result` (it holds seat numbers only), so nothing else needs to change. The request is stored, the organizer and the owner are told by e-mail, the player is shown the promised answer time (`PROMISE_DAYS = 7`), and an erasure is carried out at once.
 

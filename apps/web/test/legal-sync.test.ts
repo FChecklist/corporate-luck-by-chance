@@ -17,7 +17,7 @@ describe("the deployed legal pages equal the final pages", () => {
     });
   }
   test("K11: the Terms page shows the version, and it is the one constant TERMS_VERSION, the version of the box wording, and the site page", () => {
-    expect(TERMS_VERSION).toBe("2026-10-14"); expect((TEXT as any).version).toBe(TERMS_VERSION);
+    expect(TERMS_VERSION).toBe("2026-10-15"); expect((TEXT as any).version).toBe(TERMS_VERSION);
     expect(mainText(read("apps/web/public/terms.html"))).toContain(`Version ${TERMS_VERSION}`); expect(mainText(read("site/terms.html"))).toContain(`Version ${TERMS_VERSION}`);
   });
   test("the Terms say Luck by Chance only: clause 6.2 is here, the ticket clause 6.1 and every other game's name are not", () => {

@@ -1,5 +1,6 @@
 // Nothing that is deployed (or that belongs to the Terms boxes) may carry an internal note: who asked for something, or any review or approval status.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(30_000); // it reads every deployed file; on a busy laptop that takes more than bun's 5 seconds
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
