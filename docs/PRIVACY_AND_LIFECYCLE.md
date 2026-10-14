@@ -117,12 +117,6 @@ No place or bank details are ever stored or logged. Players never pay.
 
 ## 4. The clock and ways to delete
 
-The rest of this page (the clock, ways to delete earlier, the security log and crypto-shredding, visits) is unchanged below. The player's own routes are `POST /api/z/<id>/leave` ("Leave this game") and `POST /api/z/<id>/datareq` ("What do you hold about me / delete me"): the player proves who they are with the place id and the phone's own device id, the request is stored, the organizer and the owner are told by e-mail, the player is shown the promised answer time (`PROMISE_DAYS = 7` in `rights.ts`), and an erasure is carried out at once.
-
----
-
-## 4. The clock and ways to delete
-
 1. The game ends when the phones' result is agreed (`luck_t.state` becomes `done`), or 10 minutes after the last dice round with no agreement (`NO_AGREEMENT_MS`: the game is closed and no result is published).
 2. Minutes after the end the organizer gets one e-mail with a link to a report page. The organizer's own browser builds the report. The link works until 22 hours after the end (a reminder goes about 6 hours before it closes, if it was never opened).
 3. **23 hours after the end** (`PURGE_AFTER_MS`), whether or not the report was opened, `erasePersonal` deletes: `participant`, `seat`, `person`, `waiting`, `luck_p`, `luck_v`, `data_request`, the K4 rows of `consent_log`, the seat list and the report working copies (`kv seats-base/ rpt/ rptopen/ rptremind/ rptc/ seats-blk/`), the game's Co-host details (name, mobile number, key), and the personal part of the security log (crypto-shredded). An owner-set legal hold suspends this.
@@ -131,7 +125,7 @@ The rest of this page (the clock, ways to delete earlier, the security log and c
 6. A game nobody paid for and that never started is treated the same way: its people's data is erased 23 hours after it was meant to end, and the game is closed (`unplayedPass`). A cancelled game erases 23 hours after the cancel.
 7. The caller is the scheduled job (`apps/cron`, every minute, calls `POST /api/lifecycle/tick`). Any organizer request also nudges it as a safety net.
 
-Earlier deletion: the organizer can press Erase in the console; an AI assistant can only ask (the organizer confirms); the organizer can reply "delete" from the registered e-mail address (needs a confirmation code). **A player can do it too**: "Leave this game" (`POST /api/z/<id>/leave`) and "What do you hold about me / delete me" (`POST /api/z/<id>/datareq`, `apps/edge/src/rights.ts`). The player proves who they are with the player id and the phone's own device id. Before the Organizer presses start, the seat and the details are deleted. After the start the seat stays on the frozen seat list (the result is worked out from that list), blocked, with the nickname replaced by "Left player" and nothing personal left; a nickname already printed in the agreed result is not in `luck_t.result` (it holds seat numbers only), so nothing else needs to change.
+Earlier deletion: the organizer can press Erase in the console; an AI assistant can only ask (the organizer confirms); the organizer can reply "delete" from the registered e-mail address (needs a confirmation code). **A player can do it too**: "Leave this game" (`POST /api/z/<id>/leave`) and "What do you hold about me / delete me" (`POST /api/z/<id>/datareq`, `apps/edge/src/rights.ts`). The player proves who they are with the player id and the phone's own device id. Before the Organizer presses start, the seat and the details are deleted. After the start the seat stays on the frozen seat list (the result is worked out from that list), blocked, with the nickname replaced by "Left player" and nothing personal left; a nickname already printed in the agreed result is not in `luck_t.result` (it holds seat numbers only), so nothing else needs to change. The request is stored, the organizer and the owner are told by e-mail, the player is shown the promised answer time (`PROMISE_DAYS = 7`), and an erasure is carried out at once.
 
 ## 5. Security log and crypto-shredding (how it works)
 
