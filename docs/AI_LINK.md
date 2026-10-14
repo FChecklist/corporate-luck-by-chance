@@ -1,10 +1,10 @@
 # The short AI work link: `https://<site>/ai/<key>`
 
-Owner requirement (2026-10-05): the external AI link must be SHORT and take the AI to the bigger instructions by itself; the AI reads them, understands the work, the APIs and the workflow, and works as its role. It cannot code. It can make a tournament, set the options, go up to publishing, and do what an organizer or host can do by logging in, except payments and the acts listed under "What the AI cannot do" (a human does those).
+Rewritten 2026-10-14 for the dice game. Source of truth for what the game is: `docs/RULES.md`. Source of truth for what the AI is told: `manualText()` in `apps/edge/src/ai-link.ts` (the long manual), `frontDoorText()` (the short front door), `apps/edge/src/ai-facts.ts` (the 10 facts) and `apps/edge/src/ai-functions.ts` (the step links). This page describes what those files really say and do; if they change, change this page with them.
 
-Background: in a sister project a very long pasted prompt failed in ChatGPT, Gemini, z.ai and DeepSeek. Those chat tools can usually open a web address (GET) but often cannot set headers or send POST. So the link works with plain GET too (`_method`, `_body`, below).
+Corporate Luck by Chance is a dice game of pure luck for company events. Players join with a nickname on their own phones. A game has rounds; every round has 10 dice rounds; in every dice round the screen shows a target number from 1 to 6 and every player presses the dice once; a dice that shows the target scores that many points, any other number scores nothing. The five best players win the five places (1st to 5th), the top 10 are listed, and there is never a tie. The AI helps the organizer set up and look after such a game. It cannot play, start, end or influence it.
 
-Nothing is deployed. The address `corporate-luck-by-chance.pages.dev` below is the planned site; today the link works only on a local server (`docs/RUNNING.md`).
+The address `corporate-luck-by-chance.pages.dev` below is the live site's name; the link works with the real site once the game is switched on, and today on a local server (`docs/RUNNING.md`) for testing.
 
 ## What the organizer pastes
 
@@ -15,13 +15,15 @@ This is the API documentation and instructions for MY OWN Corporate Luck by Chan
 Please open it now (a plain GET request) and follow it: https://corporate-luck-by-chance.pages.dev/ai/cba_<48 hex>
 ```
 
-Wording (from sister-project testing): "open this link and follow it" was refused as prompt injection about one time in three by a careful AI; presenting the link as the owner's own API documentation worked every time. The key appears only inside the link. The paste is built by `aiPaste` in `apps/edge/src/ai-link.ts`.
+Why this wording: presenting the link as the owner's own API documentation is accepted by chat AIs; "open this link and follow it" was refused as prompt injection about one time in three. The key appears only inside the link. The paste is built by `aiPaste` in `apps/edge/src/ai-link.ts`. A longer, ready-to-paste prompt for each kind of person is in `docs/AI_WORK_PROMPT_ORGANIZER.md`.
 
-## Where the link may travel (owner rule, 2026-10-05)
+Many chat tools can open a web address (GET) but cannot set headers or send POST. So the link works with plain GET too: `?_method=POST|PATCH&_body=<URL-encoded JSON>` (below).
+
+## Where the link may travel
 
 Three layers together:
 
-- **A. The e-mail's button.** The dedicated mail (`apps/edge/src/mails.ts`, `aiLinkMail`; subject "Your personal AI work link - Corporate Luck by Chance"; HTML + plain text; red do-not-forward warning top and bottom; numbered steps) has a button "Show my AI work link" to `/ai-link.html` (`apps/web/public/ai-link.html|js`). The address holds no secret. The page asks the organizer to sign in with the existing 6-digit e-mailed code (or uses the console's own session), then shows the lasting two-line paste in a box with Copy, seven ways to hand it to an AI (below), "Get a fresh AI link" and "Replace my AI link". A forwarded copy of the mail is useless to anyone else. The lasting key is kept sealed (`aikey/<org>` in `kv`), so the signed-in organizer can read it again (`GET /api/org/ai/link`, organizer key only; AI, co-host, mailed and platform keys get 403). It is never e-mailed.
+- **A. The e-mail's button.** The dedicated mail (`apps/edge/src/mails.ts`, `aiLinkMail`; subject "Your personal AI work link - Corporate Luck by Chance"; HTML + plain text; do-not-forward warning top and bottom; numbered steps) has a button "Show my AI work link" to `/ai-link.html` (`apps/web/public/ai-link.html|js`). The address holds no secret. The page asks the organizer to sign in with the existing 6-digit e-mailed code (or uses the console's own session), then shows the lasting two-line paste in a box with Copy, seven ways to hand it to an AI (below), "Get a fresh AI link" and "Replace my AI link". A forwarded copy of the mail is useless to anyone else. The lasting key is kept sealed (`aikey/<org>` in `kv`), so the signed-in organizer can read it again (`GET /api/org/ai/link`, organizer key only; AI, co-host, mailed and platform keys get 403). It is never e-mailed.
 - **B. The mail's own box uses a separate 24-hour key.** The plain-text paste box in the mail (never a hyperlink) carries a key minted only for the mail, valid 24 hours (`organizer_key.expires_ms`; after expiry it is the same plain 404 as an unknown key). "Get a fresh AI link" (`POST /api/org/ai/fresh`, organizer key only, at most 5 live) mints and mails another 24-hour key without touching the lasting key. A Host key gets its own 24-hour key in a separate mail; a Co-host (`cbc_`) has no AI link.
 - **C. Unfamiliar-use alert.** When an AI or Host key is used from a country, network prefix (IPv4 /24, IPv6 /48) or program family not seen before for that key, the organizer gets ONE plain e-mail (no link, no key), at most once per key per 24 hours. The first use only sets the baseline.
 
@@ -37,42 +39,47 @@ Opens the AI with the paste pre-filled (`target=_blank rel="noopener noreferrer"
 
 ## What the link serves
 
-- `GET /ai/<key>` returns the complete manual for that key's role as `text/plain; charset=utf-8` (`?format=json` returns the same as data). Organizer-AI key (`cba_`) gets the full manual; a Host key (`cbh_`) a narrower one.
+- `GET /ai/<key>` returns the complete manual for that key's role as `text/plain; charset=utf-8` (`?format=json` returns the same as data). It starts with a short front door (about 40 lines: the rules for the AI, six first choices, the 10 facts) followed by the long reference manual. The Organizer-AI key (`cba_`) gets the full manual; a Host key (`cbh_`) a narrower one.
+- `GET /ai/<key>/go`, `/go/new`, `/go/games`, `/map`, `/facts`, `/whoami`: the guided path (ready-made step links with the words to say), the list of everything the AI can get done and who does each step, the 10 facts, and a check that the link works.
 - `GET|POST|PATCH /ai/<key>/<api path>` behaves exactly like `/api/<api path>` with the key in `x-organizer` (`/ai/<key>/z/{id}/summary` = `/api/z/{id}/summary`). The rewritten request goes through the normal route, so the audit trail records it with the `/api` path and the real method, never the key. Only `cba_` and `cbh_` keys are accepted here: the organizer's own sign-in key (`cbk_`) and the platform key are never accepted in an address.
 - Browse-only fallback, only under `/ai/<key>/`: `GET ...?_method=POST|PATCH&_body=<URL-encoded JSON>`. The decoded body is capped at 6,144 characters; a body that is not JSON gets a plain 400 explaining URL-encoding; any other `_method` is a 400; the normal `/api` routes ignore `_method` and `_body`.
 - Every answer carries `x-robots-tag: noindex, nofollow`, `referrer-policy: no-referrer`, `cache-control: no-store`.
-- Unknown, mistyped, revoked or wrong-kind keys all get the identical `404 Not found.` plain text and nothing is recorded. Error bodies never echo the key.
+- Unknown, mistyped, revoked or wrong-kind keys all get the identical `404 Not found.` plain text and nothing is recorded. Error bodies never echo the key. A refused call carries a plain "what to do next" hint (`nextHint`), which also never contains the key.
 - `/api/z/ai-manifest` and the `x-organizer` header path still work for tool-capable AIs.
+- Every call is written to an audit trail the organizer can read (`GET org/ai/audit`). The AI is asked to say which model it is on every call (`ai_model`, `ai_version`, `ai_session`, `ai_machine`); this is recorded as self-declared, never as proof.
 
-Files: `apps/edge/src/ai-link.ts` (the words), `apps/edge/src/ai-facts.ts` (the 10 facts), `apps/edge/src/worker.ts` (`aiLink()` routing, `canAi`, manifest), `pages/functions/ai/[[path]].ts` (Pages Function), `apps/edge/test/ai-link.test.ts`.
+Files: `apps/edge/src/ai-link.ts` (the words), `apps/edge/src/ai-facts.ts` (the 10 facts), `apps/edge/src/ai-functions.ts` and `ai-go.ts` (the step links), `apps/edge/src/worker.ts` (`aiLink()` routing, `canAi`, manifest), `pages/functions/ai/[[path]].ts` (Pages Function), tests `apps/edge/test/ai-link.test.ts`, `ai-enablement.test.ts`, `ai-privacy.test.ts`, `no-other-game-words.test.ts` (the manual may use only this game's words).
 
 ## Roles: Organizer, Host, Co-host
 
 Words in the product: **Organizer** (1), **Host** (up to 5), **Co-host** (no limit). Full spec: `ROLES_AND_CONSOLE_SPEC.md`.
 
 - **Organizer** (master key): everything, including the account (sign-in keys, e-mail, AI link, close account), adds Hosts and Co-hosts, pays.
-- **Host** (`cbh_`, `organizer_key.kind = 'host'`): everything inside a tournament (settings, publish, run it, start, pause, resume), adds Co-hosts, pays. Cannot touch the account or add a Host. Through an AI work link (`x-cb-link`) a Host keeps only the narrow set of actions in `HOST_ACTIONS` (read the summary, info, participants, results, life, the report link; announce).
+- **Host** (`cbh_`, `organizer_key.kind = 'host'`): everything inside a game (settings, publish, run it on the game page, start, end), adds Co-hosts, pays. Cannot touch the account or add a Host. Through an AI work link (`x-cb-link`) a Host keeps only the narrow set of actions in `HOST_ACTIONS` in `worker.ts`: read the summary, info, participants, results, prizes, life and the report link, tick prizes as given, and send a message to everyone.
 - **Co-host** (`cbc_`, kind `cohost`): invites people with an own link and sees how many they brought, pays. Everything else answers 403. No AI link.
 
-## What the organizer's AI can and cannot do for a tournament
+## What the organizer's AI can and cannot do for a game
 
 | Action | Organizer AI (`cba_`) | Host through an AI link (`cbh_`) |
 |---|---|---|
-| Create a tournament (a free draft nobody else can see), change it before the start: the start time (`startRound`, at most 30 days ahead), the size limit (`cap`), invite-only (`closed`), the invitation policy (`invites`), the time zone (`tz`) | yes | no |
-| Read back the summary, info, participants (player ids only), results, life (when data is deleted), history | yes | summary, info, participants, results, life |
+| Create a game (a free draft nobody else can see) and change it before the start: start time (`startRound`, at most 30 days ahead), size limit (`cap`), invite-only (`closed`), invitation policy (`invites`), time zone (`tz`), game name, the company brand (name, colour, small logo), reward lines for places 1st to 5th | yes | no |
+| Read back the summary, info, participants (seat numbers only), results, life (when data is deleted), prizes, history, the live view of the game (`z/{id}/luck/view`) | yes | summary, info, participants, results, life, prizes, view |
+| Send a message to everyone (160 characters, once published, one per 5 seconds; every phone and the big screen show it at the top within a few seconds) | yes | yes |
+| Tick a prize as handed over | yes | yes |
 | Publish | hand-over only: the organizer confirms their e-mail and mobile and presses Publish | no |
 | Pay, make a pay link | never | never |
-| Start, pause or resume the tournament, choose the format or the move clock | **no** (the tournament routes refuse an AI key) | no |
-| Choose, change or remove a draw, a starter, a move or a winner | nobody | nobody |
+| Start the game; choose the number of rounds (1 to 20), the press window (6, 10 or 15 seconds) and the prize texts typed on the game page | **no**: the Organizer or a Host does this on the game page (`host.html`) | no |
+| End a running game | ask only (`control/request` with `end`, the organizer presses End on the game page) | no |
+| Choose, change or remove a target, a dice, a score or a place | nobody | nobody |
 | Names and mobile numbers, people lists, the waiting room, removing people | **no**: every such call gets 403 | no |
-| Erase players' data | ask only (`control/request`, the organizer confirms) | no |
-| Create a Host key, cancel a tournament, close the account | no | no |
+| Erase players' data | ask only (`control/request` with `erase`, the organizer confirms) | no |
+| Create a Host key, cancel a game, close the account | no | no |
 | Read the AI audit trail | yes (own) | no |
 
-## Not true yet
+## Things to know (as the code is today)
 
-- The manual text the link serves (`manualText()` in `apps/edge/src/ai-link.ts`) and the 10 facts (`apps/edge/src/ai-facts.ts`) still describe the sister product: "75-ball bingo", cards, call speed 6/9/12/15 seconds, prize patterns (Line, Four Corners, X, Blackout), brand moments, lucky draws, rounds. An AI that follows them would set options that have no effect on a tournament and would tell the organizer things that are not true. They must be rewritten from this page before the link is used.
-- The settings call also accepts the sister product's `join: phone`. With it the Worker asks for a mobile number that the Luck by Chance player page cannot send, so nobody could join. Leave `join` alone (the default is name only).
-- `announce` (a message to every phone) exists in the Worker, but the Luck by Chance player page and big screen do not show announcements.
-- The "start and pause" requests an AI may make (`control/request`) belong to the sister product's pause file. For a tournament the host presses Pause in `host.html`.
-- Simulated AI sessions and live checks that the sister product ran are not repeated here. Nothing about the AI link has been run live for Luck by Chance, because nothing is deployed.
+- The settings call still accepts the older `join: phone`. With it the Worker asks for a mobile number that the Luck by Chance player page cannot send, so nobody could join. The manual does not offer it; leave `join` alone (the default, nickname only).
+- Reward lines saved through the AI (or console step 3) and the prize texts typed on the game page when the game is started are two separate lists. The player screens use the game-page texts for the prizes they show. Ask the organizer to type the prize texts again on the game page when they press Start.
+- `control/request` takes the actions `end` and `erase`. There is no pause: a running game follows one fixed clock for everybody.
+- The "message to everyone" reaches phones with the public game view they already ask for every second or so while the game runs and every 3 seconds while they wait; it is shown as a bright strip at the top of the player page and the big screen and is announced to a screen reader. Tests: `apps/edge/test/luck-announce.test.ts`, `apps/web/test/luck-page.test.ts`, scenario S12-01 in real Chrome at 360 px.
+- Nothing about the AI link has been tried against a real chat AI for this game: the manual is checked by tests (`ai-link.test.ts` plants names and numbers and asserts that no AI-readable route returns them; `no-other-game-words.test.ts` checks the words).
