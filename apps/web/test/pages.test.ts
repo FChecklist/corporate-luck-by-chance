@@ -386,7 +386,7 @@ describe("payment page", () => {
   const payPage = (o: O, eid: string, signedIn = true) => page(o, `/pay?e=${eid}`, "pay.html", ["common.js", "termsbox.js", "pay.js"], signedIn ? { "cbz-org": o.token, "cbz-email": "boss@acme.com", "cbz-phone": "98765 43210" } : {});
   test("UC-55 not signed in: asks to sign in instead of showing a broken page", async () => {
     const o = await organizer(); await make(o, "UI-PAY0");
-    const p = await payPage(o, "UI-PAY0", false); expect(await p.waitFor((x) => /Please sign in first/.test(x))).toMatch(/Sign in with email/);
+    const p = await payPage(o, "UI-PAY0", false); expect(await p.waitFor((x) => /Please sign in first/.test(x))).toMatch(/Sign in with e-mail/);
   });
   test("UC-23 / UC-55 payments not switched on: the order is shown, the button says so, nothing can be charged", async () => {
     const o = await organizer(); await make(o, "UI-PAY1", { cap: 230 }); await publish(o, "UI-PAY1");
@@ -440,7 +440,7 @@ describe("Refer & Earn page", () => {
     const o = await organizer(); const p = await page(o, "/partner.html", "partner.html", ["common.js", "partner.js"]);
     await p.waitFor((x) => /Get your link in 20 seconds/.test(x));
     (p.$("#ph") as any).value = "+91 98765 43210"; (p.$("#em") as any).value = "partner@example.com"; (p.$("#ok") as any).checked = true; p.click("#join");
-    await p.waitFor((x) => /Check your email/.test(x));
+    await p.waitFor((x) => /Check your e-mail/.test(x));
     const mailed = (o.world.raw.prepare("SELECT body FROM outbox WHERE to_addr='partner@example.com' ORDER BY id DESC").get() as any).body.match(/\b\d{6}\b/)[0];
     (p.$("#cd") as any).value = mailed; p.click("#cdgo");
     const t = await p.waitFor(() => !!p.win.document.getElementById("dash")?.textContent?.includes("Your link"));
