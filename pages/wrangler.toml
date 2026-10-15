@@ -1,4 +1,4 @@
-# Corporate Luck by Chance on Cloudflare Pages + Functions + D1: free plan only, no custom domain (https://corporate-luck-by-chance.pages.dev).
+# Corporate Luck by Chance on Cloudflare Pages + Functions + D1: free plan only, custom domain https://luck.corporatetambola.com; the old pages.dev address redirects pages and keeps /api working.
 # Deploy with:  bun run pages:deploy   (see README.md in this folder). Secrets are NOT in this file.
 name = "corporate-luck-by-chance"
 pages_build_output_dir = "public"
@@ -12,8 +12,8 @@ database_id = "c98bedfe-6de2-40bc-bcd8-ba79f0ef68c6"   # create the D1 database 
 
 [vars]
 DAILY_WRITE_BUDGET = "80000"
-PUBLIC_ORIGIN = "https://corporate-luck-by-chance.pages.dev"
+PUBLIC_ORIGIN = "https://luck.corporatetambola.com"
 PAY_HOP_URL = "https://itservices-rajat-agarwal.pages.dev/payframe/"   # Option 1: the Razorpay window runs on the website registered with Razorpay
 MAIL_FROM = "Corporate Luck by Chance <luckbychance@veridian-aios.com>"
-OWNER_EMAIL = "rajatsiroffice@gmail.com"
-COMPANY_JSON = '{"email":"rajatsiroffice@gmail.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'
+OWNER_EMAIL = "hello@corporatetambola.com"
+COMPANY_JSON = '{"email":"hello@corporatetambola.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'

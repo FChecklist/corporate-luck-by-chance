@@ -11,7 +11,7 @@ const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.ur
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
 async function openPlayerPage(search = "?e=GAME-1", opts: { pid?: boolean; ann?: { id: string; text: string } | null } = {}) {
-  const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/z.html" + search, width: 390, height: 780 });
+  const w: any = new Window({ url: "https://luck.corporatetambola.com/z.html" + search, width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   const sent: { url: string; method: string; body: any }[] = [];
   w.fetch = async (url: string, init: any = {}) => {
@@ -69,7 +69,7 @@ describe("the join screen (K4, U1-U3)", () => {
 import { diceOf, parseSettings, phaseAt, sha256Hex, targetOf, windowCloseMs, type LuckSettings } from "../../../packages/luck/src/index";
 
 async function openGame(clock: { now: number }, seatNo = 0, reduce = true) {
-  const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/z.html?e=GAME-9", width: 390, height: 780 });
+  const w: any = new Window({ url: "https://luck.corporatetambola.com/z.html?e=GAME-9", width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   w.matchMedia = (q: string) => ({ matches: reduce && /reduce/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }); // the phone's "reduce motion" setting
   const parsed = parseSettings({ rounds: 1, windowSecs: 10 }); if (!parsed.ok) throw new Error(parsed.error);
@@ -189,7 +189,7 @@ describe("the play screen (phone first)", () => {
     expect(none.d.getElementById("annbar")).toBeNull();
   });
   test("message to everyone: showAnn keeps one strip, changes its text only for a new message id, and hides it when the message is cleared; the text is never read as markup", async () => {
-    const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/big.html?e=G" }); w.crypto = globalThis.crypto; w.document.body.innerHTML = '<main id="app"></main>';
+    const w: any = new Window({ url: "https://luck.corporatetambola.com/big.html?e=G" }); w.crypto = globalThis.crypto; w.document.body.innerHTML = '<main id="app"></main>';
     new Function("globalThis", pub("luck-engine.js"))(w);
     new Function("window", "document", pub("luck-run.js"))(w, w.document);
     const R = w.LuckRun.create({ base: "", eid: "G" });

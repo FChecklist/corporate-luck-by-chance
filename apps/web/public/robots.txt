@@ -13,4 +13,4 @@ Disallow: /big.html
 Disallow: /preview.html
 Disallow: /demo.html
 
-Sitemap: https://corporate-luck-by-chance.pages.dev/sitemap.xml
+Sitemap: https://luck.corporatetambola.com/sitemap.xml

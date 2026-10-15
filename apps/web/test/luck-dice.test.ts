@@ -11,7 +11,7 @@ const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 const MEDIA = (reduce: boolean) => (q: string) => ({ matches: reduce && /reduce/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
 
 function load(reduce = true) {
-  const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/demo.html", width: 390, height: 780 });
+  const w: any = new Window({ url: "https://luck.corporatetambola.com/demo.html", width: 390, height: 780 });
   w.crypto = globalThis.crypto; w.matchMedia = MEDIA(reduce);
   w.document.body.innerHTML = '<main id="app"></main>';
   new Function("window", "document", "setTimeout", pub("luck-dice.js"))(w, w.document, (fn: any, ms?: number) => setTimeout(fn, ms));
@@ -183,7 +183,7 @@ describe("colours", () => {
 // ---- the try-it page, played in a simulated phone
 describe("the demo page", () => {
   async function openDemo(reduce = true) {
-    const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/demo.html", width: 360, height: 640 });
+    const w: any = new Window({ url: "https://luck.corporatetambola.com/demo.html", width: 360, height: 640 });
     w.crypto = globalThis.crypto; w.matchMedia = MEDIA(reduce);
     w.document.body.innerHTML = '<main id="app"></main>';
     new Function("globalThis", pub("luck-engine.js"))(w);

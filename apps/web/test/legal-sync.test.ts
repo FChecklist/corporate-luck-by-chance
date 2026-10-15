@@ -22,7 +22,7 @@ describe("the deployed legal pages equal the final pages", () => {
   });
   test("the Terms say Luck by Chance only: clause 6.2 is here, the ticket clause 6.1 and every other game's name are not", () => {
     const t = mainText(read("apps/web/public/terms.html"));
-    expect(t).toContain("Corporate Luck by Chance"); expect(t).not.toMatch(/Tambola|Bingo|Snakes|Tic Tac Toe/i);
+    expect(t).toContain("Corporate Luck by Chance"); expect(t.replace(/corporatetambola\.com/g, "")).not.toMatch(/Tambola|Bingo|Snakes|Tic Tac Toe/i); // the shared domain name is not another game
   });
 });
 

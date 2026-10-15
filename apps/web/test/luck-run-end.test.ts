@@ -9,7 +9,7 @@ const S = (rounds: number) => ({ rounds, windowSecs: 6, prizeMode: "both", oneWi
 const hex = (i: number) => (i * 2654435761 >>> 0).toString(16).padStart(8, "0").repeat(8);
 
 async function phone(rounds: () => number) {
-  const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/z.html?e=GAME-1" });
+  const w: any = new Window({ url: "https://luck.corporatetambola.com/z.html?e=GAME-1" });
   w.crypto = globalThis.crypto;
   const start = Date.now() - 60_000;
   w.fetch = async (url: string) => {

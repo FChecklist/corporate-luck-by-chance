@@ -9,7 +9,7 @@ const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms));
 const SETTINGS = { rounds: 3, windowSecs: 10, prizeMode: "both", oneWinPerPlayer: false, prizes: { overall: [], rounds: [] }, diceRounds: 10, revealSecs: 3, breakSecs: 20 };
 
 async function hostPage(view: () => Record<string, unknown>, sure = true) {
-  const w: any = new Window({ url: "https://corporate-luck-by-chance.pages.dev/host.html?e=GAME-1", width: 900, height: 800 });
+  const w: any = new Window({ url: "https://luck.corporatetambola.com/host.html?e=GAME-1", width: 900, height: 800 });
   const sent: { url: string; method: string; headers: any }[] = [];
   const asked: string[] = [];
   w.fetch = async (url: string, init: any = {}) => {
