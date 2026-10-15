@@ -15,7 +15,7 @@
     if (!r.ok) throw Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, body: j });
     return j;
   };
-  const head = `<div class="zhead"><b>Corporate Luck by Chance · Payment</b></div>${TB.payBrand ? TB.payBrand() : ""}`;
+  const head = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance · Payment</b></div>${TB.payBrand ? TB.payBrand() : ""}`;
   const when = (ms) => { try { return new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }); } catch { return ""; } };
   const calm = (title, text) => `${head}<div class="zcard" role="status"><h2>${esc(title)}</h2><p class="zsmall" style="margin:0">${text}</p></div>`;
 

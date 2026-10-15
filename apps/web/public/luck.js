@@ -20,7 +20,7 @@
     if (!r.ok) throw Object.assign(new Error(j.error || "http " + r.status), { status: r.status, code: j.code, body: j });
     return j;
   };
-  const head = () => `<div class="zhead"><b>Corporate Luck by Chance</b></div>`;
+  const head = () => `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b></div>`;
   const logoOf = (b) => (b && typeof b.logo === "string" && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(b.logo) ? b.logo : "");
   const brand = () => (INFO && INFO.brand && (INFO.brand.name || logoOf(INFO.brand)) ? `<div class="zbrand" data-bg="${esc(INFO.brand.color || "#0B5D5B")}" data-fg="#ffffff">${logoOf(INFO.brand) ? `<img class="zblogo" alt="" src="${esc(logoOf(INFO.brand))}">` : ""}${INFO.brand.name ? `<b>${esc(INFO.brand.name)}</b>` : ""}</div>` : "");
   const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });

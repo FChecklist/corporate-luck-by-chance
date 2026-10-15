@@ -33,3 +33,4 @@ h2{font:600 clamp(18px,2vw,30px) Inter,sans-serif;margin:1em 0 .4em;color:var(--
 .rk li{margin:.25em 0}.rk small{display:block;color:var(--mute);font-size:.6em}
 footer{font-size:clamp(12px,1.1vw,16px)}
 :focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.brand{display:inline-flex;align-items:center;gap:.4em}.brand::before{content:"";flex:0 0 1.3em;width:1.3em;height:1.3em;border-radius:.3em;background:url(/icon-192.png?v=2) center/cover}

@@ -2,7 +2,7 @@
 (function () {
   const TB = window.TB, esc = TB.esc, $app = document.getElementById("app");
   const S = { country: "IN", pcode: "91", err: "", busy: false, done: null, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })() };
-  const head = `<div class="zhead"><b>Corporate Luck by Chance · Payment testing</b><a class="zsnd" href="/" style="text-decoration:none">Home</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
+  const head = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance · Payment testing</b><a class="zsnd" href="/" style="text-decoration:none">Home</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
   function view() {
     if (S.done) {
       const d = S.done;

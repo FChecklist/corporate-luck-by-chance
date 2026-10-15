@@ -19,7 +19,7 @@ describe("installable app (PWA)", () => {
     const sizes = manifest.icons.map((i: any) => i.sizes);
     expect(sizes).toContain("192x192"); expect(sizes).toContain("512x512");
     expect(manifest.icons.some((i: any) => i.purpose === "maskable")).toBe(true);
-    for (const i of manifest.icons) { const f = join(PUB, i.src.slice(1)); expect(existsSync(f)).toBe(true); expect(statSync(f).size).toBeGreaterThan(500); }
+    for (const i of manifest.icons) { const f = join(PUB, i.src.slice(1).split("?")[0]); expect(existsSync(f)).toBe(true); expect(statSync(f).size).toBeGreaterThan(500); }
   });
   test("every file the service worker saves exists and is shipped by the Pages build", () => {
     for (const f of filesInSw) {
@@ -46,7 +46,7 @@ describe("installable app (PWA)", () => {
   test("the page can be added to the home screen on a phone: full-screen viewport (notch), apple touch icon 180 px, theme colour, standalone hints", () => {
     for (const p of ["z.html", "demo.html"]) {
       const h = readFileSync(join(PUB, p), "utf8");
-      expect(h).toContain("viewport-fit=cover"); expect(h).toContain('name="theme-color"'); expect(h).toContain('name="apple-mobile-web-app-capable"'); expect(h).toContain('name="mobile-web-app-capable"'); expect(h).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png"');
+      expect(h).toContain("viewport-fit=cover"); expect(h).toContain('name="theme-color"'); expect(h).toContain('name="apple-mobile-web-app-capable"'); expect(h).toContain('name="mobile-web-app-capable"'); expect(h).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png?v=2"');
     }
     const png = (f: string) => { const b = readFileSync(join(PUB, f)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
     expect(png("apple-touch-icon.png")).toEqual([180, 180]); expect(png("icon-192.png")).toEqual([192, 192]); expect(png("icon-512.png")).toEqual([512, 512]); expect(png("icon-maskable-192.png")).toEqual([192, 192]); expect(png("icon-maskable-512.png")).toEqual([512, 512]);

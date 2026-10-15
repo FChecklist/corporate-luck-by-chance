@@ -6,7 +6,7 @@
   try { history.replaceState(null, "", location.pathname); } catch {} // the token leaves the address bar at once
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const draw = (msg) => {
-    app.innerHTML = `<div class="zhead"><b>Corporate Luck by Chance</b></div><div class="zcard zform"><h2>Continue to Corporate Luck by Chance</h2>
+    app.innerHTML = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b></div><div class="zcard zform"><h2>Continue to Corporate Luck by Chance</h2>
       <p class="zsmall" style="margin-top:0">Works once, for 10 minutes.</p>
       ${msg ? `<div class="zbanner bad" role="alert">${esc(msg)}</div>` : ""}
       ${t ? `<button class="zbtn" id="go">Continue to Corporate Luck by Chance</button>` : `<div class="zbanner bad">This sign-in link is incomplete. Please ask for a new one from the sign-in page.</div>`}

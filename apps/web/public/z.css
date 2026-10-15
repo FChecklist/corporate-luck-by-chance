@@ -140,3 +140,17 @@ a.zbtn#addcal{margin-left:6px}
 input.pfill{color:#8a8f98!important}
 
 .pstmt{margin:0 0 10px;padding:12px 14px;border-radius:12px;background:#fff7e0;border:2px solid #f59f00;font:600 15px/1.5 var(--sans,inherit);color:#4a2c00}.pstmt .mono{word-break:break-all}
+
+/* logo 2026-10-15: the new logo mark replaces the old icon; the tile is part of the picture, corners stay round */
+.mark{background:none;overflow:visible}
+.mark img,.tb-mark img{display:block;width:100%;height:100%;border-radius:22%}
+#topbar .tb-mark{background:none}
+.zlogo{display:inline-flex;flex:0 0 auto;line-height:0;text-decoration:none}
+.zlogo img{display:block;width:20px;height:20px;border-radius:5px}
+.zbrand .zlogo img{width:18px;height:18px;margin:-2px 0}
+.zbrand.zdef b{display:inline-flex;align-items:center;gap:7px}
+.zpow .zlogo{vertical-align:-2px;margin-right:5px}
+.zpow .zlogo img{width:12px;height:12px;border-radius:3px}
+.pb-logo{display:flex;justify-content:center;margin:0 0 8px}.pb-logo img{width:44px;height:44px;border-radius:11px}
+/* the header mark is now a real link (img.zlogo), so the old CSS-drawn one is switched off */
+.zhead b::before{content:none!important;display:none!important}

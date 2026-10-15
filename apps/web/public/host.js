@@ -53,7 +53,7 @@
       body = `<div class="zcard"><h2>${v.state === "done" ? "Finished" : "Running"}</h2><p>${esc(v.players || v.joined)} players</p>${progress(v)}${endBlock(v)}${v.state === "done" ? `<p>${v.agreed ? "The result was agreed by the players' phones." : "The phones did not agree on a result."}</p>` : ""}${links()}</div>
         <div class="zcard"><h2>Check the draw</h2><p class="zsmall">Fingerprint (shown before anybody joined): <span class="mono">${esc((v.commit || "").slice(0, 32))}</span></p><p class="zsmall">After the game <a href="${esc(BASE)}/api/z/${esc(EID)}/luck/reveal" target="_blank" rel="noopener">show the secret and the seed</a>. Anybody can re-compute every number from it.</p></div>`;
     }
-    $app.innerHTML = `<div class="zhead"><b>Corporate Luck by Chance</b><span class="zsmall">${esc(EID)}</span></div>${S.msg ? `<div class="zbanner warn" role="alert">${esc(S.msg)}</div>` : ""}${body}`;
+    $app.innerHTML = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b><span class="zsmall">${esc(EID)}</span></div>${S.msg ? `<div class="zbanner warn" role="alert">${esc(S.msg)}</div>` : ""}${body}`;
     document.querySelectorAll(".hchip").forEach((b) => b.addEventListener("click", () => { grab(); const k = b.dataset.k, val = b.dataset.v; S[k] = k === "prizeMode" ? val : Number(val); paint(); }));
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
     on("end", async () => {

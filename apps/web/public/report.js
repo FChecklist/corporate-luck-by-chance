@@ -4,7 +4,7 @@
   const $app = document.getElementById("app");
   const q = new URLSearchParams(location.search), EID = q.get("e") || "", KEY = q.get("k") || "";
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const draw = (html) => { $app.innerHTML = `<div class="zhead"><b>Corporate Luck by Chance · Report</b></div>` + html; };
+  const draw = (html) => { $app.innerHTML = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance · Report</b></div>` + html; };
   const get = async (part, extra) => {
     const r = await fetch(`/api/report/${encodeURIComponent(EID)}?k=${encodeURIComponent(KEY)}&part=${part}${extra || ""}`, { cache: "no-store" });
     const j = await r.json().catch(() => ({}));

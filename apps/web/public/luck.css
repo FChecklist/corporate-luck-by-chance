@@ -207,3 +207,6 @@ body:has(.zapp) #cb-notify{display:none!important}
 .zapp .zbtn:not(:disabled){background:#C2410C;box-shadow:0 5px 0 #7C2D12;border-radius:18px}
 .zapp .zbtn:not(:disabled):active{transform:translateY(3px);box-shadow:0 2px 0 #7C2D12}
 .zapp .zbtn:disabled{background:#DDE6F2;color:#1B2B45;box-shadow:none}
+
+.zlogo{display:inline-flex;flex:0 0 auto;line-height:0;text-decoration:none}
+.zlogo img{display:block;width:20px;height:20px;border-radius:5px}
