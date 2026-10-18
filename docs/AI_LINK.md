@@ -83,3 +83,7 @@ Words in the product: **Organizer** (1), **Host** (up to 5), **Co-host** (no lim
 - `control/request` takes the actions `end` and `erase`. There is no pause: a running game follows one fixed clock for everybody.
 - The "message to everyone" reaches phones with the public game view they already ask for every second or so while the game runs and every 3 seconds while they wait; it is shown as a bright strip at the top of the player page and the big screen and is announced to a screen reader. Tests: `apps/edge/test/luck-announce.test.ts`, `apps/web/test/luck-page.test.ts`, scenario S12-01 in real Chrome at 360 px.
 - Nothing about the AI link has been tried against a real chat AI for this game: the manual is checked by tests (`ai-link.test.ts` plants names and numbers and asserts that no AI-readable route returns them; `no-other-game-words.test.ts` checks the words).
+
+## Help Desk helper keys (2026-10-19)
+
+An AI key that belongs to a Help Desk helper (`created_by 'd'`) gets one more paragraph at the end of its manual (`GET /ai/<key>`, and `helpDesk` in `?format=json`): the AI prepares the game for the Organizer, never publishes or pays, and asks the Organizer to publish with `POST /api/helpdesk/request-publish {"eid": "<id>"}` (the key knows its own client). The unfamiliar-use alert skips these keys, and the Organizer's own `replace` and `revoke` of the AI link leave them alone. See `apps/edge/src/helpdesk.ts` and `docs/HELPDESK_SPEC.md`.
