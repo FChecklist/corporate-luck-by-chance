@@ -105,9 +105,9 @@ export default [
       const files = await x.page.evaluate(async () => { const t = await (await fetch("/zsw.js")).text(); return JSON.parse(/const FILES = (\[[\s\S]*?\]);/.exec(t)[1]); });
       const reg = await x.page.evaluate(async () => { const r = await navigator.serviceWorker.ready; return { scope: r.scope, active: !!r.active, script: r.active ? r.active.scriptURL : "" }; });
       t.check("a service worker is registered for the whole site and is active", reg.active && reg.scope === H.SIM + "/" && /\/zsw\.js$/.test(reg.script), JSON.stringify(reg));
-      const saved = await t.until(async () => { const n = await x.page.evaluate(async () => { const c = await caches.open("luck-game-v2"); return (await c.keys()).length; }); return n >= files.length ? n : 0; }, { timeout: 15000, step: 300, what: "the saved copy" }).catch(() => 0);
+      const saved = await t.until(async () => { const n = await x.page.evaluate(async () => { const nm = /const CACHE = "([^"]+)"/.exec(await (await fetch("/zsw.js")).text())[1]; const c = await caches.open(nm); return (await c.keys()).length; }); return n >= files.length ? n : 0; }, { timeout: 15000, step: 300, what: "the saved copy" }).catch(() => 0);
       t.check("the whole game is saved on the phone: every listed file is in the saved copy", saved >= files.length, `${saved} of ${files.length}`);
-      t.check("the saved copy holds the offline page and the demo", await x.page.evaluate(async () => { const c = await caches.open("luck-game-v2"); return !!(await c.match("/offline.html")) && !!(await c.match("/demo.html")) && !!(await c.match("/luck-dice.js")); }));
+      t.check("the saved copy holds the offline page and the demo", await x.page.evaluate(async () => { const nm = /const CACHE = "([^"]+)"/.exec(await (await fetch("/zsw.js")).text())[1]; const c = await caches.open(nm); return !!(await c.match("/offline.html")) && !!(await c.match("/demo.html")) && !!(await c.match("/luck-dice.js")); }));
       await x.page.reload({ waitUntil: "load" }); // now the worker controls the page
       t.check("after a reload the service worker controls the page", await x.page.evaluate(() => !!navigator.serviceWorker.controller));
       // offline
