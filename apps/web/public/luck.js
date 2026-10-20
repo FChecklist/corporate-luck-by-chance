@@ -92,6 +92,7 @@
   async function paint(v) {
     lastV = v;
     const g = RUN.game, s = RUN.settings(), p = RUN.phase(), seat = v.you ? v.you.seat : -1;
+    if (window.ctzView) window.ctzView({ phase: p.kind === "over" ? "ended" : String(p.kind || "") }); // the flight recorder (blackbox.js) learns the stage
     const gi = p.g !== undefined ? p.g : -1;
     const key = keyOf(v);
     if (key === lastKey) return; lastKey = key;
