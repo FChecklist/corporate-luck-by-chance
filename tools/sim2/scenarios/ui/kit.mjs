@@ -96,10 +96,10 @@ export async function tickTerms(t, page, { btn, scope = "body", what = "Terms bo
   return { labels, count: n };
 }
 
-/** The home-page sign-in sheet as a person: e-mail, the Terms box (K2), "Email me a code". Waits for the code box. */
+/** The home-page sign-in sheet as a person with an existing account: e-mail, Continue (no Terms box for an address that already has an account). Waits for the code boxes. */
 export async function askCodeUi(page, email) {
   await page.goto(H.SIM + "/#login"); await page.fill("#lMail", email);
-  await tickTerms(CUR, page, { scope: "#tbSlot", btn: "#lgGo", what: "Sign-in" }); await page.click("#lgGo"); await page.waitForSelector("#lCode");
+  await page.click("#lgGo"); await page.waitForSelector("#lCode", { state: "attached" }); await page.waitForSelector(".otpb");
 }
 /** A Host or Co-host who opened the console for the first time on this device meets ONE box (K5) before anything else: ticks it and carries on. No-op when the console opens straight away. */
 export async function passK5Gate(page, { timeout = 15000 } = {}) {

@@ -681,10 +681,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (req.method === "POST" && p === "/api/start") {
     const b = await body(req);
     const email = typeof b?.email === "string" ? b.email.trim().toLowerCase() : "";
-    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid work e-mail." }, 400);
-    { const mt = consentRequired(b, "K2"); if (mt) return mt; } // K2: the Terms box must be ticked, on the server as well as on the page
+    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
     const eh = await sha("email|" + email);
-    if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ ok: true, exists: true });
+    if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ ok: true, exists: true }); // an address that already has an account is asked for the e-mailed code: no Terms box needed here
+    { const mt = consentRequired(b, "K2"); if (mt) return mt; } // K2: a NEW account needs the Terms box ticked, on the server as well as on the page
     const made = await createOrganizer(env, req, email, now, "start");
     if ("error" in made) return made.status === 503 ? BUSY() : json({ error: made.error }, made.status);
     await recordConsent(env.DB, { subject: made.org, kind: "K2", ref: "start", now });
@@ -693,12 +693,12 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (req.method === "POST" && p === "/api/auth/email") {
     const b = await body(req);
     const email = typeof b?.email === "string" ? b.email.trim().toLowerCase() : "";
-    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid work e-mail." }, 400);
-    { const mt = consentRequired(b, "K2"); if (mt) return mt; } // K2: ticking the Terms box is part of signing in
+    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
+    const ticked = consentRequired(b, "K2") === null; // K2 is recorded when the Terms box was ticked; an existing account asks for a code without it (the box is for a new account)
     const eh = await sha("email|" + email);
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
     const hostAcct = acct ? null : await hostForEmail(env.DB, eh);
-    if (acct) await recordConsent(env.DB, { subject: acct.org, kind: "K2", ref: "signin", now }); // a Host who confirmed this address signs in the same way (no Organizer account for it)
+    if (acct && ticked) await recordConsent(env.DB, { subject: acct.org, kind: "K2", ref: "signin", now }); // a Host who confirmed this address signs in the same way (no Organizer account for it)
     const test = (env as PayEnv).TEST_MODE === "1";
     let devCode: string | undefined, devToken: string | undefined;
     if (acct || hostAcct) { // an unknown address gets the same answer, so nobody can find out who has an account
