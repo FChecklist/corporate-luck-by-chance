@@ -83,7 +83,7 @@
       <div class="sum" id="ordSum"></div>
       <form id="coForm" novalidate>
         <label class="lb" for="oName">Organization name</label><input class="inp" id="oName" autocomplete="organization" placeholder="e.g. Acme Industries">
-        <label class="lb" for="oMail">Your work e-mail (invoice and login)</label><input class="inp" id="oMail" type="email" autocomplete="email" placeholder="you@company.com">
+        <label class="lb" for="oMail">Your work e-mail (invoice and login)</label><input class="inp" id="oMail" type="email" autocomplete="email" placeholder="your e-mail">
         <label class="lb" for="oPh">Your mobile number (optional)</label><input class="inp" id="oPh" type="tel" autocomplete="tel" placeholder="98765 43210">
         <label class="lb" for="oCty">Country of your organization</label><select class="inp" id="oCty">${TB.countryOpts(def)}</select>
         <div id="taxBox"></div><div id="fErr"></div><div id="tbSlot" class="tbslot"></div>
@@ -115,7 +115,7 @@
       <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Luck by Chance"><span class="mark"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="34" height="34"></span><span class="word">Corporate Luck by Chance<i>.</i></span></span></div>
       <div class="eyebrow ofeye">Build it and publish it free.</div><h2 id="ofTitle">Create your game</h2>
       <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>Add your company name, colour and logo</span></li><li><span class="bico">${ic("trophy")}</span><span>Pick your prizes for 1st to 5th place</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group dice game for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>Every number is public: anyone can check the result</span></li><li><span class="bico">${ic("phone")}</span><span>Each player plays on their own phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are erased within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
-      ${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your e-mail</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" aria-describedby="fErr"><div id="fErr" role="alert"></div>
+      ${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your e-mail</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" aria-describedby="fErr"><div id="fErr" role="alert"></div>
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled>Create my game ${ic("arrow")}</button></form>
       <p class="trust">${ic("shield")}Free to build and publish. No password.</p>
@@ -167,7 +167,7 @@
   // ---------- login ----------
   function openLogin(email) {
     TB.sheet(`${xbtn}<div class="eyebrow">Organizer login</div><h2>Sign in with your work e-mail</h2><p class="muted small">Players never log in here. They join with your link. We e-mail you a 6-digit code: no password.</p>
-      ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Work e-mail</label><input class="inp" id="lMail" data-need="1" type="email" autocomplete="email" placeholder="you@company.com" value="${esc(email || "")}"><div id="fErr"></div>
+      ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Work e-mail</label><input class="inp" id="lMail" data-need="1" type="email" autocomplete="email" placeholder="your e-mail" value="${esc(email || "")}"><div id="fErr"></div>
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block" style="margin-top:14px" type="submit" id="lgGo" disabled>E-mail me a code ${ic("arrow")}</button></form>
       ${termsLinks}`);
