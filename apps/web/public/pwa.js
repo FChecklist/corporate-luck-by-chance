@@ -25,6 +25,7 @@
   const KEY = "cb-asked";
   function notifyButton() {
     try {
+      if (/^\/(zc|z|big|board|screen)(\.html)?$/.test(location.pathname)) return; // never over a game screen: it covered the bottom bar of the console and the ticket
       if (!("Notification" in window) || Notification.permission !== "default" || localStorage.getItem(KEY)) return;
       const b = document.createElement("button"); b.type = "button"; b.id = "cb-notify"; b.textContent = "Notify me"; b.setAttribute("aria-label", "Notify me about news from Corporate Luck by Chance");
       b.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:50;min-height:36px;padding:0 14px;border-radius:999px;border:1px solid #D5E3E1;background:#fff;color:#0B5D5B;font:600 12px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.12);cursor:pointer";
