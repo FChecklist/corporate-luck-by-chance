@@ -13,7 +13,7 @@
 //   nobody        - phones: join, send claims, read results counts, read the engagement info and the signed control file.
 
 import { zoneTime, tzOfRow } from "./tz";
-import { BRAND_COLORS, GRACE_ROUNDS, HOUSE_ORDER, isTimeZone, PRIZE_HOUSES, brandMomentsFor, defaultCfg, validateCfg, type EngagementCfg } from "../../../packages/beacon/src/config";
+import { BRAND_COLORS, DEMO_CAP, GRACE_ROUNDS, HOUSE_ORDER, isTimeZone, PRIZE_HOUSES, brandMomentsFor, defaultCfg, validateCfg, type EngagementCfg } from "../../../packages/beacon/src/config";
 import { openPii, openText, sealPii, sealText } from "./pii";
 import { TERMS_VERSION } from "./brand";
 import { LINK_MAIL_TTL_MS, aiLinkMail, coHostLinkMail, hostLinkMail, newUseAlertMail, signInMail } from "./mails";
@@ -31,7 +31,7 @@ import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
-import { PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
+import { normEmp, empHashOf, verifyOf, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
 import { googleClientId, verifyGoogleCredential } from "./google";
@@ -91,8 +91,8 @@ const tracks = (e: { cap: number }) => e.cap <= CLAIM_TRACKING_MAX_CAP;
 /** The part of the settings every phone needs, public by design: how many tickets, what each house wins, and when the brand breaks are. */
 /** The brand strip as phones see it: the full brand (with the logo) from `info`; everywhere else only name and colour (a logo can be 40 KB and a 10,000-person list must not carry it). */
 const brandOut = (c: EngagementCfg, withLogo: boolean) => (c.brand ? { brand: withLogo ? c.brand : { name: c.brand.name, color: c.brand.color, ...(c.brand.logo ? { hasLogo: true } : {}) } } : {});
-const pub = (e: any, withLogo = false) => { const c = cfgOf(e); return { ...(c.mark ? { mark: c.mark } : {}), joinPhone: c.join === "phone", tickets: c.tickets, rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...brandOut(c, withLogo) }; };
-const cfgJson = (c: EngagementCfg) => JSON.stringify({ rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}), ...(c.mark ? { mark: c.mark } : {}), ...(c.join ? { join: c.join } : {}), ...(c.tz ? { tz: c.tz } : {}) });
+const pub = (e: any, withLogo = false) => { const c = cfgOf(e); return { ...(c.mark ? { mark: c.mark } : {}), joinPhone: c.join === "phone", ...(c.verify ? { verify: c.verify } : {}), ...(c.employeesOnly ? { employeesOnly: true } : {}), tickets: c.tickets, rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...brandOut(c, withLogo) }; };
+const cfgJson = (c: EngagementCfg) => JSON.stringify({ rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}), ...(c.mark ? { mark: c.mark } : {}), ...(c.join ? { join: c.join } : {}), ...(c.tz ? { tz: c.tz } : {}), ...(c.verify ? { verify: c.verify } : {}), ...(c.employeesOnly ? { employeesOnly: true } : {}) });
 
 /** Privacy and lifecycle: sealed personal data, the role / inviter / invite kind / source of a seat, when each game ended, the winners record that outlives the personal data, and the votes that tell us a game is over. */
 export const PRIVACY_SCHEMA: string[] = [
@@ -184,9 +184,11 @@ export const SCHEMA: string[] = [
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
 /** What the organizer set for this engagement (tickets per participant, reward lines, brand breaks); plain defaults when nothing was set. */
 const cfgOf = (e: { tickets?: number; config?: string | null }): EngagementCfg => {
-  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, opening: j.opening, closing: j.closing, name: j.name, brand: j.brand, mark: j.mark, join: j.join, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* fall through */ }
+  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, opening: j.opening, closing: j.closing, name: j.name, brand: j.brand, mark: j.mark, join: j.join, tz: j.tz, verify: j.verify, employeesOnly: j.employeesOnly }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* fall through */ }
   return defaultCfg();
 };
+/** The size a game of this many people is sold as: up to 10 people is the Rs 0 size. */
+const packOfCap = (cap: number): number | null => (cap <= DEMO_CAP ? DEMO_CAP : PACKS.find((x) => x[0] >= cap)?.[0] ?? null);
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 /** Luck by Chance shows players nothing but the company name, colour and logo above the game, and the prizes: no opening or closing message, no message between rounds, no lucky draw. A request that carries any of them is refused (a game must not save or sell what no player will ever see). */
 const NO_MOMENTS_MSG = "Luck by Chance has no opening or closing messages, no messages between rounds and no lucky draws. Players see your company name, colour and logo, and the prizes you write for each place.";
@@ -354,13 +356,14 @@ const keysMissing = (env: Env) => missingKeys(env).length > 0;
 /** The front door: the owner's site switch (admin.ts) first, then the real handler; every 5xx answer is counted for the error signal (A7). */
 /** What a proven e-mail gets: an Organizer key when there is an Organizer account, a Host key when the address is a confirmed Host, and BOTH when the person is both
  *  (one is the key in use, the other comes as `alt` so the console can switch role without another code). `roles` says which ones exist. */
-async function signInResult(env: Env, req: Request, acct: { org: string } | null, hostAcct: { host_id: string; org: string } | null, now: number, email: string | null) {
+async function signInResult(env: Env, req: Request, acct: { org: string } | null, hostAcct: { host_id: string; org: string } | null, now: number, email: string | null, via: "signin-code" | "signin-link" = "signin-code") {
   const roles: string[] = [];
   let token = "", alt: { kind: "organizer" | "host"; token: string } | undefined, kind: "organizer" | "host" = "organizer", ready: boolean | undefined;
   const hostKey = async () => { const hs = await hostStateRow(env.DB, hostAcct!.host_id); ready = !!hs?.verified_ms && !!hs?.mobile_ok; return mintDeviceKey(env, hostAcct!.host_id, newHostKey(), now); };
   if (acct) {
+    await recordTerms(env, acct.org, now, via);
     await linkVisitor(env as VisitEnv, req, acct.org, "signin", now, email ?? undefined);
-    const t = "ctk_" + randHex(24); // a fresh organizer key; the old ones keep working until the organizer retires them
+    const t = "cbk_" + randHex(24); // a fresh organizer key; the old ones keep working until the organizer retires them
     await env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0))").bind(await sha("key|" + t), acct.org, "master", now, acct.org).run();
     token = t; roles.push("organizer");
     if (hostAcct) { alt = { kind: "host", token: await hostKey() }; roles.push("host"); }
@@ -474,9 +477,12 @@ const newHostKey = (): string => "cbh_" + randHex(24);
 /** The WhatsApp button for a Host who has only a mobile number: opens WhatsApp to that number with the one-time link ready to send (the Organizer presses send). */
 const waLinkFor = (digits: string, name: string, link: string): string => `https://wa.me/${digits}?text=${encodeURIComponent(`${name ? "Hello " + name + ", you" : "You"} are a Host of a Corporate Luck by Chance game. Open your link to finish your setup (it works once, for 7 days): ${link}`)}`;
 /** A brand-new organizer account for a work e-mail (used by the first-time start and by Google sign-up): the console key, the lasting AI key (shown only in the console), and the 24-hour AI-link mail. */
-async function createOrganizer(env: Env, req: Request, email: string, now: number, via: "start" | "signin-google"): Promise<{ ok: true; org: string; token: string; aiKey: string; aiMessage: string } | { error: string; status: number }> {
+/** Three sign-in addresses made for the owner's own testing: the 6-digit code is always 123456 and no e-mail is sent to them. Nothing else about them is special (they are ordinary organizer accounts). To switch this off, empty this list. */
+const TEST_LOGINS = new Set(["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]);
+const TEST_LOGIN_CODE = "123456";
+async function createOrganizer(env: Env, req: Request, email: string, now: number, via: "start" | "signin-google" | "host-to-organizer", ticked = false): Promise<{ ok: true; org: string; token: string; aiKey: string; aiMessage: string } | { error: string; status: number }> {
   const eh = await sha("email|" + email);
-    const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0 | "host-to-organizer", 16)}`;
+    const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
     const used = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(ipk).first<{ v: string }>())?.v ?? 0);
     if (used >= STARTS_PER_DAY) return { error: "Too many new games from this network today. Please try again tomorrow.", status: 429 };
     if (!(await spend(env, now, 6))) return { error: "busy", status: 503 };
@@ -490,9 +496,10 @@ async function createOrganizer(env: Env, req: Request, email: string, now: numbe
       env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(ipk, String(used + 1), String(used + 1)),
     ]);
     await recordTerms(env, org, now, via);
+    if (ticked) await recordConsent(env.DB, { subject: org, kind: "K2", ref: org, now }); // K2: the Terms box was ticked to make this account
     await linkVisitor(env as VisitEnv, req, org, "start", now, email); // ties the visitor's earlier visits to this new organizer (no-op when nothing was tracked)
     const origin0 = (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, startMsg = aiMessage(origin0, aiKey); // aiKey is the lasting key, shown only in the console
-    await mailTempLink(env, req, org, "ai", "start", now, email); // the dedicated mail carries a separate key that expires in 24 hours
+    if (!TEST_LOGINS.has(email)) await mailTempLink(env, req, org, "ai", "start", now, email); // the dedicated mail carries a separate key that expires in 24 hours
     return { ok: true, org, token, aiKey, aiMessage: startMsg };
 }
 async function handle0(req: Request, env: Env, now: number, waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
@@ -573,7 +580,7 @@ export const AI_MANIFEST = {
     { do: "List games and head-counts", call: "GET /api/history" },
     { do: "Create a game. It is saved as a free draft that players cannot see yet; nothing is paid at this step", call: "POST /api/z {id (4-40 letters, digits, - or _), startRound, callSeconds: 9, cap, closed?, name?}  -> {ok, draft, openUrl}" },
     { do: "When everything is set up, tell the organizer it is ready. Publishing is free but only the organizer can do it (they confirm their e-mail and mobile number), and the game does not begin until it is paid for (pay at any time until the guest data is erased; a late payment starts the game 2 minutes after it is confirmed). This returns a link: give it to the organizer and help them through every step, but never try to publish or pay yourself", call: "POST /api/z/{id}/publish -> {published:false, needsOrganizer:true, consoleUrl} (the organizer opens consoleUrl, confirms their details and presses Publish; afterwards the same call returns payUrl, the payment page, and shareUrl, the link for guests)" },
-    { do: "Change start time, the limit of players (cap), invite-only, the time zone, the name of the game, the company brand and the rewards for the top places before the game starts. (The number of rounds, the press window and the prize texts typed on the game page are chosen by the Organizer or a Host on the game page when they press Start; they are not set here.)", call: "PATCH /api/z/{id}/settings {startRound?, cap?, closed?: true|false (invite-only), tz?: an IANA time zone such as Asia/Kolkata, name?, brand?: {name (1-40 characters), color (one of choices.brand_colors), logo? (a small picture as a data URL)}, rewards?: [{pattern: <a place id from choices.rewards>, ordinal?: 1, text}], invites?: {on: true|false, per?: 1-10, cats?: [kinds of guest]}}. IMPORTANT: rewards REPLACE what was saved, they are not merged, so always send the complete list (to change one reward, read the summary, change it, send them all). A reward line is ONE winner of ONE place and every place has exactly one winner, so ordinal is always 1. Places and how each is won are in the manual. Worked example: PATCH /api/z/{id}/settings {startRound: 33146812, cap: 250, closed: true, brand: {name: Acme Ltd, color: #0B3D91}, rewards: [{pattern: first, ordinal: 1, text: Gift hamper}, {pattern: second, ordinal: 1, text: Coffee voucher}, {pattern: third, ordinal: 1, text: Book token}]}" },
+    { do: "Change start time, the limit of players (cap), invite-only, the time zone, the name of the game, the company brand and the rewards for the top places before the game starts. (The number of rounds, the press window and the prize texts typed on the game page are chosen by the Organizer or a Host on the game page when they press Start; they are not set here.)", call: "PATCH /api/z/{id}/settings {startRound?, cap?, closed?: true|false (invite-only), tz?: an IANA time zone such as Asia/Kolkata, name?, brand?: {name (1-40 characters), color (one of choices.brand_colors), logo? (a small picture as a data URL)}, rewards?: [{pattern: <a place id from choices.rewards>, ordinal?: 1, text}], invites?: {on: true|false, per?: 1-10, cats?: [kinds of guest]}, verify?: mobile|id|both (what a person gives to get in: a mobile number, an employee ID, or both), employeesOnly?: true|false (only people on the list may play and nobody may invite; it forces invite-only and switches guest invites off)}. IMPORTANT: rewards REPLACE what was saved, they are not merged, so always send the complete list (to change one reward, read the summary, change it, send them all). A reward line is ONE winner of ONE place and every place has exactly one winner, so ordinal is always 1. Places and how each is won are in the manual. Worked example: PATCH /api/z/{id}/settings {startRound: 33146812, cap: 250, closed: true, brand: {name: Acme Ltd, color: #0B3D91}, rewards: [{pattern: first, ordinal: 1, text: Gift hamper}, {pattern: second, ordinal: 1, text: Coffee voucher}, {pattern: third, ordinal: 1, text: Book token}]}" },
     { do: "Participants: the OWNER loads the invite list in the Participants card of their console. Names and mobile numbers never pass through the AI (a roster call from an AI key answers 403). Set the limit with settings.", call: "(owner, in the console)" },
     { do: "Reuse an earlier game's people", call: "POST /api/z/{id}/reuse {from}" },
     { do: "See who joined (names and ids only, never phone numbers)", call: "GET /api/z/{id}/participants" },
@@ -708,15 +715,22 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     await recordConsent(env.DB, { subject: made.org, kind: "K2", ref: "start", now });
     return json({ ok: true, token: made.token, aiKey: made.aiKey, aiMessage: made.aiMessage });
   }
+  if (req.method === "GET" && p === "/api/consent/text") { // the exact wording of the consent boxes, for the pages (consent.ts); the server checks the same list
+    const k = url.searchParams.get("kind") as Kind | null;
+    return json(k && KINDS.includes(k) ? textFor(k) : { version: CONSENT_VERSION, kinds: Object.fromEntries(KINDS.map((x) => [x, textFor(x).boxes])) });
+  }
   if (req.method === "POST" && p === "/api/auth/email") {
     const b = await body(req);
     const email = typeof b?.email === "string" ? b.email.trim().toLowerCase() : "";
     if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
     const eh = await sha("email|" + email);
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
+    const ticked = consentRequired(b, "K2") === null; // K2 is recorded when the Terms box was ticked; an existing account asks for a code without it (the box is for a new account)
     const hostAcct = await hostForEmail(env.DB, eh); // a Host who confirmed this address signs in the same way; a person who is both gets both roles
+    if (acct && ticked) await recordConsent(env.DB, { subject: acct.org, kind: "K2", ref: "signin", now });
     const test = (env as PayEnv).TEST_MODE === "1";
     let devCode: string | undefined, devToken: string | undefined;
+    if (TEST_LOGINS.has(email)) return json({ ok: true }); // the owner's test addresses: nothing is sent, the code is always the same
     if (acct || hostAcct) { // an unknown address gets the same answer, so nobody can find out who has an account
       const row = await env.DB.prepare("SELECT win_start, sent FROM login_code WHERE email_hash=?").bind(eh).first<{ win_start: number; sent: number }>();
       const fresh = !row || now - row.win_start > 3_600_000;
@@ -796,7 +810,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!(await spend(env, now, 2))) return BUSY();
     const used = await env.DB.prepare("DELETE FROM login_code WHERE link_hash=? AND expires_ms>=?").bind(lh, now).run(); // single use: the first POST wins, the code dies with it
     if ((used.meta?.changes ?? 0) !== 1) return bad();
-    return json(await signInResult(env, req, acct, hostAcct, now, null));
+    return json(await signInResult(env, req, acct, hostAcct, now, null, "signin-link"));
   }
   if (req.method === "POST" && p === "/api/auth/verify") {
     const b = await body(req);
@@ -804,6 +818,11 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
     if (!email || code.length !== 6) return json({ error: "Enter the 6-digit code." }, 400);
     const eh = await sha("email|" + email);
+    if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE) {
+      let ta = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
+      if (!ta) { const made = await createOrganizer(env, req, email, now, "start", true); if ("error" in made) return json({ error: made.error }, made.status ?? 400); ta = { org: made.org }; }
+      return json(await signInResult(env, req, ta, null, now, email));
+    }
     const row = await env.DB.prepare("SELECT code_hash, expires_ms, attempts FROM login_code WHERE email_hash=?").bind(eh).first<{ code_hash: string; expires_ms: number; attempts: number }>();
     const bad = () => json({ error: "That code is not right or has expired. Please ask for a new one." }, 400);
     if (!row || row.expires_ms < now || row.attempts >= 5) return bad();
@@ -871,7 +890,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const email = mail.trim().toLowerCase(), eh = await sha("email|" + email);
     if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ error: "You already have an Organizer account. Sign out and sign in again with your e-mail code to use it.", code: "has-organizer" }, 409);
     const b = await body(req);
-    { const cm = consentMissing(b, "K2"); if (cm) return cm; }
+    { const cm = consentRequired(b, "K2"); if (cm) return cm; }
     const made = await createOrganizer(env, req, email, now, "host-to-organizer", true);
     if ("error" in made) return made.status === 503 ? BUSY() : json({ error: made.error }, made.status);
     return json({ ok: true, token: made.token, kind: "organizer", aiMessage: made.aiMessage });
@@ -1172,7 +1191,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       return json({ error: "Check the game details." }, 400);
     if (roundMs(b.startRound) > now + MAX_AHEAD_MS) return json({ error: TOO_FAR, code: "too-far" }, 400);
     { const nm = noMoments(b); if (nm) return nm; }
-    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz });
+    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz, verify: b.verify, employeesOnly: b.employeesOnly });
     if (!vc.ok) return json({ error: vc.error }, 400);
     const have = await env.DB.prepare("SELECT org FROM engagement WHERE id=?").bind(b.id).first<{ org: string | null }>();
     if (have) return json({ ok: true, existed: true }); // creating twice never overwrites (and never reveals whose it is)
@@ -1187,7 +1206,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     }
     if (!(await spend(env, now, 2))) return BUSY();
     const isTestEng = (await testFlag(env)) === 1 || (await orgIsTest(env, a.org)) ? 1 : 0; // made in TEST mode, or by a test account
-    await env.DB.prepare("INSERT OR IGNORE INTO engagement(id,start_round,call_seconds,cap,created_ms,org,closed,pack,tickets,config,is_test) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(b.id, b.startRound, b.callSeconds, b.cap, now, a.org, b.whoCanJoin === "list" || (b.whoCanJoin === undefined && b.closed) ? 1 : 0, draft ? 0 : ent?.pack ?? b.cap, vc.cfg.tickets, cfgJson(vc.cfg), isTestEng).run(); // the console sends whoCanJoin "list"; the API default stays "anyone"
+    await env.DB.prepare("INSERT OR IGNORE INTO engagement(id,start_round,call_seconds,cap,created_ms,org,closed,pack,tickets,config,is_test) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(b.id, b.startRound, b.callSeconds, b.cap, now, a.org, b.whoCanJoin === "list" || (b.whoCanJoin === undefined && b.closed) || vc.cfg.employeesOnly ? 1 : 0, draft ? 0 : ent?.pack ?? b.cap, vc.cfg.tickets, cfgJson(vc.cfg), isTestEng).run(); // the console sends whoCanJoin "list"; the API default stays "anyone"
     if (ent) await env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(b.id, ent.id).run();
     if (a.kind === "ai" && a.org) await noteHelperGame(env.DB, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), a.org, b.id, now); // a game made with a Help Desk helper's key is recorded as theirs
     if (a.org) await recordTerms(env, a.org, now, "engagement");
@@ -1336,7 +1355,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const kid = a.kind === "cohost" ? (await sha("key|" + (req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "")))).slice(0, 7) : null;
     const c = cfgOf(e), origin = (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin;
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
-    const pk = unpaid ? PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null : e.pack;
+    const pk = unpaid ? packOfCap(e.cap) : e.pack;
     const lockedC = unpaid && !isDraft && !cancelled && !e.unplayed_ms && roundMs(e.start_round) - LOCK_LEAD_MS <= now;
     return json({ name: c.name || e.id, startMs: roundMs(e.start_round), cap: e.cap, joined, brought: await broughtBy(env, e.org, kid), price: pk ? price(pk, "INR").total : null, payment, ...(cancelled ? { cancelled: true } : {}), waitingFor: lockedC ? "organizer" : null, didNotStart: !!e.unplayed_ms, erasureMs: await erasureOf(env, e), ...(await creditFields(env, a, e, unpaid && !cancelled && !e.unplayed_ms, now)), inviteLink: kid && !isDraft && !cancelled ? `${origin}/z.html?e=${e.id}&from=${COHOST_FROM + parseInt(kid, 16)}` : null });
   }
@@ -1352,7 +1371,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const b = await body(req);
     { const mt = consentRequired(b, "K4"); if (mt) return mt; } // K4: the 24-hour notice (with the invite chain) and the 18+ box, ticked BEFORE a name or number is used
     // a personal link (/j/<token>) stands for one listed person: their number is then not typed at all. The strong proof is the secret in the link, a typed number is only matched to a list.
-    let tok: PersonRow | null = null, tokPii: { phone: string; name: string | null } | null = null;
+    let tok: PersonRow | null = null, tokPii: { phone: string; name: string | null; empId?: string | null } | null = null;
     if (typeof b?.token === "string" && b.token) {
       tok = await personByToken(env, eid!, b.token);
       if (!tok || tok.status === "removed") return json({ error: "This link is not valid any more. Please ask the person who invited you to send it again.", code: "link-gone" }, 404);
@@ -1361,9 +1380,15 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const typedGiven = typeof b?.phone === "string" ? b.phone.trim() !== "" : b?.phone != null;
     const typedDigits = digitsOf(b?.phone), typedPh = await phoneHash(b?.phone);
     if (typedGiven && !typedPh) return json({ error: "Enter a valid mobile number." }, 400);
-    let digits: string | null = typedDigits ?? tokPii?.phone ?? null;
-    let ph = typedPh ?? tok?.ph ?? null;
+    // What the organizer asked people to give: a mobile number (default), an employee ID, or both. An outsider (a vendor, a customer, a family member) has no ID and gives a mobile number.
+    const vf = verifyOf(e), empNorm = normEmp(b?.empId);
+    if (empNorm === null) return json({ error: "An employee ID has letters and numbers only.", code: "bad-id" }, 400);
+    if (vf.employeesOnly && vf.mode !== "mobile" && !empNorm && !tok) return json({ error: vf.mode === "id" ? "Enter your employee ID." : "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
+    const idOnly = vf.mode === "id" && !!empNorm && !tok; // known by employee ID alone
+    let digits: string | null = typedDigits ?? tokPii?.phone ?? (idOnly ? "" : null);
+    let ph = idOnly ? await empHashOf(env, empNorm) : typedPh ?? tok?.ph ?? null;
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
+    if (!ph && !tok && vf.mode !== "mobile") return json({ error: vf.mode === "id" ? "Enter your employee ID, or your mobile number if you have no employee ID." : "Enter a valid mobile number.", code: vf.mode === "id" ? "need-id" : undefined }, 400);
     if (!ph && !tok) { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
       if (cfgOf(e).join === "phone") return json({ error: "Enter a valid mobile number." }, 400);
       const typedName = cleanName(b?.name)?.replace(/s+/g, " ").trim() ?? "";
@@ -1371,7 +1396,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
       ph = await sha(`nm|${eid}|${dev}`); digits = "";
     }
-    if (!ph || digits === null) return json({ error: "Enter a valid mobile number." }, 400);
+    if (!ph || (digits === null && !(vf.mode === "id" && tokPii))) return json({ error: vf.mode === "id" ? "Enter your employee ID, or your mobile number if you have no employee ID." : "Enter a valid mobile number." }, 400);
     const otherNumber = !!(tok && typedPh && typedPh !== tok.ph); // somebody else opened this person's link
     const reply = (pid: string, extra: object = {}) => json({ pid, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), ...pub(e), ...extra });
     const lateRound = lateNow();
@@ -1392,7 +1417,12 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       }
       return reply(have.pid, { again: true, jr: have.jr ?? 0, ...(have.role ? { role: have.role } : {}) }); // same number twice = same participant
     }
-    const pr = await personByPhone(env, eid!, ph); // is this number on any list of the game?
+    let pr = await personByPhone(env, eid!, ph); // is this number (or employee ID) on any list of the game?
+    let idMiss = false; // an employee ID that does not match the list: the organizer decides
+    if (vf.mode !== "mobile" && empNorm && !tok) {
+      if (vf.mode === "both") { const pp0 = pr ? await openPii(env, pr.pii) : null; if (!pr || (pp0?.empId && pp0.empId !== empNorm)) { pr = null; idMiss = true; } }
+      else if (!pr) idMiss = true; // ID alone, not on the list
+    } else if (vf.mode === "both" && pr && !tok) { const pp0 = await openPii(env, pr.pii); if (pp0?.empId) return json({ error: "Enter your employee ID.", code: "need-id" }, 400); }
     if (pr?.status === "removed") return removedReply();
     if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
     if (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first()) return json({ error: "This phone already holds a place in this game. One phone, one place. Others can join from their own phones, using your invitation link if the organizer allowed it.", code: "device-used" }, 409);
@@ -1419,7 +1449,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
       if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
-      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits!, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
+      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
       if ("full" in w) return json({ error: "Many people are waiting for an answer right now. Please try again a little later.", code: "waiting-full" }, 429);
       if (w.status === "declined") return json({ error: "This game could not add you. Please talk to whoever invited you.", code: "declined", declined: true, wid: w.id }, 403);
       const who = await waitingWho({ env, e, eid: eid! }, overlimit ? "o" : target);
@@ -1429,13 +1459,13 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
         : json({ error: `This game is by invitation. ${msg}`, code: "waiting", waiting: true, wid: w.id, with: who }, 403);
     };
     let inviter: string | null = null, role: string | null = null, guardId: string | null = null, guardLimit: number | null = null, pii: string;
-    if (pr) { inviter = pr.inviter; role = pr.role; const pp = await openPii(env, pr.pii); digits = pp?.phone || digits; pii = lateName && pp && !pp.name ? await sealPii(env, { phone: pp.phone, name: lateName }) : pr.pii; }
+    if (pr) { inviter = pr.inviter; role = pr.role; const pp = await openPii(env, pr.pii); digits = pp?.phone || digits; pii = lateName && pp && !pp.name ? await sealPii(env, { phone: pp.phone, name: lateName, empId: pp.empId }) : pr.pii; }
     else {
-      if (e.closed) return wait(false, null); // "Only people on a list": everyone else waits for an answer
+      if (e.closed || idMiss) return wait(false, null); // "Only people on a list": everyone else waits for an answer
       const limit = await limitOfInviter({ env, eid: eid!, e, invites: inviteCfg ?? { on: false, per: 4 } }, target);
       if (limit !== null && (await listCount(env.DB, eid!, target)) >= limit) return wait(true, limit);
       inviter = target; if (limit !== null) { guardId = target; guardLimit = limit; }
-      pii = await sealPii(env, { phone: digits, name: lateName || tokPii?.name || null });
+      pii = await sealPii(env, { phone: digits ?? "", name: lateName || tokPii?.name || null, empId: vf.mode !== "mobile" && empNorm ? empNorm : null });
     }
     if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
     if (!(await spend(env, now, 3))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
@@ -1569,8 +1599,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       credit: creditNow ? creditNow.activeTotalInr : null, creditExpiresMs: creditNow ? creditNow.nextExpiryMs : null, creditApplied: creditNow ? await creditAppliedFor(env.DB, e.id) : null,
       status: didNotStart ? "did not start (closed)" : cancelled ? "cancelled by the organizer" : isDraft ? "draft" : unpaid ? (locked ? "published, NOT PAID, held because the start time passed" : "published, payment due before the start") : "published and paid",
       startsAtIST: istTime(roundMs(e.start_round), tzOfRow(e)), tz: tzOfRow(e), startMs: roundMs(e.start_round), startRound: e.start_round, callSeconds: e.call_seconds, limit: e.cap, closed: !!e.closed, whoCanJoin: e.closed ? "list" : "anyone", coHostLimit: e.cohost_limit ?? COHOST_LIMIT_DEFAULT, guestInvites: cfgOf(e).invites,
-      tickets: c.tickets, rounds: c.rounds, rewards: c.rewards, breaks: c.breaks, opening: c.opening, closing: c.closing, invites: c.invites, brandMomentsAllowed: brandMomentsFor(c.tickets), participants: n, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}),
-      paid: !unpaid, payment, ...(unpaid ? { pack: PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null, priceInr: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "INR").total : null, priceUsd: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "USD").total : null, startsAt: istTime(roundMs(e.start_round), tzOfRow(e)), payUntil: istTime(await erasureOf(env, e), tzOfRow(e)) } : { pack: e.pack }),
+      tickets: c.tickets, rounds: c.rounds, rewards: c.rewards, breaks: c.breaks, opening: c.opening, closing: c.closing, invites: c.invites, verify: c.verify ?? "mobile", employeesOnly: !!c.employeesOnly, brandMomentsAllowed: brandMomentsFor(c.tickets), participants: n, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}),
+      paid: !unpaid, payment, ...(unpaid ? { pack: packOfCap(e.cap), priceInr: packOfCap(e.cap) ? price(packOfCap(e.cap)!, "INR").total : null, priceUsd: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "USD").total : null, startsAt: istTime(roundMs(e.start_round), tzOfRow(e)), payUntil: istTime(await erasureOf(env, e), tzOfRow(e)) } : { pack: e.pack }),
       gameMinutes: Math.round((75 * e.call_seconds * c.rounds + c.breaks.reduce((t: number, b: any) => t + b.seconds, 0) + (c.rounds - 1) * 90) / 60),
       links, nextSteps, consoleUrl: `${origin}/zc.html?e=${e.id}`, ...(isDraft ? {} : { shareUrl: `${origin}/z.html?e=${e.id}` }), ...(unpaid && !isDraft ? { payUrl: `${origin}/pay.html?e=${e.id}` } : {}) });
   }
@@ -1590,17 +1620,17 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (cPhone.length < 10 || cPhone.length > 15 || !cleanPhone(pb?.phone).ok) return json({ error: "Please confirm a valid mobile number. " + (cleanPhone(pb?.phone) as any).why }, 400);
     if (roundMs(e.start_round) <= now || (await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`startpending/${eid}`).first())) return json({ error: "The start time has passed or has not been chosen. Please choose a new start time first.", code: "start-pending" }, 400);
     const ent = await env.DB.prepare("SELECT id, pack FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(e.org, e.cap).first<{ id: string; pack: number }>();
-    const free = !ent && freeLaunch(env as PayEnv) && e.cap <= FREE_CAP; // optional switch: small engagements free while the gateway is off
+    const free = !ent && ((freeLaunch(env as PayEnv) && e.cap <= FREE_CAP) || e.cap <= DEMO_CAP); // a game for up to 10 people is Rs 0; the optional switch makes bigger small ones free while the gateway is off
     if (!(await spend(env, now, 4))) return BUSY();
     await env.DB.batch([
       env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`contact/${eid}`, JSON.stringify({ email: cEmail, phone: cPhone.slice(-10) })),
       env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`pub/${eid}`, String(now)),
-      ...(ent || free ? [env.DB.prepare("UPDATE engagement SET pack=? WHERE id=? AND pack=0").bind(ent?.pack ?? e.cap, eid)] : []),
+      ...(ent || free ? [env.DB.prepare("UPDATE engagement SET pack=? WHERE id=? AND pack=0").bind(ent?.pack ?? (e.cap <= DEMO_CAP ? DEMO_CAP : e.cap), eid)] : []),
       ...(ent ? [env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(eid, ent.id)] : []),
     ]);
     const paid = !!(ent || free), startMs = roundMs(e.start_round);
     await recordFunnelForOrg(env as VisitEnv, e.org, "published", now);
-    await sendMail(env as PayEnv, env.DB, cEmail, paid ? `Your game ${eid} is published and paid` : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
+    await sendMail(env as PayEnv, env.DB, cEmail, paid ? (e.cap <= DEMO_CAP && !ent ? `Your game ${eid} is published (Rs 0)` : `Your game ${eid} is published and paid`) : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
       `Your game ${eid} is live.\n\nShare this link: ${shareUrl}\n\n${paid ? "" : `Payment pending: the game does not begin until it is paid for. You can pay at any time until the guest data is erased; if you pay late, the game opens 2 minutes after the payment is confirmed (about 2 minutes to pay): ${payUrl}\n\n`}Big screen for the room: ${origin}/big.html?e=${eid}`, now);
     return json({ ok: true, published: true, paid, startMs, payUrl, shareUrl, confirmed: { email: cEmail, phone: cPhone.slice(-10) } });
   }
@@ -1728,9 +1758,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     if (b.coHostLimit !== undefined && (!Number.isInteger(b.coHostLimit) || b.coHostLimit < COHOST_LIMIT_MIN || b.coHostLimit > COHOST_LIMIT_MAX)) return json({ error: `A Co-host can list ${COHOST_LIMIT_MIN} to ${COHOST_LIMIT_MAX} people.` }, 400);
     { const nm = noMoments(b); if (nm) return nm; }
-    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, invites: b.invites !== undefined ? b.invites : b.guestInvites, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz }, cfgOf(e)); // guestInvites is the console's name for invites
+    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, invites: b.invites !== undefined ? b.invites : b.guestInvites, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz, verify: b.verify, employeesOnly: b.employeesOnly }, cfgOf(e)); // guestInvites is the console's name for invites
     if (!vc.ok) return json({ error: vc.error }, 400);
-    const next = { start_round: b.startRound ?? e.start_round, call_seconds: b.callSeconds ?? e.call_seconds, cap: b.cap ?? e.cap, closed: b.whoCanJoin !== undefined ? (b.whoCanJoin === "list" ? 1 : 0) : b.closed === undefined ? e.closed : b.closed ? 1 : 0, cohost_limit: b.coHostLimit ?? e.cohost_limit ?? null }; // whoCanJoin "list" is the same switch as the older `closed`
+    const next = { start_round: b.startRound ?? e.start_round, call_seconds: b.callSeconds ?? e.call_seconds, cap: b.cap ?? e.cap, closed: vc.cfg.employeesOnly ? 1 : b.whoCanJoin !== undefined ? (b.whoCanJoin === "list" ? 1 : 0) : b.closed === undefined ? e.closed : b.closed ? 1 : 0, cohost_limit: b.coHostLimit ?? e.cohost_limit ?? null }; // whoCanJoin "list" is the same switch as the older `closed`
     if (Number.isInteger(next.call_seconds) && !GAPS.includes(next.call_seconds)) return json({ error: GAP_MSG }, 400);
     if (!Number.isInteger(next.start_round) || !Number.isInteger(next.call_seconds) || next.call_seconds % 3 || next.call_seconds < 6 || !Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "Check the details." }, 400);
     if (roundMs(next.start_round) <= now) return json({ error: "Pick a start time in the future." }, 400);

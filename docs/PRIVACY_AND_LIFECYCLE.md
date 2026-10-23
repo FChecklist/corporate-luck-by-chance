@@ -8,14 +8,14 @@ Short version: a player gives a nickname and nothing else. (A number appears onl
 
 The wording is in `apps/edge/src/consent-text.json` (point K4); the page fetches it from `GET /api/consent/text?kind=K4`. Two boxes, never ticked in advance, both before any name field works:
 
-- A: the name is used for this game only and deleted within 24 hours after it ends; who invited the player is recorded until then; the final places are kept for 365 days as seat numbers, without names; billing data is kept for audit and tax reasons (that is the organizer's, not the player's); the notice is available in Hindi on request.
+- A: the name (and a mobile number or employee ID, if this game asks for them) is used for this game only and deleted within 24 hours after it ends; who invited the player is recorded until then; the final places are kept for 365 days as seat numbers, without names; billing data is kept for audit and tax reasons (that is the organizer's, not the player's); the notice is available in Hindi on request.
 - B: the player is 18 or older. Nothing else: there is no "or on a parent's device" alternative (adults only, Terms clause 12).
 
 The Join button stays disabled until both are ticked, and the server refuses a join without them. The server stores one row per acceptance in `consent_log`: the place id, the point (K4), the game id, the Terms version, the boxes, a hash of the exact wording, and the time. It holds no name, number, address or device. When the Terms version changes (it is `TERMS_VERSION` in `apps/edge/src/brand.ts`, today 2026-10-15; the wording file `consent-text.json` carries the same value), the next join asks again.
 
 <!-- notice:start -->
 asked_from_player: name
-asked_if_organizer_switches_on: none
+asked_if_organizer_switches_on: mobile number
 <!-- notice:end -->
 
 The block above is read by `apps/edge/test/data-map.test.ts`: it fails when the join notice mentions a field this list does not have, when this list has a field the notice leaves out, or when the player page asks for a field that is not listed.
@@ -41,7 +41,8 @@ The block above is read by `apps/edge/test/data-map.test.ts`: it fails when the 
 | Game settings and the seal: the fingerprint of the sealed secret, the secret (shown after the game), the settings, the seed, start and end time, number of players | Anybody can check the draw after the game | `luck_t` (no names) | CF | Until the end of day 365 |
 | The agreed result: seat numbers, points, hits, best hit, a one-line tie reason | The result screen; the phones map seat numbers to nicknames from the seat list | `luck_t.result` (no names) | CF | Until the end of day 365 |
 | Winners record: the seat numbers of first to fifth place | Proof of who won, with no name | `winner` | CF | Until the end of day 365 |
-| Mobile number | **Not asked from players.** The player page has no phone field; the Worker could take one if the organizer's setting `join` were `phone`, but this page would then fail to join, so the setting is not used. A number appears only if an organizer puts one in a people list (2c) | `participant.pii` (sealed) if ever given | CF | 23 h after the end |
+| Mobile number | **Asked only if the organizer chooses it** (setting `verify`: employee ID and mobile number, or an ID only with a number as the way in for an outsider). By default the player page has no phone field and only a nickname is typed. A number also appears if an organizer puts one in a people list (2c) | `participant.pii` (sealed) if given | CF | 23 h after the end |
+| Employee ID | **Asked only if the organizer chooses it** (setting `verify` is `id` or `both`). Typed on the player page to match the organizer's list; also put in a people list by the organizer. Never shown to other players | `participant.pii` (sealed), `person.pii` (sealed), `waiting.pii` (sealed); for an ID-only person `person.ph` is a salted hash of the ID | CF | 23 h after the end |
 
 ### 2b. What a player's phone keeps (on the phone, not on our servers)
 

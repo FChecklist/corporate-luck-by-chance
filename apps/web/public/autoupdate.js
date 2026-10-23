@@ -1,4 +1,4 @@
-/* Corporate Tambola: always the newest version. Every 45 seconds (and whenever the page comes back to the front) the page asks /version.json what is live.
+/* Corporate Luck by Chance: always the newest version. Every 45 seconds (and whenever the page comes back to the front) the page asks /version.json what is live.
    When it has changed since this page loaded, the page clears its saved copy and reloads itself, so nobody keeps working on old code. It never reloads
    while a person is typing in a box (it waits until the box is empty or left), and never more than once for the same version, so it cannot loop. */
 (function () {
@@ -16,7 +16,7 @@
   }
   function clear() {
     if (!window.caches) return Promise.resolve();
-    return caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^(ct-game-|tb-app-)/.test(k); }).map(function (k) { return caches.delete(k); })); }).catch(function () {});
+    return caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^(luck-game-|ct-game-|tb-app-)/.test(k); }).map(function (k) { return caches.delete(k); })); }).catch(function () {});
   }
   // A phone or number screen in the middle of a running game is never reloaded (a reload could cost a prize claim): it updates when the game is over, before it starts, or when the page is in the background.
   function inRunningGame() {
@@ -30,9 +30,9 @@
       if (!now) return;
       if (loaded === null) { loaded = now; return; }
       if (now === loaded || typing() || inRunningGame()) return;
-      var done = ""; try { done = sessionStorage.getItem("ct-auto-done") || ""; } catch (e) {}
+      var done = ""; try { done = sessionStorage.getItem("cbz-auto-done") || ""; } catch (e) {}
       if (done === now) return;
-      try { sessionStorage.setItem("ct-auto-done", now); } catch (e) {}
+      try { sessionStorage.setItem("cbz-auto-done", now); } catch (e) {}
       clear().then(function () { location.reload(); });
     });
   }

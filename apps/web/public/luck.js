@@ -27,25 +27,30 @@
   const set = (html) => { $app.innerHTML = html; paintBrand(); };
   
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
-  let tb = null, NICK = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
+  let tb = null, NICK = "", EMP = "", PHONE = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
   const joinView = () => {
+    const vm = (INFO && INFO.verify) || "mobile", needId = vm !== "mobile", needPhone = vm === "both" || vm === "id" || !!(INFO && INFO.joinPhone); // the organizer chose what a person gives to get in
     set(`${brand()}${head()}<div class="zcard zform"><h2>Join the game</h2>
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
+      ${needId ? `<label for="emp">Your employee ID</label><input id="emp" autocomplete="off" autocapitalize="characters" maxlength="30" disabled>` : ""}
+      ${needPhone ? `<label for="ph">${needId && INFO.verify === "id" ? "Your mobile number (only if you have no employee ID)" : "Your mobile number"}</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" disabled>` : ""}
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
     const nm = document.getElementById("nm"), go = document.getElementById("go");
-    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2; go.setAttribute("aria-disabled", String(go.disabled)); };
+    const emp = document.getElementById("emp"), ph = document.getElementById("ph");
+    if (emp) emp.value = EMP; if (ph) ph.value = PHONE;
+    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (ph) ph.disabled = !ok; const idOk = !emp || vm === "id" ? true : emp.value.trim().length > 0, phOk = !ph || (vm === "id" ? true : vm === "both" || !!(INFO && INFO.joinPhone) ? ph.value.replace(/\D/g, "").length >= 10 : true), anyOk = vm !== "id" || (emp.value.trim() || ph.value.trim()); go.disabled = !ok || nm.value.trim().length < 2 || !idOk || !phOk || !anyOk; go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
-    nm.addEventListener("input", sync);
+    nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (ph) ph.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
     go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = ""; NICK = nm.value.trim();
+      go.disabled = true; joinMsg = ""; NICK = nm.value.trim(); EMP = emp ? emp.value.trim() : ""; PHONE = ph ? ph.value.trim() : "";
       try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
         start();
       } catch (e) {
@@ -62,7 +67,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}) }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);

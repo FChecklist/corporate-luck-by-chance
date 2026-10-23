@@ -61,6 +61,21 @@ describe("mirrors", () => {
     expect(x?.round).toBe(REAL.round);
     expect(performance.now() - t0).toBeLessThan(2000);
   });
+  test("hedged: a mirror that hangs delays the answer by the hedge time, not by its whole timeout; the first valid answer wins and the slow one is cancelled", async () => {
+    const aborted: string[] = [];
+    const f: Fetcher = (url, init) => (url.includes("hang") ? new Promise(() => { init?.signal?.addEventListener("abort", () => aborted.push(url)); }) : Promise.resolve({ ok: true, status: 200, json: async () => REAL }));
+    const t0 = performance.now();
+    const x = await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://hang", "https://good"], timeoutMs: 5000, hedgeMs: 60 });
+    expect(x?.round).toBe(REAL.round);
+    const took = performance.now() - t0; expect(took).toBeGreaterThanOrEqual(50); expect(took).toBeLessThan(1000);
+    expect(aborted).toEqual(["https://hang/" + QUICKNET.chainHash + "/public/" + REAL.round]);
+  });
+  test("hedged: a mirror that fails at once makes the next one start at once (no waiting for the hedge time); a lying first mirror does not win", async () => {
+    const f: Fetcher = async (url) => { if (url.includes("down")) throw new Error("offline"); if (url.includes("liar")) return { ok: true, status: 200, json: async () => ({ ...REAL, signature: REAL.signature.replace(/^b7/, "b8") }) }; return { ok: true, status: 200, json: async () => REAL }; };
+    const t0 = performance.now();
+    expect((await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://down", "https://liar", "https://good"], hedgeMs: 5000 }))?.round).toBe(REAL.round);
+    expect(performance.now() - t0).toBeLessThan(1000);
+  });
   test("a mirror returning garbage JSON or a non-object is skipped", async () => {
     const f: Fetcher = async (url) => (url.includes("bad") ? { ok: true, status: 200, json: async () => "<html>blocked by firewall</html>" } : { ok: true, status: 200, json: async () => REAL });
     expect((await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://bad", "https://good"] }))?.round).toBe(REAL.round);

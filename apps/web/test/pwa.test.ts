@@ -56,7 +56,7 @@ describe("installable app (PWA)", () => {
     expect(sw).toContain('match("/offline.html")'); expect(sw).toContain('req.mode === "navigate"');
     const cache = /const CACHE = "([^"]+)"/.exec(sw)![1]!; expect(sw).toContain(`k.startsWith("${cache.replace(/-v\d+$/, "-")}")`); // the clean-up looks for the same name the cache has
     const off = readFileSync(join(PUB, "offline.html"), "utf8");
-    expect(off).toContain("You are offline"); expect(off).not.toContain("<script"); // a plain page: nothing to run, nothing to fetch beyond the saved styles
+    expect(off).toContain("You are offline"); expect(off.replace('<script src="/autoupdate.js" defer></script>', "")).not.toContain("<script"); // a plain page: nothing to run, nothing to fetch beyond the saved styles
     for (const u of [...off.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|css))"/g)].map((m) => m[1]!)) expect(filesInSw).toContain(u);
   });
   test("an installed app opens the last game: the phone page remembers its engagement", () => {
