@@ -32,6 +32,8 @@
       w: "The 6-digit code was typed differently from the one we sent, or it is more than a few minutes old.", d: ["Open the newest e-mail from us and type its 6 digits again.", "If it is old, press Send me a new code and use the newest e-mail only."], g: { field: "#code, input[inputmode=numeric], input[autocomplete=one-time-code]", label: "the code box" } },
     { m: ["This sign-in link is not valid any more"], k: "blocked", t: "This sign-in link has been used or has expired",
       w: "Each sign-in link works once and for a short time, for your safety.", d: ["Go to the sign-in page and ask for a new link or code.", "Use the newest e-mail we send you."], g: { href: "/#login", label: "Get a new sign-in link" } },
+    { m: ["Enter your employee ID", "An employee ID has letters and numbers only"], k: "field", t: "Your employee ID is needed",
+      w: "The organizer asked everyone to give their employee ID to get in.", d: ["Type your employee ID in the box. Letters and numbers only, no spaces needed.", "If you are not an employee and the box allows it, type your mobile number instead.", "Still stuck? Ask the person who invited you."], g: { field: "#emp", label: "the employee ID box" } },
     { m: ["Your e-mail is not confirmed yet. Finish your Host setup first."], k: "blocked", t: "Finish your Host setup first",
       w: "Your own games need an e-mail that has been confirmed.", d: ["Open the link you were sent as a Host and confirm your e-mail with the 6-digit code.", "Then come back and start your own game."], g: { href: "/zc.html", label: "Open my Host page" } },
     { m: ["You already have an Organizer account"], k: "blocked", t: "You already have an Organizer account",

@@ -10,7 +10,7 @@ Plain, checked answers about safety, privacy, law, cost and what the software do
 - [Terms](https://luck.corporatetambola.com/terms.html)
 - [Data processing](https://luck.corporatetambola.com/dpa.html) and [sub-processors](https://luck.corporatetambola.com/subprocessors.html)
 - [Organizer guide](https://luck.corporatetambola.com/organizer-guide.html): how to set up, share, run and close a game
-- [Free demo](https://luck.corporatetambola.com/demo.html): a short demo: five dice rounds that roll on the screen, nothing to type
+- [Video](https://luck.corporatetambola.com/demo.html): a short video: five dice rounds that roll on the screen, nothing to type
 - [Home, prices and how to start](https://luck.corporatetambola.com/): price list by size; building and publishing are free, the organizer pays before the start
 
 ## For an AI assistant working for an organizer

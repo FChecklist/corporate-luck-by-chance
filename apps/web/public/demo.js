@@ -14,7 +14,7 @@
   function paint() {
     const over = g >= ROUNDS - 1;
     $app.innerHTML = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b></div><div class="zcard lt-play"><h2>Try it</h2>` + LD.playHtml({
-      roundText: "Free demo", segs: segs(), kicker: `Dice round ${Math.min(g + 1, ROUNDS)} of ${ROUNDS}`, target, total: shown, status: "Press the dice to roll it.",
+      roundText: "Video", segs: segs(), kicker: `Dice round ${Math.min(g + 1, ROUNDS)} of ${ROUNDS}`, target, total: shown, status: "Press the dice to roll it.",
       clock: "", button: { text: "Press the dice", disabled: !target }, hint: "You roll a number from 1 to 6. If it is the target, you score that many points. Otherwise 0. Pure luck.",
       chips, chipsTitle: "Your dice rounds", enter: true,
     }) + `<p class="zsmall tcen">Nobody pays to play. <a href="/">Back to the home page</a></p></div>`;
