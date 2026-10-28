@@ -45,7 +45,7 @@ describe("the document pages", () => {
   });
   test("the public website pages describe Bingo only: no words of the game this product was copied from, and the software-only line is on the key pages", () => {
     const files = ["index.html", "pricing.html", "about.html", "contact.html", "legal.html", "terms.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "404.html", "site.js"];
-    for (const f of files) expect([f, /tambola|housie|early five|full house|top line|\bIST\b|90 numbers/i.test(noFooter(f).replace(/corporatetambola\.com/g, "")) || (f !== "terms.html" && /\bticket/i.test(noFooter(f).replace(/i-ticket|ic\("ticket"\)/g, "")))]).toEqual([f, false]);
+    for (const f of files) expect([f, /tambola|housie|early five|full house|top line|\bIST\b|90 numbers/i.test(noFooter(f).replace(/<symbol id="gb-[\s\S]*?<\/symbol>/g, "").replace(/<nav class="lp-choose"[\s\S]*?<\/nav>/, "").replace(/corporatetambola\.com/g, "") /* the "Choose a game" row links the sister games on purpose (owner, 2026-10-29) */) || (f !== "terms.html" && /\bticket/i.test(noFooter(f).replace(/i-ticket|ic\("ticket"\)/g, "")))]).toEqual([f, false]);
     for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /we never hold or pay prize money|we never hold prizes|we do not hold, pay, guarantee, transfer or deliver any prize/i.test(rd(f))]).toEqual([f, true]);
   });
 });
