@@ -58,6 +58,15 @@ describe("U5: a player can leave at any time", () => {
     expect(JSON.stringify(raw.query("SELECT * FROM luck_p").all())).not.toContain("Maya");
     expect(JSON.parse((raw.query("SELECT v FROM kv WHERE k='seats-blk/LV-2'").get() as any).v)).toContain(a);
   });
+  test("QA W4/W5: after the game has started the answer says the place stays (without a name), and the 'what do you hold' list has no claims line (this game has none)", async () => {
+    const h = await game("LV-5"); raw.run("UPDATE engagement SET pack=100 WHERE id='LV-5'");
+    const a = await joinAs("LV-5", 1, "Maya Lopez"), b = await joinAs("LV-5", 2);
+    const held = await j(await ask("LV-5", b, dev(2), "access")); expect(JSON.stringify(held)).not.toMatch(/winning claims/i);
+    expect((await call("POST", "/api/z/LV-5/luck/start", {}, h)).status).toBe(200);
+    const r = await j(await leave("LV-5", a, dev(1))); expect(r.message).toMatch(/place stays in the list without a name/); expect(r.message).not.toMatch(/place (was|were) deleted/);
+    const e = await j(await ask("LV-5", b, dev(2), "erasure")); expect(e.message).toMatch(/place stays in the list without a name/);
+    await game("LV-6"); const c = await joinAs("LV-6", 3); const early = await j(await leave("LV-6", c, dev(3))); expect(early.message).toMatch(/name and your place were deleted/); // before the start both really go
+  });
   test("only the player's own phone can do it: another phone, a stranger's card id, a missing device and a made-up id are all refused", async () => {
     await game("LV-3");
     const a = await joinAs("LV-3", 1), b = await joinAs("LV-3", 2);

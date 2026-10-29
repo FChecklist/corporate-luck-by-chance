@@ -103,7 +103,7 @@ export async function leaveRoute(c: RightsCtx): Promise<Response> {
   if (s instanceof Response) return s;
   if (!(await c.spend(4))) return c.json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 503);
   await takeOut(c, s);
-  return c.json({ ok: true, left: true, message: "You have left the game. Your name and your place were deleted from our system just now. You can close this page." });
+  return c.json({ ok: true, left: true, message: c.started ? "You have left the game. Your name was deleted from our system just now. Your place stays in the list without a name, so the results stay the same for everyone. You can close this page." : "You have left the game. Your name and your place were deleted from our system just now. You can close this page." }); // after the start the seat stays: every phone works out the result from the same seat list
 }
 
 /** What we hold about this player right now, in plain words (the answer to "what do you hold about me"). */
@@ -116,8 +116,6 @@ export async function heldAbout(c: RightsCtx, s: Seat): Promise<{ what: string; 
   out.push({ what: `Your ${NOUN} number`, value: String(s.seq) });
   if (p?.joined_ms) out.push({ what: "When you joined", value: istTime(p.joined_ms) });
   out.push({ what: "How you joined", value: s.inv !== null ? `through the invite of ${NOUN} ${s.inv}` : "through a game link" });
-  const claims = (await c.db.prepare("SELECT COUNT(*) AS n FROM claim WHERE eid=? AND pid=?").bind(c.eid, s.pid).first<{ n: number }>())?.n ?? 0;
-  out.push({ what: "Your winning claims", value: String(claims) });
   const pr = (await c.db.prepare("SELECT pii FROM prize WHERE eid=? AND seat=? AND pii IS NOT NULL").bind(c.eid, s.seq).all<{ pii: string }>()).results ?? [];
   if (pr.length) { const w = await openPii(c.env as any, pr[0]!.pii); out.push({ what: "Details you confirmed to collect a prize", value: `${w?.name ?? ""}${w?.phone ? ", mobile ending " + w.phone.slice(-2) : ""}`.trim() || "yes" }); }
   out.push({ what: "Your phone", value: `only a scrambled form of its random id, to keep one ${NOUN} to one phone` });
@@ -170,6 +168,6 @@ export async function requestRoute(c: RightsCtx): Promise<Response> {
   await mailBoth(c, id, kind, s, name, note, due, erased);
   return c.json({
     ok: true, id, kind, status: erased ? "done" : "open", promiseDays: PROMISE_DAYS, promise: PROMISE_TEXT, receivedMs: c.now, answerByMs: due, ...(held ? { held } : {}), ...(erased ? { erased: true } : {}),
-    message: erased ? "Done. Your name and your place were deleted just now. We told the organizer." : kind === "nomination" ? `We have your request. To name the person, please write to ${BRAND.support} with their name and how to reach them. You will have your answer ${PROMISE_TEXT}, by ${istDay(due)}.` : `We have your request. You will have your answer ${PROMISE_TEXT}, by ${istDay(due)}.`,
+    message: erased ? (c.started ? "Done. Your name was deleted just now. Your place stays in the list without a name, so the results stay the same for everyone. We told the organizer." : "Done. Your name and your place were deleted just now. We told the organizer.") : kind === "nomination" ? `We have your request. To name the person, please write to ${BRAND.support} with their name and how to reach them. You will have your answer ${PROMISE_TEXT}, by ${istDay(due)}.` : `We have your request. You will have your answer ${PROMISE_TEXT}, by ${istDay(due)}.`,
   });
 }
