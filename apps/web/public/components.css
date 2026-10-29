@@ -61,7 +61,7 @@ body.ck{margin:0;background:var(--bg);color:var(--ink);font:var(--fs-base)/var(-
 .ck-nav>a.demo:hover,.ck-nav>a.login:hover{filter:brightness(.96)}
 .ck-dots{display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:4px 8px;border-radius:var(--r-pill);background:rgba(0,0,0,.28)}
 .ck-dots button{width:28px;height:28px;padding:0;border-radius:50%;border:2px solid rgba(255,255,255,.7);cursor:pointer}
-.ck-dots button[data-t=blue]{background:#1553B8}.ck-dots button[data-t=maroon]{background:#7A1C33}.ck-dots button[data-t=emerald]{background:#127A6F}
+.ck-dots button[data-t=blue]{background:#1553B8}.ck-dots button[data-t=maroon]{background:#7A1C33}.ck-dots button[data-t=emerald]{background:#0F6E64}
 .ck-dots button[aria-pressed=true]{border-color:#fff;box-shadow:0 0 0 2px var(--bar-deep),0 0 0 4px #fff}
 html:not(.js) .ck-dots,html:not(.js) .ck-menu{display:none}
 html:not(.js) .ck-top-in{flex-wrap:wrap;padding-block:8px}

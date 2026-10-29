@@ -66,23 +66,25 @@ def doc_page(name, cur="", extra_main_class=""):
     classes = "ck-doc" + ((" " + cls.group(1)) if cls else "") + extra_main_class
     path = "/" + name
     out = head(p["title"], p["desc"], path, robots=p["robots"], scripts=p["scripts"])
-    out += header(cur) + f'<main id="main" class="{classes}">{inner}</main>\n' + footer() + tail_scripts(after) + "\n</body></html>\n"
+    out += sprite() + header(cur) + f'<main id="main" class="{classes}">{inner}</main>\n' + footer() + tail_scripts(after) + "\n</body></html>\n"
     wr(name, out)
 
 
-def app_wrap(name, cur="", with_bar=True):
+def app_wrap(name, cur="", extra=("/z.css?v=2", "/zc.css?v=2", "/partner.css?v=2")):
     """A page that draws itself with the older app styles (Refer & earn, Help Desk): the website header and footer around it."""
     p = parse(name)
     attrs, minner, post = main_block(p["body"])
     post = re.sub(r'<p class="rfoot">.*?</p>', "", post, flags=re.S)  # the old footer line is replaced by the website footer
     sticky = re.search(r'<div class="rsticky mk">.*?</div>', post, re.S)
     path = "/" + name
-    extra = ["/z.css?v=2", "/zc.css?v=2", "/partner.css?v=2"]  # the app styles come first, then the kit, so the kit wins where both speak
+    # the app styles come first, then the kit, so the kit wins where both speak
     hd = head(p["title"], p["desc"], path, robots=p["robots"], scripts=p["scripts"])
     hd = hd.replace('<link rel="stylesheet" href="/luck-legacy.css', "".join(f'<link rel="stylesheet" href="{e}">' for e in extra) + '<link rel="stylesheet" href="/luck-legacy.css')
-    attrs = attrs if "id=" in attrs else attrs + ' id="main"'
     NL = chr(10)
-    out = hd + header(cur) + f"<main{attrs}>{minner}</main>" + NL
+    if "id=" in attrs:  # the page script draws into its own element (signin: #app); the skip link lands on a wrapper
+        out = hd + sprite() + header(cur) + f'<div id="main">' + f"<main{attrs}>{minner}</main>" + "</div>" + NL
+    else:
+        out = hd + sprite() + header(cur) + f'<main{attrs} id="main">{minner}</main>' + NL
     if sticky:
         out += sticky.group(0) + NL
     out += footer() + tail_scripts(post) + NL + "</body></html>" + NL
@@ -298,5 +300,6 @@ if __name__ == "__main__":
         doc_page(n, cur)
     app_wrap("partner.html", "refer")
     app_wrap("helpdesk.html", "")
+    app_wrap("signin.html", "", extra=("/z.css?v=2",))
     for n in SHELL_ONLY:
         shell_only(n)

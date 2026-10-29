@@ -110,7 +110,7 @@
   --st-draft-tx:#3F3862;
 }
 :root[data-theme=maroon]{--bar-a:#7A1C33; --bar-b:#5A1426; --bar-deep:#2E0812;}
-:root[data-theme=emerald]{--bar-a:#127A6F; --bar-b:#0B5D55; --bar-deep:#052623;}
+:root[data-theme=emerald]{--bar-a:#0F6E64; --bar-b:#0B5D55; --bar-deep:#052623;}
 :root[data-theme=indigo]{--bar-a:#4A2DB8; --bar-b:#3B1F9E; --bar-deep:#2A1677;}
 @media (prefers-color-scheme:dark){
   :root:not([data-mode=light]):not([data-theme=light]){

@@ -46,7 +46,7 @@ describe("installable app (PWA)", () => {
   test("the page can be added to the home screen on a phone: full-screen viewport (notch), apple touch icon 180 px, theme colour, standalone hints", () => {
     for (const p of ["z.html", "demo.html"]) {
       const h = readFileSync(join(PUB, p), "utf8");
-      expect(h).toContain("viewport-fit=cover"); expect(h).toContain('name="theme-color"'); expect(h).toContain('name="apple-mobile-web-app-capable"'); expect(h).toContain('name="mobile-web-app-capable"'); expect(h).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png?v=2"');
+      expect(h).toContain("viewport-fit=cover"); expect(h).toContain('name="theme-color"'); expect(h).toContain('name="apple-mobile-web-app-capable"'); expect(h).toContain('name="mobile-web-app-capable"'); expect(h).toMatch(/rel="apple-touch-icon" href="\/apple-touch-icon\.png\?v=\d+"/);
     }
     const png = (f: string) => { const b = readFileSync(join(PUB, f)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };
     expect(png("apple-touch-icon.png")).toEqual([180, 180]); expect(png("icon-192.png")).toEqual([192, 192]); expect(png("icon-512.png")).toEqual([512, 512]); expect(png("icon-maskable-192.png")).toEqual([192, 192]); expect(png("icon-maskable-512.png")).toEqual([512, 512]);

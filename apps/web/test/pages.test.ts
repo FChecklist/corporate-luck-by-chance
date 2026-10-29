@@ -450,10 +450,10 @@ describe("Refer & Earn page", () => {
     expect(p.errors).toEqual([]);
   });
   test("the page is linked from the home page and listed for search engines, and ships with its stylesheet", () => {
-    expect(readFileSync(join(import.meta.dir, "../public/index.html"), "utf8")).toContain('href="/partner.html"');
+    expect(readFileSync(join(import.meta.dir, "../public/index.html"), "utf8")).toMatch(/href="\/partner(\.html)?"/);
     expect(readFileSync(join(import.meta.dir, "../public/sitemap.xml"), "utf8")).toContain("/partner.html");
     expect(readFileSync(join(import.meta.dir, "../../../pages/build.mjs"), "utf8")).toContain('"partner.css"');
-    expect(html()).toContain('href="/partner.css"');
+    expect(html()).toMatch(/href="\/partner\.css(\?v=\d+)?"/);
   });
 });
 

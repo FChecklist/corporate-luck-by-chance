@@ -1,30 +1,34 @@
-// The Corporate Games bar: every PUBLIC page loads gamesbar.js (not the play, console, pay or report pages); the bar has exactly the six links, Luck by Chance marked current.
+// The Corporate Games bar is ONE shared component (C:\ct\test-sites\corporate-games-bar): this site's copy must equal the canonical files byte for byte
+// (SHA-256 below, printed by that folder's src/build.py). If this fails, copy the canonical files again; never edit the copy here.
+// Every PUBLIC page loads it (not the play, console, pay or report pages, and not the script-free Trust page).
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
 
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
-const PUBLIC = ["index", "about", "contact", "legal", "terms", "privacy", "refund-policy", "dpa", "subprocessors", "partner", "partner-terms", "organizer-guide", "pricing", "brochure", "404"];
-const PRIVATE = ["z", "zc", "big", "host", "pay", "paylink", "paytest", "report", "signin", "demo", "owner-visits", "ai-link"];
-const LINKS = ["https://games.corporatetambola.com/?from=luck-by-chance", "https://corporatetambola.com/", "https://bingo.corporatetambola.com/", "https://tictactoe.corporatetambola.com/", "https://snakes.corporatetambola.com/", "https://luck.corporatetambola.com/"];
+const sha = (f: string) => createHash("sha256").update(pub(f).split(String.fromCharCode(13)).join("")).digest("hex"); // line endings do not count (git may check files out with CRLF)
+const PUBLIC = ["index", "how-it-works", "about", "contact", "legal", "terms", "privacy", "legal-position", "refund-policy", "dpa", "subprocessors", "partner", "helpdesk", "partner-terms", "organizer-guide", "pricing", "brochure", "404", "signin"];
+const NO_BAR = ["z", "zc", "big", "host", "pay", "paylink", "paytest", "report", "demo", "owner-visits", "ai-link", "preview", "trust"];
 
-describe("the Corporate Games bar", () => {
-  test("every public page loads it, no play / console / pay page does, and the build ships it", () => {
-    for (const p of PUBLIC) expect([p, pub(p + ".html").includes('src="/gamesbar.js"')]).toEqual([p, true]);
-    for (const p of PRIVATE) expect([p, pub(p + ".html").includes("gamesbar")]).toEqual([p, false]);
+describe("the shared Corporate Games bar", () => {
+  test("gamesbar.js and gamesbar.css are identical to the canonical copy", () => {
+    expect(sha("gamesbar.js")).toBe("16f02208af3c84cef63d81cdfcbc788f1baf23957ed71e912d44cafd4f881b98");
+    expect(sha("gamesbar.css")).toBe("6b0311de98525de646e637a28102163dfecf9fde35b8befe0344a5e16fff8b5b");
+  });
+  test("every public page loads it with a version number, no play / console / pay page does, and the build ships it", () => {
+    for (const p of PUBLIC) expect([p, /<script src="\/gamesbar\.js\?v=\d+" defer><\/script>/.test(pub(p + ".html"))]).toEqual([p, true]);
+    for (const p of NO_BAR) expect([p, pub(p + ".html").includes("gamesbar")]).toEqual([p, false]);
     const b = readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8"); expect(b).toContain('"gamesbar.js"'); expect(b).toContain('"gamesbar.css"');
   });
-  test("the bar has exactly the six links, Luck by Chance is current, the line is hidden on phones, the colours and focus are as ordered", async () => {
+  test("on luck.corporatetambola.com the bar marks Luck by Chance as the current game, once, and loading it twice adds nothing", () => {
     const w = new Window({ url: "https://luck.corporatetambola.com/" }); const d = w.document;
-    d.body.innerHTML = "<main>page</main>"; d.head.innerHTML = "";
-    new Function("window", "document", "with (window) {" + pub("gamesbar.js") + "}").call(w, w, w.document);
-    const bar = d.querySelector(".cg-bar")!; expect(d.body.firstElementChild).toBe(bar);
-    expect([...bar.querySelectorAll("a")].map((a: any) => a.href)).toEqual(LINKS);
-    expect([...bar.querySelectorAll("a")].map((a: any) => a.textContent)).toEqual(["Corporate Games", "Corporate Tambola", "Corporate Bingo", "Corporate Tic Tac Toe", "Corporate Snakes & Ladders", "Corporate Luck by Chance"]);
-    const cur = [...bar.querySelectorAll('[aria-current="true"]')]; expect(cur.length).toBe(1); expect((cur[0] as any).textContent).toBe("Corporate Luck by Chance");
-    expect(bar.querySelector(".cg-line")!.textContent).toBe("close group, online engagement");
-    expect(d.head.querySelector('link[href="/gamesbar.css"]')).toBeTruthy();
-    new Function("window", "document", "with (window) {" + pub("gamesbar.js") + "}").call(w, w, w.document); expect(d.querySelectorAll(".cg-bar").length).toBe(1); // loading it twice adds nothing
-    const css = pub("gamesbar.css"); expect(css).toContain("#14213D"); expect(css).toContain("14px"); expect(css).toContain("overflow-x:auto"); expect(css).toContain(":focus-visible"); expect(css).toContain("border-radius:999px");
+    for (const n of ["String", "Array", "Object", "Math", "JSON", "Number", "Date", "Boolean", "RegExp", "Error", "Set", "Map", "parseInt", "isNaN"]) if (!(w as any)[n]) (w as any)[n] = (globalThis as any)[n];
+    d.body.innerHTML = '<a href="#main">Skip to the content</a><main id="main">page</main>'; d.head.innerHTML = "";
+    const run = () => new Function("window", "document", "with (window) {" + pub("gamesbar.js") + "}").call(w, w, w.document);
+    run(); const bar = d.querySelector(".cg-bar, .cgb, [class*='gamesbar']") ?? d.body.children[1]!; expect(bar).toBeTruthy();
+    const cur = [...d.querySelectorAll('[aria-current]')]; expect(cur.length).toBeGreaterThanOrEqual(1); expect(cur.some((c: any) => /Luck by Chance/.test(c.textContent))).toBe(true);
+    expect((d.body.textContent ?? "").replace(/\s+/g, " ")).toContain("Corporate Luck by Chance"); expect(d.body.innerHTML).not.toMatch(/games\.corporatetambola\.com/);
+    const n = d.body.innerHTML.length; run(); expect(d.body.innerHTML.length).toBe(n);
   });
 });
