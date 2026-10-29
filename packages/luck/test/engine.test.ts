@@ -25,6 +25,11 @@ describe("A. The game", () => {
     for (const bad of [0, 21, 2.5, -1, "x"]) expect(parseSettings({ rounds: bad }).ok).toBe(false);
     expect(MAX_ROUNDS).toBe(20);
   });
+  test("QA B1: a rounds or window value that is not a number (true, [5], null, an empty text) is refused; a number or a number written as text is still read", () => {
+    for (const bad of [true, false, [5], null, "", " ", {}]) expect([bad, parseSettings({ rounds: bad }).ok]).toEqual([bad, false]);
+    for (const bad of [true, [10], null, "", {}]) expect([bad, parseSettings({ windowSecs: bad }).ok]).toEqual([bad, false]);
+    expect(parseSettings({ rounds: "10", windowSecs: "6" })).toMatchObject({ ok: true, value: { rounds: 10, windowSecs: 6 } });
+  });
   test("R02: every round has 10 dice rounds, so a default game has 100", () => {
     expect(defaultSettings().diceRounds).toBe(10); expect(totalDiceRounds(defaultSettings())).toBe(100); expect(totalDiceRounds(small(3))).toBe(30);
   });

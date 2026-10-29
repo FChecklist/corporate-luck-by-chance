@@ -1,7 +1,7 @@
 {
   "name": "Corporate Luck by Chance",
   "short_name": "Corporate Luck by Chance",
-  "description": "A dice game of luck for companies. The whole game is saved on your phone and plays from your own device.",
+  "description": "A dice game of luck for companies. Add it to your home screen to open it fast.",
   "id": "/z.html",
   "start_url": "/z.html",
   "scope": "/",
@@ -20,6 +20,6 @@
     { "src": "/icon-maskable-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Try the demo", "short_name": "Demo", "description": "Five dice rounds, free, nothing is sent", "url": "/demo.html", "icons": [{ "src": "/icon-192.png?v=2", "sizes": "192x192", "type": "image/png" }] }
+    { "name": "Try the demo", "short_name": "Demo", "description": "Five dice rounds, free, nothing to type", "url": "/demo.html", "icons": [{ "src": "/icon-192.png?v=2", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

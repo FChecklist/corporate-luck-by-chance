@@ -25,6 +25,12 @@ async function game(id: string, over: Record<string, unknown> = {}) {
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
 
 describe("joining with a name only", () => {
+  test("QA E4: a short real name such as Ms, As or Os can join; a name of spaces or one letter is still refused (the check once removed every letter s)", async () => {
+    await game("NAME-S");
+    let i = 0;
+    for (const name of ["Ms", "As", "Is", "Os", "us", "ss", "Jo"]) { const r = await call("POST", "/api/z/NAME-S/join", { name, device: dev(++i) }); expect([name, r.status]).toEqual([name, 200]); }
+    for (const name of ["A", "  ", " x "]) { const r = await call("POST", "/api/z/NAME-S/join", { name, device: dev(++i) }); expect([name, r.status]).toEqual([name, 400]); }
+  });
   test("a name and the phone's own id are enough: a seat, a card id, no number stored", async () => {
     await game("NAME-1");
     const info = await j(await call("GET", "/api/z/NAME-1/info"));

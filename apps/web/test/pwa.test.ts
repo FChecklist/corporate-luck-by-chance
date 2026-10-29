@@ -12,6 +12,8 @@ const filesInSw: string[] = JSON.parse(sw.match(/const FILES = (\[[\s\S]*?\]);/)
 describe("installable app (PWA)", () => {
   test("manifest is installable: name, standalone, start url, 192 and 512 icons, one maskable", () => {
     expect(manifest.name).toBe("Corporate Luck by Chance"); expect(manifest.display).toBe("standalone");
+    expect(manifest.description).not.toMatch(/whole game is saved on your phone|plays from your own device/i); // QA W7: the live game needs a connection for every number; only the demo plays offline
+    expect(JSON.stringify(manifest.shortcuts)).not.toMatch(/nothing is sent/i); // the demo page does send page-view speed data
     expect(manifest.start_url).toBe("/z.html"); expect(manifest.scope).toBe("/"); expect(manifest.id).toBe("/z.html");
     expect(manifest.short_name).toBe(manifest.name); expect(manifest.orientation).toBe("any"); // a phone on its side works too, so the app is not locked to upright
     expect(manifest.theme_color).toMatch(/^#[0-9A-Fa-f]{6}$/); expect(manifest.background_color).toMatch(/^#[0-9A-Fa-f]{6}$/);
@@ -56,7 +58,7 @@ describe("installable app (PWA)", () => {
     expect(sw).toContain('match("/offline.html")'); expect(sw).toContain('req.mode === "navigate"');
     const cache = /const CACHE = "([^"]+)"/.exec(sw)![1]!; expect(sw).toContain(`k.startsWith("${cache.replace(/-v\d+$/, "-")}")`); // the clean-up looks for the same name the cache has
     const off = readFileSync(join(PUB, "offline.html"), "utf8");
-    expect(off).toContain("You are offline"); expect(off).not.toContain("<script"); // a plain page: nothing to run, nothing to fetch beyond the saved styles
+    expect(off).toContain("You are offline"); expect(off).not.toContain("<script"); expect(off).not.toMatch(/open it again once you are back/i); /* QA W6: a page with no script cannot reopen itself, so it must not promise that */ expect(off).toContain("tap Open my game"); // a plain page: nothing to run, nothing to fetch beyond the saved styles
     for (const u of [...off.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|css))"/g)].map((m) => m[1]!)) expect(filesInSw).toContain(u);
   });
   test("an installed app opens the last game: the phone page remembers its engagement", () => {
