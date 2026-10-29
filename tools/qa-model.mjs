@@ -299,7 +299,7 @@ const SET = { rounds: 2, windowSecs: 10, prizeMode: "both", prizes: { overall: [
   }
   say(`  publish with no payment: ${grid.join(" | ")}`);
   if (freeCap !== 10) found({ id: "E8", cls: "GAP", title: `the free game is ${freeCap} people and only while a platform switch is on; the owner's rule is a Rs 0 game for 10 people for everyone`, where: "apps/edge/src/pay.ts:78-82; apps/edge/src/worker.ts:1593", live: true, tambola: "yes (961189f 'Rs 0 game for 10 people' is already in origin/port/tambola-2026-10-24)" });
-  const hasRecord = /game_record|gamerecord/i.test(wk + readFileSync("apps/edge/src/lifecycle.ts", "utf8")), hasLease = /lease/i.test(pay + wk);
+  const hasRecord = /game_record|gamerecord/i.test(wk + readFileSync("apps/edge/src/lifecycle.ts", "utf8")), hasLease = /\blease\b|pay_lease|payment_lease/i.test(pay + wk);
   if (!hasRecord) found({ id: "E9", cls: "GAP", title: "no game_record: there is no permanent log of what happened in a game (start, end, pause, who pressed what) that survives the 20 hour erase", where: "apps/edge/src (no match for game_record); apps/edge/migrations/0021_luck.sql has luck_t/luck_p/luck_v only", live: true, tambola: "yes (platform file gamerecord.ts)" });
   if (!hasLease) found({ id: "E10", cls: "GAP", title: "no payment lease: two tabs or a double tap can start two Razorpay orders for one game", where: "apps/edge/src/pay.ts:346 (placeOrder with no lock)", live: true, tambola: "yes (pay.ts)" });
 }
