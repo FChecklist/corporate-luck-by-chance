@@ -65,6 +65,21 @@ describe("the lobby and the start", () => {
     }
     expect((await call("POST", "/api/z/LK-1/luck/start", { delaySecs: 2 }, h)).status).toBe(400);
   });
+  test("QA C2: a long prize list is read in full; settings that cannot be read stop the Start with a plain 400 and start nothing (they used to become a default game with no error)", async () => {
+    const h = await game("LK-BIG"); await joinAll("LK-BIG", 3);
+    const gifts = (r: number) => Array.from({ length: 5 }, (_, i) => `Gift ${r}-${i + 1} ${"x".repeat(34)}`);
+    const big = { rounds: 20, windowSecs: 15, prizeMode: "both", prizes: { overall: gifts(0), rounds: Array.from({ length: 20 }, (_, r) => gifts(r + 1)) } };
+    expect(JSON.stringify({ settings: big, delaySecs: 20 }).length).toBeGreaterThan(4096); // the old limit
+    const raw2 = (body: string) => handle(new Request("http://x/api/z/LK-BIG/luck/start", { method: "POST", headers: { "content-type": "application/json", ...h }, body }), env, T);
+    for (const bad of ["{not json", JSON.stringify({ settings: { pad: "x".repeat(40_000) } })]) { const r = await raw2(bad); expect([bad.slice(0, 12), r.status]).toEqual([bad.slice(0, 12), 400]); expect((await j(r)).error).toMatch(/too long or damaged/); expect((await view("LK-BIG")).state).toBe("open"); }
+    expect((await raw2(JSON.stringify({ settings: big, delaySecs: 20 }))).status).toBe(200);
+    const s = (await view("LK-BIG", T + 1000)).settings; expect(s.rounds).toBe(20); expect(s.windowSecs).toBe(15); expect(s.prizes.overall.length).toBe(5); expect(s.prizes.rounds.length).toBe(20); expect(s.prizes.rounds[19][4]).toBe(gifts(20)[4]);
+  });
+  test("QA C2: Start with no body at all still starts a default game", async () => {
+    const h = await game("LK-NOB"); await joinAll("LK-NOB", 2);
+    const r = await handle(new Request("http://x/api/z/LK-NOB/luck/start", { method: "POST", headers: { ...h } }), env, T); expect(r.status).toBe(200);
+    expect((await view("LK-NOB", T + 1000)).settings.rounds).toBe(10);
+  });
   test("QA E12: Start is refused with 402 not-paid while nobody has paid for the game, and works once it is paid (an unpaid game could be played for free before)", async () => {
     const r = await j(await call("POST", "/api/start", { email: `o${++n}@acme.com` }, { "cf-connecting-ip": `10.0.0.${n}` })); const h = { "x-organizer": r.token as string };
     expect((await call("POST", "/api/z", { id: "LK-UNP", startRound: START, callSeconds: 6, cap: 100 }, h)).status).toBe(200);
