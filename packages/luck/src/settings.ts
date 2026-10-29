@@ -27,12 +27,15 @@ export function checkPrizeText(s: unknown): Checked<string> {
   return { ok: true, value: t };
 }
 
+/** A number, or a number written as text. Anything else (true, a list, null, an empty text) is NaN, so the range check refuses it. */
+const num = (v: unknown): number => (typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN);
+
 /** Reads settings from untrusted input. Anything not given takes its default; anything out of range is refused with a plain sentence. */
 export function parseSettings(input: unknown): Checked<LuckSettings> {
   const b = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const s = defaultSettings();
-  if (b.rounds !== undefined) { const r = Number(b.rounds); if (!Number.isInteger(r) || r < 1 || r > MAX_ROUNDS) return { ok: false, error: `A game has 1 to ${MAX_ROUNDS} rounds.` }; s.rounds = r; }
-  if (b.windowSecs !== undefined) { const w = Number(b.windowSecs); if (!(WINDOWS as readonly number[]).includes(w)) return { ok: false, error: "The press window is 6, 10 or 15 seconds." }; s.windowSecs = w; }
+  if (b.rounds !== undefined) { const r = num(b.rounds); if (!Number.isInteger(r) || r < 1 || r > MAX_ROUNDS) return { ok: false, error: `A game has 1 to ${MAX_ROUNDS} rounds.` }; s.rounds = r; }
+  if (b.windowSecs !== undefined) { const w = num(b.windowSecs); if (!(WINDOWS as readonly number[]).includes(w)) return { ok: false, error: "The press window is 6, 10 or 15 seconds." }; s.windowSecs = w; }
   if (b.prizeMode !== undefined) { if (b.prizeMode !== "both" && b.prizeMode !== "overall" && b.prizeMode !== "rounds") return { ok: false, error: "Prizes are for each round, for the overall result, or both." }; s.prizeMode = b.prizeMode; }
   if (b.oneWinPerPlayer !== undefined) s.oneWinPerPlayer = b.oneWinPerPlayer === true;
   const pz = (b.prizes ?? {}) as { overall?: unknown; rounds?: unknown };
