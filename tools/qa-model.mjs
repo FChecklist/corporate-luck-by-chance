@@ -278,6 +278,14 @@ const SET = { rounds: 2, windowSecs: 10, prizeMode: "both", prizes: { overall: [
   if (rows.length && rw === 0) found({ id: "E7", cls: "INCOMPLETE", title: "only the overall top 5 are written to the winners record; the winners of the per-round gifts are shown on the phones but are not in the organizer's list or report, so they cannot be ticked as 'given'", where: "apps/edge/src/luck.ts:104-111 (only res.overall, round 1)", live: true, tambola: "no", fix: "also write res.rounds[r] with round=r+1" });
 }
 
+// E5b. the console suggests gift amounts that the game itself refuses
+{
+  const zc = readFileSync("apps/web/public/zc.js", "utf8"), hints = [...zc.matchAll(/\["(voucher|dinner)", "([^"]+)", "", "(Amount[^"]*)"\]/g)].map((m) => `${m[2]}: ${m[3]}`);
+  const refused = ["Gift card Rs 1000", "Gift card $25", "Restaurant gift card $50"].filter((t) => !parseSettings({ prizes: { overall: [t] } }).ok);
+  say(`  console prize hints: ${hints.join(" | ")}; the game refuses: ${refused.join(" | ")}`);
+  if (hints.length && refused.length) found({ id: "E6b", cls: "NOT_LOGICAL", title: `the console tells the organizer to type an amount for a gift card ('${hints[0]}'), but the game refuses any gift text with $, Rs or a rupee sign ('${refused[0]}'), so the same prize cannot be typed on the host page`, where: "apps/web/public/zc.js:144; packages/luck/src/settings.ts:19", live: true, tambola: "no (the console page is not merged wholesale)", decision: "owner: is a gift card with an amount a gift or money? change the console hint or the filter" });
+}
+
 // E6. free game, drafts, payment lease, game record: what is in the live code
 {
   const pay = readFileSync("apps/edge/src/pay.ts", "utf8"), wk = readFileSync("apps/edge/src/worker.ts", "utf8");
