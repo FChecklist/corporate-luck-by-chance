@@ -231,7 +231,7 @@ def brochure_page():
     inc = "".join(f"<li>{x}</li>" for x in C.BROCHURE_INCLUDES)
     steps3 = [("Build your game", "Pick the size and the gifts. It is a free draft until you publish."), ("Invite your people", "Share one link. Show the big screen in the room or on a video call."), ("Pay once, then play", "Pay once for the game, before it begins. The game plays itself on phones.")]
     s3 = "".join(f"<li><h3>{t}</h3><p>{d}</p></li>" for t, d in steps3)
-    out += ('<main id="main">\n<section class="ck-hero g-luck" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div><span class="ck-kicker">Brochure</span>'
+    out += ('<main id="main" class="ck-brochure">\n<section class="ck-hero g-luck" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div><span class="ck-kicker">Brochure</span>'
             '<h1 id="h1">A game of luck for your whole <span class="ck-hl">close group.</span></h1>'
             '<p class="ck-lead">Turn your company event into ten rounds of pure luck, on everyone&rsquo;s own phone. Share one link. No app to download. Easy for you to set up, fun for every player.</p>'
             '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div></div>'

@@ -4,6 +4,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { headerHtml } from "../../apps/edge/src/brand";
+import { layoutPeoplePart, layoutReport } from "../../apps/edge/src/report-layout";
 
 const ROOT = join(import.meta.dir, "..", ".."), PUB = join(ROOT, "apps/web/public"), OUT = join(ROOT, "pages/public");
 const ORIGIN = "https://luck.corporatetambola.com";
@@ -188,6 +190,23 @@ export function verifySite(opts: { skipBuild?: boolean } = {}): { problems: Prob
     const g = mb.exitCode === 0 && base ? git("diff", "--name-only", base, "--", ...CONSOLE_FILES.map((f) => "apps/web/public/" + f)) : null;
     if (g && g.exitCode === 0) for (const f of g.stdout.toString().split("\n").filter(Boolean)) bad("R11", f, "console or game logic changed since master");
     else notes.push("note: git could not compare the console logic files with master here");
+  });
+
+  rule("R12", "the brochure prints on one A4 page, and the e-mail header and the report PDFs carry the new brand (badge, CORPORATE line, kit colours)", () => {
+    if (!/<main id="main" class="ck-brochure">/.test(rd(PUB, "brochure.html"))) bad("R12", "brochure.html", "main is not marked ck-brochure");
+    if (!/@page\{size:A4;/.test(rd(PUB, "luck-site.css")) || !/@media print\{[\s\S]*\.ck-brochure/.test(rd(PUB, "luck-site.css"))) bad("R12", "luck-site.css", "no one-page A4 print layout for the brochure");
+    const gen = readFileSync(join(ROOT, "tools/make-brochure.mjs"), "utf8");
+    if (!gen.includes("createServer") || !gen.includes("/brochure")) bad("R12", "make-brochure.mjs", "must print the page over http: its style sheets are linked from the site root");
+    const mail = headerHtml("https://luck.corporatetambola.com"), icon = /icon-192\.png\?v=(\d+)/.exec(mail)?.[1], pageIcon = /icon-192\.png\?v=(\d+)/.exec(rd(PUB, "index.html"))?.[1];
+    if (!icon || icon !== pageIcon) bad("R12", "brand.ts", `the e-mail header icon version (${icon}) is not the pages' (${pageIcon})`);
+    if (!mail.includes(">Corporate</span>Luck by Chance") || !mail.includes("#0B3D91")) bad("R12", "brand.ts", "e-mail header lacks the CORPORATE line or the brand blue");
+    const data: any = { engagementId: "V-1", organizerEmail: "a@b.in", sentAtMs: 1_800_000_000_000, scheduledMs: 1_799_990_000_000, firstNumberMs: 1_799_990_100_000, endMs: 1_799_995_000_000, endReason: "x", wasHeld: false, rounds: 1, callSeconds: 9, ticketsPerPerson: 1, cap: 100, inviteOnly: false, numbersCalled: 90, people: [], prizes: [], lucky: [], timeline: [], breaks: [], personalDeleteAtMs: 1_800_050_000_000, fullDeleteAtMs: 1_830_000_000_000 };
+    for (const [what, bytes] of [["report", layoutReport(data)], ["people part", layoutPeoplePart(data, [], 1, 1)]] as const) { const t = Buffer.from(bytes).toString("latin1"); if (!t.includes("0.42 0.17 0.85 rg") || !t.includes("1 0.79 0.24 rg")) bad("R12", what + " PDF", "no badge or kit marigold"); if (!t.startsWith("%PDF-") || !/\/Type \/Pages[^\n]*\/Count [1-9]/.test(t)) bad("R12", what + " PDF", "not a readable PDF"); }
+  });
+
+  rule("R13", "no file of the repository mentions console.corporatetambola.com (that address does not exist yet)", () => {
+    const g = Bun.spawnSync(["git", "grep", "-l", "console\\.corporatetambola\\.com", "--", "apps", "site", "pages/build.mjs", "packages", "config", "tools", ":!tools/site-brand/verify-site.ts", ":!tools/site-brand/plant_check.ts", ":!apps/web/test"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+    for (const f of g.stdout.toString().split("\n").filter(Boolean)) bad("R13", f, "mentions console.corporatetambola.com");
   });
 
   return { problems, notes, rules };

@@ -112,3 +112,23 @@ body.ck>svg[aria-hidden]{position:absolute;width:0;height:0;overflow:hidden}
 .ck-facts-table th{width:45%;text-transform:none;letter-spacing:0;font-size:16px;color:var(--ink)}
 .ck-sec .ck-table{margin-bottom:12px}
 .ck-old-sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- the brochure on paper: one A4 page (tools/make-brochure.mjs prints it; the page itself says "Print it or save it as a PDF") ---------- */
+@page{size:A4;margin:8mm}
+@media print{
+  body.ck{background:#fff;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ck-skip,.cgb,.ck-top,.ck-cta,.ck-foot .ck-foot-grid,.ck-brochure .ck-btn-row{display:none!important}
+  .ck-brochure .ck-sec{padding-block:5px}.ck-brochure .ck-sec-head{margin-bottom:5px}
+  .ck-brochure h2{font-size:14px;margin:0}.ck-brochure h3{font-size:11.5px;margin:0 0 2px}.ck-brochure p,.ck-brochure li{font-size:10.5px;line-height:1.35;margin:0}
+  .ck-brochure .ck-hero{padding:8px 0}.ck-brochure .ck-hero-in{grid-template-columns:1.6fr 1fr;gap:16px}.ck-brochure .ck-hero h1{font-size:24px;margin:5px 0}.ck-brochure .ck-hero .ck-lead{font-size:12px}
+  .ck-brochure .ck-panel{padding:8px;gap:4px;box-shadow:none;border:1px dashed var(--line)}.ck-brochure .ck-panel .ck-badge{width:42px;height:42px}.ck-brochure .ck-panel .ck-name b{font-size:16px}
+  .ck-brochure .ck-panel ul{margin:0;padding:0;font-size:10.5px;gap:4px}.ck-brochure .ck-panel li{padding-left:22px}.ck-brochure .ck-panel li:before{width:14px;height:14px}.ck-brochure .ck-panel li:after{left:3px;top:.42em;width:7px;height:4px}
+  .ck-brochure .ck-benef{grid-template-columns:repeat(4,1fr);gap:7px}.ck-brochure .ck-benef>li{padding:10px 9px 7px;box-shadow:none}
+  .ck-brochure .ck-steps{grid-template-columns:repeat(3,1fr);gap:7px}.ck-brochure .ck-steps>li{box-shadow:none;padding:6px 8px 6px 40px}.ck-brochure .ck-steps>li:before{left:8px;top:6px;width:24px;height:24px;font-size:12px}
+  .ck-brochure .ck-table{display:table;font-size:10.5px}.ck-brochure .ck-table thead{position:static;display:table-header-group}.ck-brochure .ck-table tbody{display:table-row-group}
+  .ck-brochure .ck-table tr{display:table-row;padding:0}.ck-brochure .ck-table th,.ck-brochure .ck-table td{display:table-cell;width:auto;padding:2px 10px;font-size:10.5px}
+  .ck-brochure .ck-small{font-size:9.5px;margin-top:4px}.ck-brochure .ck-ticks{margin:0;padding:0;gap:2px}.ck-brochure .ck-ticks li{padding-left:22px}
+  .ck-brochure .ck-ticks li:before{width:14px;height:14px;top:.1em}.ck-brochure .ck-ticks li:after{left:3px;top:.34em;width:7px;height:4px}
+  .ck-foot{background:#fff;color:#444;padding:4px 0 0;border-top:1px solid #ccc}.ck-foot .ck-legal{margin:0;padding:0;border:0}.ck-foot .ck-legal p{color:#444;font-size:9px;margin:0}
+  .ck-brochure section,.ck-brochure li{break-inside:avoid}
+}

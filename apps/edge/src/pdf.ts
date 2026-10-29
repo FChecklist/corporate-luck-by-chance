@@ -2,7 +2,7 @@
 // report stays a few hundred KB and builds in a few milliseconds). Text is Latin-1: letters outside it (for example Devanagari names) print as "?",
 // which the report says in its notes. Pure functions only, so it runs in a Worker, in Bun and in a browser.
 export type Rgb = [number, number, number];
-export const NAVY: Rgb = [0.043, 0.239, 0.569], GOLD: Rgb = [0.788, 0.635, 0.29], INK: Rgb = [0.11, 0.14, 0.2], GREY: Rgb = [0.4, 0.43, 0.48], LIGHT: Rgb = [0.955, 0.945, 0.92], WHITE: Rgb = [1, 1, 1], RED: Rgb = [0.62, 0.12, 0.12];
+export const NAVY: Rgb = [0.043, 0.239, 0.569], GOLD: Rgb = [1, 0.788, 0.235], INK: Rgb = [0.11, 0.14, 0.2], GREY: Rgb = [0.4, 0.43, 0.48], LIGHT: Rgb = [0.955, 0.945, 0.92], WHITE: Rgb = [1, 1, 1], RED: Rgb = [0.62, 0.12, 0.12];
 type Font = "F1" | "F2" | "F3" | "F4"; // Helvetica, Helvetica-Bold, Courier, Courier-Bold
 const BASE: Record<Font, string> = { F1: "Helvetica", F2: "Helvetica-Bold", F3: "Courier", F4: "Courier-Bold" };
 const CHAR_W: Record<Font, number> = { F1: 0.49, F2: 0.55, F3: 0.6, F4: 0.6 }; // average glyph width in em, used for wrapping and alignment
@@ -69,6 +69,30 @@ export class PdfDoc {
     this.img = px; const k = Math.min((w - 6) / px.w, (h - 6) / px.h), dw = px.w * k, dh = px.h * k;
     this.cur.push(`1 1 1 rg ${num(x)} ${num(top - h)} ${num(w)} ${num(h)} re f`);
     this.cur.push(`q ${num(dw)} 0 0 ${num(dh)} ${num(x + (w - dw) / 2)} ${num(top - h + (h - dh) / 2)} cm /Im1 Do Q`);
+  }
+  /** The Corporate Luck by Chance badge (logo.svg: the violet tile, the colour wheel, the pointer and the die) drawn as vector shapes, `size` points wide, top-left corner at (x, top). */
+  badge(x: number, top: number, size: number) {
+    const k = size / 64, TURN = (12 * Math.PI) / 180, P = (X: number, Y: number) => `${num(x + X * k)} ${num(top - Y * k)}`;
+    const turn = (X: number, Y: number): [number, number] => [50 + (X - 50) * Math.cos(TURN) - (Y - 49) * Math.sin(TURN), 49 + (X - 50) * Math.sin(TURN) + (Y - 49) * Math.cos(TURN)]; // the die is turned 12 degrees about (50, 49)
+    const hex = (h: string) => [1, 3, 5].map((i) => num(parseInt(h.slice(i, i + 2), 16) / 255)).join(" ");
+    const arc = (cx: number, cy: number, r: number, a0: number, a1: number) => { const q = (4 / 3) * Math.tan((a1 - a0) / 4), c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1); return `${P(cx + r * (c0 - q * s0), cy + r * (s0 + q * c0))} ${P(cx + r * (c1 + q * s1), cy + r * (s1 - q * c1))} ${P(cx + r * c1, cy + r * s1)} c`; };
+    const circle = (cx: number, cy: number, r: number) => `${P(cx + r, cy)} m ` + [0, 1, 2, 3].map((i) => arc(cx, cy, r, (i * Math.PI) / 2, ((i + 1) * Math.PI) / 2)).join(" ") + " h";
+    /** A rectangle with round corners; `at` turns a point (for the die). */
+    const rrect = (X: number, Y: number, W: number, H: number, r: number, at: (a: number, b: number) => [number, number] = (a, b) => [a, b], ao = 0) => {
+      const q = Math.PI / 2, pt = (a: number, b: number) => P(...at(a, b));
+      const cs: [number, number, number][] = [[X + W - r, Y + r, -q], [X + W - r, Y + H - r, 0], [X + r, Y + H - r, q], [X + r, Y + r, 2 * q]]; // corner centre and the angle the corner starts at
+      const edge = [[X + W - r, Y], [X + W, Y + H - r], [X + r, Y + H], [X, Y + r]];
+      return `${pt(X + r, Y)} m ` + cs.map(([a, b, s0], i) => { const [ca, cb] = at(a, b); return `${pt(edge[i]![0]!, edge[i]![1]!)} l ${arc(ca, cb, r, s0 + ao, s0 + q + ao)}`; }).join(" ") + " h";
+    };
+    const o = this.cur, ink = hex("#3A0CA3");
+    o.push("q", `${hex("#6A2BD9")} rg ${rrect(0, 0, 64, 64, 14)} f`);
+    ["#FFC93C", "#FF5C8A", "#2EC4B6", "#3A86FF", "#FF9F1C", "#C77DFF", "#06D6A0", "#F15BB5"].forEach((c, i) => { const a0 = -Math.PI / 2 + (i * Math.PI) / 4; o.push(`${hex(c)} rg ${P(29, 33)} m ${P(29 + 22 * Math.cos(a0), 33 + 22 * Math.sin(a0))} l ${arc(29, 33, 22, a0, a0 + Math.PI / 4)} h f`); });
+    o.push(`1 1 1 RG ${num(2.2 * k)} w ${circle(29, 33, 22)} S`, `${hex("#FFF3BF")} rg`);
+    for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 4; o.push(`${circle(29 + 22 * Math.cos(a), 33 + 22 * Math.sin(a), 1.2)} f`); }
+    o.push(`1 1 1 rg ${ink} RG ${num(1.4 * k)} w ${circle(29, 33, 4.2)} B`, `1 1 1 rg ${ink} RG ${num(1.2 * k)} w 1 j ${P(23.5, 5.5)} m ${P(34.5, 5.5)} l ${P(29, 14.5)} l h B`);
+    o.push(`1 1 1 rg ${ink} RG ${num(1.5 * k)} w ${rrect(40, 39, 19, 19, 4.5, turn, TURN)} B`);
+    for (const [X, Y, c] of [[45, 44, "#E03131"], [49.5, 48.5, "#1A1440"], [54, 53, "#1A1440"]] as const) { const [a, b] = turn(X, Y); o.push(`${hex(c)} rg ${circle(a, b, 1.9)} f`); }
+    o.push("Q");
   }
   h1(text: string) { this.need(40); this.gap(8); this.y -= 18; this.put(text, this.M, this.y, { font: "F2", size: 15, color: NAVY }); this.line(this.M, this.y - 5, this.W - this.M, this.y - 5, GOLD, 1.2); this.y -= 12; }
   h2(text: string) { this.need(28); this.gap(4); this.y -= 14; this.put(text, this.M, this.y, { font: "F2", size: 11, color: INK }); this.y -= 4; }
