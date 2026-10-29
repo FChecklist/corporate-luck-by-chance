@@ -11,7 +11,7 @@ export const BRAND = {
   support: "hello@corporatetambola.com", // the contact address the site's legal page publishes
   legalPath: "/legal.html",
   defaultOrigin: "https://luck.corporatetambola.com",
-  wine: "#0B5D5B", gold: "#FFC93C", gold2: "#FFE08A", ivory: "#F7FBFA", line: "#D5E3E1",
+  wine: "#0B3D91", gold: "#FFC93C", gold2: "#FFE08A", ivory: "#FFFAF2", line: "#EFDDBE", // the Corporate Games brand colours (studio blue, marigold, warm white); "wine" is the old name of the header colour
 } as const;
 
 /** Every subject that leaves the service starts with the game tag, so one shared inbox can tell the games apart. Added in one place (sendMail / sendReportMail in pay.ts). */
@@ -29,19 +29,19 @@ export const withFooter = (text: string, origin?: string) => (hasFooter(text) ? 
 /** The header row of every HTML e-mail: the logo mark and the wordmark. `data-brand` lets tests find it. */
 export function headerHtml(origin?: string): string {
   const o = base(origin);
-  return `<tr data-brand="header"><td style="background:${BRAND.wine};border-radius:10px 10px 0 0;padding:14px 22px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="padding-right:10px;"><img src="${o}/icon-192.png?v=2" width="34" height="34" alt="" style="display:block;border:0;border-radius:8px;"></td><td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:700;color:${BRAND.gold2};letter-spacing:.01em;">${BRAND.name}<span style="color:${BRAND.gold};">.</span></td></tr></table></td></tr>`;
+  return `<tr data-brand="header"><td style="background:${BRAND.wine};border-radius:10px 10px 0 0;padding:14px 22px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="padding-right:10px;"><img src="${o}/icon-192.png?v=3" width="34" height="34" alt="" style="display:block;border:0;border-radius:8px;"></td><td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:700;color:#FFFFFF;letter-spacing:.01em;line-height:1.1;"><span style="display:block;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#E3ECFF;">Corporate</span>Luck by Chance</td></tr></table></td></tr>`;
 }
 /** The footer row of every HTML e-mail: name, support address, legal link. */
 export function footerHtml(origin?: string): string {
   const o = base(origin);
-  return `<tr data-brand="footer"><td style="border-top:1px solid ${BRAND.line};background:${BRAND.ivory};border-radius:0 0 10px 10px;padding:14px 22px;font-size:12px;line-height:1.6;color:#5C6F6D;"><b style="color:${BRAND.wine};">${BRAND.name}</b> &middot; ${BRAND.tagline}<br>Questions? Write to <a href="mailto:${BRAND.support}" style="color:${BRAND.wine};">${BRAND.support}</a><br><a href="${o}${BRAND.legalPath}" style="color:${BRAND.wine};">Rules, privacy and disclaimer</a></td></tr>`;
+  return `<tr data-brand="footer"><td style="border-top:1px solid ${BRAND.line};background:${BRAND.ivory};border-radius:0 0 10px 10px;padding:14px 22px;font-size:12px;line-height:1.6;color:#4D4870;"><b style="color:${BRAND.wine};">${BRAND.name}</b> &middot; ${BRAND.tagline}<br>Questions? Write to <a href="mailto:${BRAND.support}" style="color:${BRAND.wine};">${BRAND.support}</a><br><a href="${o}${BRAND.legalPath}" style="color:${BRAND.wine};">Rules, privacy and disclaimer</a></td></tr>`;
 }
 
 /** The full HTML page around some rows. */
 export function pageHtml(title: string, rows: string, origin?: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
-<body style="margin:0;background:#EEF5F4;font-family:Arial,Helvetica,sans-serif;color:#1c2433;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF5F4;"><tr><td align="center" style="padding:20px 10px;">
+<body style="margin:0;background:#FFF0D6;font-family:Arial,Helvetica,sans-serif;color:#1c2433;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFF0D6;"><tr><td align="center" style="padding:20px 10px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:10px;border:1px solid ${BRAND.line};">
 ${headerHtml(origin)}
 ${rows}
