@@ -65,6 +65,16 @@ describe("the lobby and the start", () => {
     }
     expect((await call("POST", "/api/z/LK-1/luck/start", { delaySecs: 2 }, h)).status).toBe(400);
   });
+  test("QA E12: Start is refused with 402 not-paid while nobody has paid for the game, and works once it is paid (an unpaid game could be played for free before)", async () => {
+    const r = await j(await call("POST", "/api/start", { email: `o${++n}@acme.com` }, { "cf-connecting-ip": `10.0.0.${n}` })); const h = { "x-organizer": r.token as string };
+    expect((await call("POST", "/api/z", { id: "LK-UNP", startRound: START, callSeconds: 6, cap: 100 }, h)).status).toBe(200);
+    expect((await call("POST", "/api/z/LK-UNP/publish", { email: "boss@acme.com", phone: "98765 43210" }, h)).status).toBe(200); // published, not paid: pack stays 0
+    await joinAll("LK-UNP", 3);
+    const no = await call("POST", "/api/z/LK-UNP/luck/start", { settings: SET }, h); expect(no.status).toBe(402); const b = await j(no); expect(b.code).toBe("not-paid"); expect(b.error).toMatch(/not paid for yet/);
+    expect((await view("LK-UNP")).state).toBe("open"); // nothing started, the list is still open
+    raw.run("UPDATE engagement SET pack=100 WHERE id=?", ["LK-UNP"]);
+    expect((await call("POST", "/api/z/LK-UNP/luck/start", { settings: SET }, h)).status).toBe(200);
+  });
   test("R35: the fingerprint is public from the first look; the secret is shown only after the game is over, and then anybody can check the seed", async () => {
     const h = await game("LK-2"); const ps = await joinAll("LK-2", 4);
     const v0 = await view("LK-2"); expect(v0.commit).toMatch(/^[0-9a-f]{64}$/); expect(v0.state).toBe("open");

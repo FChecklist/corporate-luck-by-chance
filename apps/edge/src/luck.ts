@@ -141,6 +141,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
   if (sub === "start" && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can start the game." }, 403);
     if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
+    if (c.e?.pack === 0) return json({ error: "This game is not paid for yet. Please pay first, then press Start.", code: "not-paid" }, 402); // an unpaid game: the clock lock in worker.ts never reaches a game that is started early
     const b = (await c.body(req, 4096)) ?? {};
     const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
     const delay = b.delaySecs === undefined ? 20 : Number(b.delaySecs);

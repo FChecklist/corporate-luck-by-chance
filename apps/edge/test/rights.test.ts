@@ -47,7 +47,7 @@ describe("U5: a player can leave at any time", () => {
     expect(JSON.stringify(raw.query("SELECT * FROM participant").all())).not.toContain("Maya");
   });
   test("after the Organizer has started the game the seat stays on the frozen seat list (the result is worked out from it) but holds no name", async () => {
-    const h = await game("LV-2");
+    const h = await game("LV-2"); raw.run("UPDATE engagement SET pack=100 WHERE id='LV-2'"); // a game must be paid for before Start
     const a = await joinAs("LV-2", 1, "Maya Lopez"); await joinAs("LV-2", 2);
     expect((await call("POST", "/api/z/LV-2/luck/start", {}, h)).status).toBe(200);
     expect(raw.query("SELECT name FROM luck_p WHERE pid=?").get(a)).toEqual({ name: "Maya Lopez" });
