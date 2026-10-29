@@ -70,7 +70,7 @@ def doc_page(name, cur="", extra_main_class=""):
     wr(name, out)
 
 
-def app_wrap(name, cur="", extra=("/z.css?v=2", "/zc.css?v=2", "/partner.css?v=2")):
+def app_wrap(name, cur="", extra=("/z.css?v=2", "/zc.css?v=2", "/partner.css?v=4")):
     """A page that draws itself with the older app styles (Refer & earn, Help Desk): the website header and footer around it."""
     p = parse(name)
     attrs, minner, post = main_block(p["body"])

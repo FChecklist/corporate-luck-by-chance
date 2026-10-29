@@ -196,7 +196,7 @@ export function verifySite(opts: { skipBuild?: boolean } = {}): { problems: Prob
     if (!/<main id="main" class="ck-brochure">/.test(rd(PUB, "brochure.html"))) bad("R12", "brochure.html", "main is not marked ck-brochure");
     if (!/@page\{size:A4;/.test(rd(PUB, "luck-site.css")) || !/@media print\{[\s\S]*\.ck-brochure/.test(rd(PUB, "luck-site.css"))) bad("R12", "luck-site.css", "no one-page A4 print layout for the brochure");
     const gen = readFileSync(join(ROOT, "tools/make-brochure.mjs"), "utf8");
-    if (!gen.includes("createServer") || !gen.includes("/brochure")) bad("R12", "make-brochure.mjs", "must print the page over http: its style sheets are linked from the site root");
+    if (!gen.includes("`http://127.0.0.1:${") || !gen.includes("/brochure`")) bad("R12", "make-brochure.mjs", "must print the page over http: its style sheets are linked from the site root");
     const mail = headerHtml("https://luck.corporatetambola.com"), icon = /icon-192\.png\?v=(\d+)/.exec(mail)?.[1], pageIcon = /icon-192\.png\?v=(\d+)/.exec(rd(PUB, "index.html"))?.[1];
     if (!icon || icon !== pageIcon) bad("R12", "brand.ts", `the e-mail header icon version (${icon}) is not the pages' (${pageIcon})`);
     if (!mail.includes(">Corporate</span>Luck by Chance") || !mail.includes("#0B3D91")) bad("R12", "brand.ts", "e-mail header lacks the CORPORATE line or the brand blue");
@@ -207,6 +207,26 @@ export function verifySite(opts: { skipBuild?: boolean } = {}): { problems: Prob
   rule("R13", "no file of the repository mentions console.corporatetambola.com (that address does not exist yet)", () => {
     const g = Bun.spawnSync(["git", "grep", "-l", "console\\.corporatetambola\\.com", "--", "apps", "site", "pages/build.mjs", "packages", "config", "tools", ":!tools/site-brand/verify-site.ts", ":!tools/site-brand/plant_check.ts", ":!apps/web/test"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
     for (const f of g.stdout.toString().split("\n").filter(Boolean)) bad("R13", f, "mentions console.corporatetambola.com");
+  });
+
+  rule("R14", "no leftovers of a bad text replacement ($1, undefined, NaN, [object Object]) and every <details> has its <summary>", () => {
+    for (const p of pages) {
+      const h = rd(PUB, p + ".html").replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "");
+      const m = /\$[1-9&]|\bundefined\b|\bNaN\b|\[object Object\]/.exec(h.replace(/<[^>]+>/g, " "));
+      if (m) bad("R14", p, "leftover text: " + m[0]);
+      if ((h.match(/<details\b/g) ?? []).length !== (h.match(/<summary\b/g) ?? []).length) bad("R14", p, "a <details> without a <summary>, or the other way round");
+    }
+  });
+
+  rule("R15", "the style sheets of the website pages set no fixed light surface (white or cream backgrounds would be unreadable in dark mode); colours come from tokens.css", () => {
+    for (const f of ["partner.css", "luck-site.css", "luck-shell.css"]) {
+      const css = rd(PUB, f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/@media print\{[\s\S]*$/, ""); // paper has its own colours
+      for (const m of css.matchAll(/background(?:-color)?:\s*(#fff(?:fff)?|#fffdf9|#f6f2e8|rgba\(255,\s*25\d,\s*2\d\d,\s*(?:1|\.[89]\d*)\))/gi)) bad("R15", f, "fixed light surface: " + m[0]);
+    }
+  });
+
+  rule("R16", "a table wide enough to scroll sideways can be reached with the keyboard (tabindex on the scrolling wrapper)", () => {
+    for (const p of WEBSITE) for (const m of rd(PUB, p + ".html").matchAll(/<div class="tw"([^>]*)>/g)) if (!/tabindex="0"/.test(m[1]!)) bad("R16", p, "scrolling table wrapper without tabindex");
   });
 
   return { problems, notes, rules };

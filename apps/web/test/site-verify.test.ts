@@ -5,6 +5,6 @@ import { verifySite } from "../../../tools/site-brand/verify-site";
 
 test("every rule of tools/site-brand/verify-site.ts holds on every page of the site", () => {
   const r = verifySite();
-  expect(r.rules.length).toBeGreaterThanOrEqual(13);
+  expect(r.rules.length).toBeGreaterThanOrEqual(16);
   expect(r.problems.map((p) => `${p.rule} ${p.page}: ${p.detail}`)).toEqual([]);
 });
