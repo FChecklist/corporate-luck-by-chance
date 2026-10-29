@@ -2,14 +2,14 @@
 
 Corporate Luck by Chance, as built on 2026-10-14. Everything is kept in one Cloudflare D1 database (table `kv` holds small keyed records). Two things enforce this schedule: the lifecycle job (`apps/edge/src/lifecycle.ts`, `lifecycleTick`) and the sweep (`purgeOld` in `apps/edge/src/worker.ts`). Both run from the scheduled tick, `POST /api/lifecycle/tick`, called every 5 minutes (Supabase `pg_cron` job `game-ticks`, and GitHub Actions in the `scheduler` repository as a second trigger). The sweep and the mail-log clean-up also run from `scheduled()` and from the first organizer request of each UTC day, as a safety net. The data map with every field is `docs/PRIVACY_AND_LIFECYCLE.md`. Tests: `apps/edge/test/retention.test.ts`, `privacy.test.ts`, `shred.test.ts`, `luck.test.ts`, `luck-end.test.ts`.
 
-"End" means the moment the phones agree on the result, or 10 minutes after the last dice round if they never agree, or the scheduled end if neither happened. The promise to players is "within 24 hours"; the job deletes at **23 hours** (`PURGE_AFTER_MS`). The health address `GET /api/status/health` raises an alarm (`ok: false`, `overdue_purge`) when a game is more than 30 minutes past that and its players' data is still stored, and the scheduler's uptime check fails on it.
+"End" means the moment the phones agree on the result, or 10 minutes after the last dice round if they never agree, or the scheduled end if neither happened. The promise to players is "within 24 hours"; the job deletes at **20 hours** (`PURGE_AFTER_MS`). The health address `GET /api/status/health` raises an alarm (`ok: false`, `overdue_purge`) when a game is more than 30 minutes past that and its players' data is still stored, and the scheduler's uptime check fails on it.
 
 | Data | Where | Kept | Then |
 |---|---|---|---|
-| Player nickname (sealed copy), seat, device hashes, consent record (Terms version, boxes, hash of the wording, time), invite record, people lists, waiting requests, report working copies | `participant`, `seat`, `person`, `waiting`, `consent_log` (K4 rows), `kv seats-base/ rpt* seats-blk/` | 23 hours after the end | Deleted (`erasePersonal`) |
-| The nickname in the clear, written when the game starts so every phone can show the top-10 list; the phones' result votes | `luck_p`, `luck_v` | 23 hours after the end | Deleted (`erasePersonal`) |
-| The personal part of players' security-log rows (network address, browser string, device id, fields sent, network number) | `audit_pii`, key salt in `eng_key` | 23 hours after the end | Crypto-shredded: salt and blobs destroyed, the hash chain still verifies |
-| A player's request to see, correct or delete their data, or to name another person (card id, kind, short note, times: no name, no number) | `data_request` | 23 hours after the end, with the participants | Deleted (`erasePersonal`); again with the game at 365 days |
+| Player nickname (sealed copy), seat, device hashes, consent record (Terms version, boxes, hash of the wording, time), invite record, people lists, waiting requests, report working copies | `participant`, `seat`, `person`, `waiting`, `consent_log` (K4 rows), `kv seats-base/ rpt* seats-blk/` | 20 hours after the end | Deleted (`erasePersonal`) |
+| The nickname in the clear, written when the game starts so every phone can show the top-10 list; the phones' result votes | `luck_p`, `luck_v` | 20 hours after the end | Deleted (`erasePersonal`) |
+| The personal part of players' security-log rows (network address, browser string, device id, fields sent, network number) | `audit_pii`, key salt in `eng_key` | 20 hours after the end | Crypto-shredded: salt and blobs destroyed, the hash chain still verifies |
+| A player's request to see, correct or delete their data, or to name another person (card id, kind, short note, times: no name, no number) | `data_request` | 20 hours after the end, with the participants | Deleted (`erasePersonal`); again with the game at 365 days |
 | Game settings, sealed seed and secret, counts, start and end times; the agreed result as seat numbers (no names) | `luck_t` | Until 00:00 IST at the end of day 365 | Deleted with the game (`eraseEverything`) |
 | Winners record: the seat numbers of first to fifth place | `winner` | Until the end of day 365 | Deleted |
 | The game, its settings and prize texts, the end-of-game clock, organizer contact | `engagement`, `life`, `cbl_request`, `kv control/ contact/ pub/ ann/` | Until 00:00 IST at the end of day 365 after the end. An unpublished draft: 30 days | Deleted (`eraseEverything`) |
@@ -17,7 +17,7 @@ Corporate Luck by Chance, as built on 2026-10-14. Everything is kept in one Clou
 | Security log of an anonymous visitor (no game and no organizer: a refused request, a failed payment, a wrong key). The network address is cut to its first part (IPv4 /24, IPv6 /48) before it is sealed | `audit_log`, chain `anon` | **90 days** | Deleted from the front of the chain by `sweepAudit` |
 | Organizer account: sign-in keys, e-mail hash, sealed e-mail for our mails, sealed lasting AI key, terms version accepted | `organizer_key`, `organizer_email`, `kv orgmail/ aikey/`, `organizer_terms` | While the account exists | Deleted by "Close my organizer account" in the console (with every game and the AI audit trail) |
 | Host name, e-mail or mobile (sealed) | `organizer_key` | While the Host key exists | Retired Host keys: 90 days, then deleted by the sweep |
-| Co-host name and mobile (sealed), key bound to one game | `organizer_key` | Until the game's personal data is erased (23 hours after the end) or it is cancelled | Deleted |
+| Co-host name and mobile (sealed), key bound to one game | `organizer_key` | Until the game's personal data is erased (20 hours after the end) or it is cancelled | Deleted |
 | E-mailed 24-hour AI keys | `organizer_key` (`expires_ms`) | Expire after 24 hours; row deleted 7 days later | Deleted by the sweep |
 | Retired (revoked) keys | `organizer_key` | 90 days | Deleted by the sweep |
 | Sign-in codes and one-click sign-in tokens (hash only) | `login_code` | 10 minutes; row deleted 1 day after it expires | Deleted by the sweep |
@@ -42,7 +42,7 @@ The shared Worker still has the tables `claim`, `rvote`, `rcand`, `overvote` and
 ## Not decided in code
 
 - Partner commission records are kept as accounting records.
-- Whether the one-year log rule in DPDP Rule 6(1)(e) reaches players' security-log rows, which are destroyed at 23 hours.
+- Whether the one-year log rule in DPDP Rule 6(1)(e) reaches players' security-log rows, which are destroyed at 20 hours.
 - Whether the short player notice must name that security log. Today it says what is kept and for how long in the box and on the Privacy page.
 
 ## Error reports (added 2026-10-20)

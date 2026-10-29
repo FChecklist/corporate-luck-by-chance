@@ -1122,3 +1122,68 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     expect(p.$(".zc-qa")!.textContent).toBe("We do not give refunds. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days. Unused credit lapses at the end of day 365.");
   });
 });
+
+
+describe("simpler console (owner order 2026-10-27: hide, never disable, the rarely used choices)", () => {
+  test("step 2: the console asks no rounds or press-window question, and says what a game is (10 rounds, 10 seconds)", async () => {
+    const o = await organizer(); await make(o, "UI-SIMP");
+    const p = await consolePage(o, "UI-SIMP"); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 2);
+    const t = p.$("#sec2")!.textContent as string;
+    expect(t).toMatch(/A game has 10 rounds and every player has a press window of 10 seconds/);
+    expect(t).not.toMatch(/number of rounds \(1 to 20\)|6, 10 or 15 seconds/);
+    expect(p.$("#sec2 [data-ck=\"rnd\"]")).toBeNull(); // the console has no rounds control at all: the game page used to carry it, and hides it now (see host-simple.test.ts)
+  });
+  test("the help texts of the console no longer send the organizer to choose rounds or a press window", () => {
+    const js = readFileSync(join(import.meta.dir, "../public/zc.js"), "utf8");
+    expect(js).not.toMatch(/choose the number of rounds|Choose the number of rounds|choose the rounds and the press window/);
+  });
+  test("a demo link kept in this browser is used once the organizer is taken straight into a game (not only on the home screen)", async () => {
+    const o = await organizer(); await make(o, "UI-PASS");
+    const posts: any[] = [];
+    const w = spy({ "POST /api/pass": (_m, b) => { posts.push(b); return { ok: true, cap: 100 }; } });
+    const p = await consolePage(o, "UI-PASS", o.token, {}, { afterLoad: w.hook, url: "http://localhost/zc?e=UI-PASS&pass=0123456789abcdef0123456789abcdef" } as any);
+    await p.waitFor((x) => /Hello/.test(x)); await p.waitFor(() => posts.length > 0, 8000);
+    expect(posts).toEqual([{ token: "0123456789abcdef0123456789abcdef" }]);
+  });
+  test("a demo link opened on the home screen is used once, kept only until then, and the long secret leaves the address bar", async () => {
+    const o = await organizer();
+    const posts: any[] = [];
+    const w = spy({ "POST /api/pass": (_m, b) => { posts.push(b); return { ok: true, cap: 100 }; } });
+    const p = await consolePage(o, "UI-PASSH", o.token, {}, { afterLoad: w.hook, url: "http://localhost/zc?pass=fedcba9876543210fedcba9876543210" } as any);
+    await p.waitFor(() => posts.length > 0, 8000);
+    expect(posts).toEqual([{ token: "fedcba9876543210fedcba9876543210" }]);
+    expect(String(p.win.location.href)).not.toMatch(/pass=/); // the address no longer carries the secret
+    expect(p.win.localStorage.getItem("cbz-pass") || "").toBe(""); // used or refused, it is not tried again
+  });
+  test("a text that is not a pass is ignored: nothing is stored and nothing is sent", async () => {
+    const o = await organizer();
+    const posts: any[] = [];
+    const w = spy({ "POST /api/pass": (_m, b) => { posts.push(b); return { ok: true, cap: 100 }; } });
+    const p = await consolePage(o, "UI-PASSX", o.token, {}, { afterLoad: w.hook, url: "http://localhost/zc?pass=not-a-pass" } as any);
+    await p.waitFor((x) => /Hello|Start a new game|Your games/i.test(x), 8000);
+    expect(posts).toEqual([]); expect(p.win.localStorage.getItem("cbz-pass")).toBeNull();
+  });
+});
+
+describe("sign out: a visible button ends the session on this phone or laptop", () => {
+  test("the console shows a Sign out button to a signed-in organizer, and pressing it removes the key from this browser", async () => {
+    const o = await organizer(); await make(o, "UI-OUT");
+    const p = await consolePage(o, "UI-OUT"); await p.waitFor((x) => /Hello/.test(x));
+    const b = p.$("#signout") as any; expect(b).not.toBeNull(); expect(b.textContent.trim()).toBe("Sign out"); expect(b.closest(".zc-hide")).toBeNull(); // visible, never hidden
+    expect(p.win.sessionStorage.getItem("cbz-org")).toBeTruthy();
+    try { p.win.happyDOM.settings.navigation.disableMainFrameNavigation = true; } catch { /* an older DOM: the click below may try to open the console again, which is harmless here */ }
+    p.click("#signout");
+    expect(p.win.sessionStorage.getItem("cbz-org") || "").toBe(""); expect(p.win.localStorage.getItem("cbz-org") || "").toBe("");
+  });
+  test("the page that holds the key for a Host (the console opened with a key in the address) also offers it", async () => {
+    const o = await organizer(); await make(o, "UI-OUTH");
+    const hk = await hostKey(o);
+    const p = await consolePage(o, "UI-OUTH", hk); await p.waitFor((x) => /Hello|Last step|Your game/i.test(x));
+    expect(p.$("#signout")).not.toBeNull();
+  });
+  test("keep.js: signing out removes both organizer keys from the long-term and the visit-only store", () => {
+    const src = readFileSync(join(import.meta.dir, "../public/keep.js"), "utf8");
+    expect(src).toMatch(/signOut: function \(\) \{ \["cbz-org", "cbz-alt"\]\.forEach/);
+    expect(readFileSync(join(import.meta.dir, "../public/zc.js"), "utf8")).toMatch(/\$\("signout"\)\.onclick = \(\) => \{ if \(window\.CTK\) window\.CTK\.signOut\(\)/);
+  });
+});

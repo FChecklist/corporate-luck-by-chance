@@ -44,6 +44,7 @@
         "cbz-pl",
         "cbz-shield",
         "cbz-alt",
+        "cbz-cap",
         "cbz-auto-done"
       ]
     },
@@ -54,7 +55,8 @@
       "keys": [
         "cbz-org",
         "cbz-alt",
-        "cbz-email"
+        "cbz-email",
+        "cbz-pass"
       ]
     },
     {

@@ -86,8 +86,8 @@ export async function countError(db: D1, now: number): Promise<void> {
   } catch { /* best effort */ }
 }
 /** 5xx answers in the last 60 minutes (the current 10-minute bucket and the five before it). */
-/** The promise to players is "within 24 hours"; the job deletes at 23 (PURGE_AFTER_MS). The alarm rises when a game is this much later than that and its players' data is still there (the 5-minute tick normally clears a game within minutes). */
-export const OVERDUE_GRACE_MS = 30 * 60_000;
+/** The promise to players is "within 24 hours"; the job deletes at 20 hours (PURGE_AFTER_MS); the 3 hours of grace cover a late scheduler. The alarm rises when a game is this much later than that and its players' data is still there (the 5-minute tick normally clears a game within minutes). */
+export const OVERDUE_GRACE_MS = 3 * 3_600_000;
 /** The latest a game's end is taken to be after its scheduled start (luck.ts MAX_MS: a game that has not ended 6 hours after its scheduled start is closed); used for a game the tick has not looked at yet. */
 const LONGEST_GAME_MS = 6 * 3_600_000;
 /**

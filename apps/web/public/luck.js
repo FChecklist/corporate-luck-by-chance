@@ -47,19 +47,33 @@
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
     nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (ph) ph.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
-    go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = ""; NICK = nm.value.trim(); EMP = emp ? emp.value.trim() : ""; PHONE = ph ? ph.value.trim() : "";
-      try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
-        pid = r.pid; ls.set(pidKey(), pid);
-        start();
-      } catch (e) {
-        if (e.code === "waiting" && e.body && e.body.wid) { waitFor(e.body.wid, e.message); return; }
-        if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
-        joinMsg = e.message || "Could not join. Please try again."; joinView();
-      }
-    });
+    go.addEventListener("click", () => { go.disabled = true; joinMsg = ""; NICK = nm.value.trim(); EMP = emp ? emp.value.trim() : ""; PHONE = ph ? ph.value.trim() : ""; busyTries = 0; doJoin(); });
   };
+  // A join that gets no answer at all (a lost connection, a call that timed out) or a busy answer (a whole office joins from one address) is asked again by itself:
+  // joining is safe to repeat, the same device gets the same seat. The person sees one calm screen instead of an error, and can stop it and try by hand.
+  const BUSY_TRIES = 15;
+  let busyTries = 0, busyTimer = 0;
+  const busyView = () => {
+    set(`${brand()}${head()}<div class="zcard zwait" role="status"><h2>Many people are joining right now</h2><p style="margin:0 0 6px">Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall" style="margin:0">Try ${busyTries} of ${BUSY_TRIES}.</p></div><div class="zagain"><button class="zbtn s alt" id="again" type="button">Stop and try myself</button></div>`);
+    const a = document.getElementById("again"); if (a) a.addEventListener("click", () => { clearTimeout(busyTimer); busyTries = 0; tb = null; joinView(); });
+  };
+  async function doJoin() {
+    try {
+      const r = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+      clearTimeout(busyTimer); busyTries = 0;
+      pid = r.pid; ls.set(pidKey(), pid);
+      start();
+    } catch (e) {
+      if (e.code === "waiting" && e.body && e.body.wid) { clearTimeout(busyTimer); busyTries = 0; waitFor(e.body.wid, e.message); return; }
+      if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
+      if ((e.code === "busy" || !e.status) && busyTries < BUSY_TRIES) { // no answer at all (no status) or a busy answer: ask again by itself, a little later each time
+        busyTries++; busyView(); clearTimeout(busyTimer);
+        busyTimer = setTimeout(doJoin, Math.round((4 + Math.min(26, busyTries * 2)) * 1000 * (0.7 + Math.random() * 0.6)));
+        return;
+      }
+      busyTries = 0; joinMsg = e.message || "Could not join. Please try again."; joinView();
+    }
+  }
 
   // ---------- the waiting room: a game by invitation lets a person in once the host approves; the page asks again by itself ----------
   const waitFor = (wid, note) => {

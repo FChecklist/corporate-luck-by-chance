@@ -91,7 +91,7 @@ a.zbtn#addcal{margin-left:6px}
 .spriv{margin:8px 0 0;text-align:center;font-size:12px;line-height:1.3;font-weight:400}.spriv a{color:var(--muted,#6b7385);font-weight:400;text-decoration:underline}
 
 .spriv.accept{font-size:12px}
-.zdemotag{display:inline-block;background:#E4572E;color:#fff;font:800 12px/1 system-ui,sans-serif;letter-spacing:.12em;padding:4px 7px;border-radius:6px;vertical-align:middle}
+.zdemotag{display:inline-block;background:#C2410C;color:#fff;font:800 12px/1 system-ui,sans-serif;letter-spacing:.12em;padding:4px 7px;border-radius:6px;vertical-align:middle}
 .zdemo{border:2px dashed #E4572E}
 
 /* the organizer's company strip at the top of the ticket page (colours are set from the script) and the small credit under it */
@@ -161,3 +161,6 @@ input.pfill{color:#8a8f98!important}
 /* the ticket page: anyone who plays can become an organizer */
 .mkown{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:560px;margin:18px auto 6px;padding:14px 16px;border:2px dashed #E0B872;border-radius:14px;background:#FFF8EA;color:#2B3A55;font-size:14px;line-height:1.45}
 .mkown b{font-size:15px;color:#0B3D91}.mkownbtn{display:inline-block;margin-top:4px;padding:11px 18px;border-radius:10px;background:#0B3D91;color:#fff;font-weight:700;text-decoration:none}
+
+/* a join that gets no answer, or a busy answer, is asked again by itself: this is the button to stop that */
+.zagain{margin:10px 0 0}.zagain .zbtn{margin-top:0}

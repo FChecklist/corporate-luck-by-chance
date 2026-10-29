@@ -16,8 +16,8 @@ For Corporate Luck by Chance. A breach is any loss, leak or unauthorised use of 
 ## 3. Assess (same day)
 - What data, how many people, which games (`SELECT ... FROM engagement`), over what period.
 - Players' nicknames in `participant.pii` are sealed (AES-256-GCM): a copy of the database without `DATA_KEY` does not show them. **But once a game has started its nicknames are also stored in the clear** (`luck_p.name`, so every phone can show the top-10 list), so a copy of the database DOES show the nicknames of every game whose players have not yet been deleted. Treat a database copy as a leak of those nicknames.
-- Players' nicknames are deleted 23 hours after a game ends, so a leak of an old copy covers only games that were live or ended less than a day before. The result and the winners record carry seat numbers only.
-- The security log's personal part for players (network address, browser, device id) is sealed under a per-game key and destroyed at 23 hours; the rest is sealed with `DATA_KEY`. An anonymous visitor's rows hold the first part of the network address only and are removed after 90 days.
+- Players' nicknames are deleted 20 hours after a game ends, so a leak of an old copy covers only games that were live or ended less than a day before. The result and the winners record carry seat numbers only.
+- The security log's personal part for players (network address, browser, device id) is sealed under a per-game key and destroyed at 20 hours; the rest is sealed with `DATA_KEY`. An anonymous visitor's rows hold the first part of the network address only and are removed after 90 days.
 - Was `DATA_KEY` exposed? If yes, assume every sealed row of live games is exposed: players' sealed nicknames, people lists, organizer and host e-mails, the security log.
 - Decide: is there a likely risk to people? Write the decision and the reason.
 

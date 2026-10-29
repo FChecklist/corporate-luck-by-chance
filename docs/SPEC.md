@@ -86,7 +86,7 @@ Why Presence mode needs a server timestamp: after a window closes the dice resul
 - Boards, dice and results are never stored on the server. Only press timestamps (Presence mode) and the winners' votes.
 
 ## 10. Everything around the game (copied once from Corporate Tambola, then independent)
-Roles (Organizer, Host up to 5, Co-host, AI work link), the nine-step console, the big screen (target number, countdown, top-10 list, final ceremony), waiting room, announcements, brand breaks, lucky draw, invites and people lists, clone, reschedule, cancel; pay before start with credit instead of refunds; report e-mailed as a link about 3 minutes after the end (valid 22 hours); personal data deleted 23 hours after the end; winners kept 365 days; no e-mail ever to a guest. **Registration closes before the first dice round** so the seat list is frozen; a guest who arrives later sees that the game is already running.
+Roles (Organizer, Host up to 5, Co-host, AI work link), the nine-step console, the big screen (target number, countdown, top-10 list, final ceremony), waiting room, announcements, brand breaks, lucky draw, invites and people lists, clone, reschedule, cancel; pay before start with credit instead of refunds; report e-mailed as a link about 3 minutes after the end (valid 19 hours); personal data deleted 20 hours after the end; winners kept 365 days; no e-mail ever to a guest. **Registration closes before the first dice round** so the seat list is frozen; a guest who arrives later sees that the game is already running.
 
 ## 11. Sizes, price, ledger
 - **Sizes:** the same ladder as Corporate Tambola (up to 100, 250, 500, 750, 1,000, 2,500, 5,000, 10,000 players). Presence mode is limited to the smaller sizes.

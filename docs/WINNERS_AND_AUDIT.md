@@ -9,7 +9,7 @@ Owner rule: the organizer builds the tournament and chooses the format and the m
 3. **A board always ends with one winner** (R07 to R10): the first game with a winner; a drawn game replayed with the marks swapped, up to three games; then fate, a number made from the seed, the board and the player id (the lower number wins).
 4. **The clock** (R11 to R15): when a move clock runs out the software plays a random empty square drawn from the seed; a second clock-out in a row in the same game loses the board. Pausing stops every clock and gives every clock back the same time afterwards (R28).
 5. **The result has no ties** (R24): the round reached, then total points, then points in the last match, then fate. The strict ranking is made once, when the final ends (`finishTournament`), and stored; the top 100 places are kept for the results screen and the big screen, and each place says in one line how a tie was decided (R25).
-6. **The winners record** keeps the first to fifth place as **opaque seat numbers** (table `winner`, source `ttt`), never a name. It stays until 00:00 IST at the end of day 365. The names on the results screen live in the ranking JSON and are deleted 23 hours after the end (`docs/PRIVACY_AND_LIFECYCLE.md`).
+6. **The winners record** keeps the first to fifth place as **opaque seat numbers** (table `winner`, source `ttt`), never a name. It stays until 00:00 IST at the end of day 365. The names on the results screen live in the ranking JSON and are deleted 20 hours after the end (`docs/PRIVACY_AND_LIFECYCLE.md`).
 
 ## What the Organizer, a Host and the AI can and cannot do
 
@@ -27,7 +27,7 @@ Any gift is supplied by the organizer, outside this product (R31). We do not col
 
 ## The report
 
-One e-mail with a link, a few minutes after the end. `/report.html` fetches `GET /api/report/{id}?k=...&part=base|people` and lays the PDF out in the organizer's browser (their memory, not our server). Valid until 22 hours after the end, when the players' names are about to be deleted. See `docs/PRIVACY_AND_LIFECYCLE.md`.
+One e-mail with a link, a few minutes after the end. `/report.html` fetches `GET /api/report/{id}?k=...&part=base|people` and lays the PDF out in the organizer's browser (their memory, not our server). Valid until 19 hours after the end, when the players' names are about to be deleted. See `docs/PRIVACY_AND_LIFECYCLE.md`.
 
 ## Audit trail of the external AI
 
@@ -35,7 +35,7 @@ Every call made with an AI key is written to `ai_audit` (time, key id, method an
 
 ## Internal audit log
 
-Beside the per-AI trail, `audit_log` (`apps/edge/src/audit.ts`) is the internal, sealed, hash-chained log of every write: join, consent, each move, start, pause, resume, console edits, sign-in. It is owner-only (platform key): `GET /api/owner/audit/<id>[?format=csv]`, `/verify`, `POST /analyze`, `POST /hold`, `GET /api/owner/audit/access`. A player's personal part (network address, browser, device id, the square sent) is destroyed 23 hours after the end. Full description: `docs/PRIVACY_AND_LIFECYCLE.md`, sections 2d and 6.
+Beside the per-AI trail, `audit_log` (`apps/edge/src/audit.ts`) is the internal, sealed, hash-chained log of every write: join, consent, each move, start, pause, resume, console edits, sign-in. It is owner-only (platform key): `GET /api/owner/audit/<id>[?format=csv]`, `/verify`, `POST /analyze`, `POST /hold`, `GET /api/owner/audit/access`. A player's personal part (network address, browser, device id, the square sent) is destroyed 20 hours after the end. Full description: `docs/PRIVACY_AND_LIFECYCLE.md`, sections 2d and 6.
 
 ## Honest limits
 

@@ -42,8 +42,8 @@
     let body = "";
     if (v.state === "open") {
       body = `<div class="zcard"><h2>Before the start</h2><p><b>${esc(v.joined)}</b> players have joined. Share the player link; the list closes when you press Start.</p>${links()}</div>
-        <div class="zcard"><h2>Rounds</h2><p class="zsmall">Each round has 10 dice rounds.</p><label for="rounds">Number of rounds (1 to 20)</label><input id="rounds" type="number" min="1" max="20" value="${esc(S.rounds)}">
-        <h2>Press window</h2>${chips("windowSecs", [[6, "6 seconds"], [10, "10 seconds"], [15, "15 seconds"]], S.windowSecs)}
+        <div class="zcard"><div class="zc-hide" data-hidden="1"><h2>Rounds</h2><p class="zsmall">Each round has 10 dice rounds.</p><label for="rounds">Number of rounds (1 to 20)</label><input id="rounds" type="number" min="1" max="20" value="${esc(S.rounds)}">
+        <h2>Press window</h2>${chips("windowSecs", [[6, "6 seconds"], [10, "10 seconds"], [15, "15 seconds"]], S.windowSecs)}</div>
         <h2>Prizes</h2><p class="zsmall">A prize is a gift you hand over. Players never pay and there are no cash prizes.</p>${chips("prizeMode", [["both", "Each round and overall"], ["overall", "Overall only"], ["rounds", "Each round only"]], S.prizeMode)}
         ${S.prizeMode !== "rounds" ? `<h3>Overall prizes</h3>${prizeInputs("overall", S.overall)}` : ""}${S.prizeMode !== "overall" ? `<h3>Prizes for each round</h3>${prizeInputs("perRound", S.perRound)}` : ""}
         <label class="tcheck" for="onewin"><input type="checkbox" id="onewin" ${S.oneWin ? "checked" : ""}> A player can win only one prize. The next player in the order gets the other prize.</label>

@@ -43,8 +43,9 @@ Where things are set:
 | `PARTNER_COMMISSION_RATE` | Partner commission rate | Optional Pages variable | setting |
 | `DAILY_WRITE_BUDGET` | Most database writes the Worker allows itself per day | wrangler var | setting |
 | `STRICT_KEYS` | "1" on the live site: the Worker refuses every request unless the required secrets are set | Pages variable | setting |
-| `JOIN_PER_IP_DAY` | Joins one network address may make per day (default in code) | Optional Pages variable | setting |
-| `JOIN_PER_IP_MINUTE` | Joins one network address may make per minute (default in code) | Optional Pages variable | setting |
+| `JOIN_PER_IP_DAY` | New places one network address may open per day (a whole office shares one address; a paid game never falls below its size) | wrangler var | setting |
+| `JOIN_PER_IP_MINUTE` | New places one network address may open per minute (a paid game never falls below its size) | wrangler var | setting |
+| `AI_LINK_MAIL_AT_SIGNUP` | "0" means the welcome e-mail that carried the AI work link is not sent (the link is not offered in the console); any other value sends it | wrangler var | setting |
 | `GOOGLE_CLIENT_ID` | Google sign-in client id (public, not a secret); without it the Google button is off | Optional Pages variable | setting |
 | `CONTROL_R2` | Optional R2 bucket holding the static copy of the pause file | Optional binding | binding |
 | `CONTROL_BASE` | Optional public address of that bucket | Optional Pages variable | setting |

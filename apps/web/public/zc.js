@@ -17,6 +17,8 @@
   const NEWDEMO = q.get("demo") === "1"; // from the website: start the Rs 0 game for 10 people
   const QUICK = q.get("quick") === "1" || NEWDEMO;
   const NEWGAME = q.get("new") === "1"; // the link on a participant's ticket: "Create a new game as an organizer"
+  // A demo pass link (zc.html?pass=...): the long secret in it is kept in this browser until the person is signed in, then used once, then forgotten. Nothing about it is shown to anybody else.
+  { const pt = (q.get("pass") || "").toLowerCase(); if (/^[0-9a-f]{32}$/.test(pt)) { ls.set("cbz-pass", JSON.stringify({ t: pt, at: Date.now() })); q.delete("pass"); try { const rest = q.toString(); history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "")); } catch { /* the address stays */ } } }
   // A browser AI may open this page in a new tab, and a tab holds the key only for itself: another open tab of the same browser can hand it over (same site, same browser, never stored).
   const bc = typeof BroadcastChannel === "function" ? new BroadcastChannel("cbz-org-key") : null;
   const OLD_HOUSES = []; // the shared table (ZG.PRIZE_HOUSES) is the only source of the houses
@@ -288,7 +290,7 @@
     const caps = capChips(f);
     const own = `<div class="zc-gap">${lbl("f-cap", "Or type your own number of players")}${inp("cap", { type: "number", ph: "For example 180", attrs: 'inputmode="numeric" min="1" max="10000" step="1"' })}</div>`;
     return `<span class="zc-lbl zc-sec zc-sub">How many players</span><span class="zc-lbl" id="gl-cap">How many people at most?</span><div class="zc-chips" role="group" aria-labelledby="gl-cap">${caps}</div>` + own + small(Number(f.cap) > 0 && Number(f.cap) <= DEMO_CAP ? "Invited guests count too. A game for 10 people or fewer is Rs 0: nothing to pay." : "Invited guests count too. The price is shown when you pay.")
-      + `<span class="zc-lbl zc-sec zc-sub">How the game runs</span>` + small("Every round has 10 dice rounds. In each one a target number from 1 to 6 is shown, every player presses the dice, and a dice that shows the target scores that many points, so the chance of a hit is always 1 in 6. The ranking has no ties. You choose the number of rounds (1 to 20) and the press window (6, 10 or 15 seconds) on the game page, just before you press Start.")
+      + `<span class="zc-lbl zc-sec zc-sub">How the game runs</span>` + small("Every round has 10 dice rounds. In each one a target number from 1 to 6 is shown, every player presses the dice, and a dice that shows the target scores that many points, so the chance of a hit is always 1 in 6. The ranking has no ties. A game has 10 rounds and every player has a press window of 10 seconds. You set the prizes on the game page, just before you press Start.")
       + (f.emp ? "" : `<span class="zc-lbl zc-sec zc-sub">Who can join</span>` + grp("who", "Who can join?", [["list", "Only people on a list"], ["anyone", "Anyone with the link"]])
       + small(f.idq ? "Guests type a nickname and their employee ID to join. The common link works in Slack, Teams or Zoom chat. Personal links from a list still work." : "Guests type only a nickname to join (the player page has no place for a mobile number). The common link works in Slack, Teams or Zoom chat. Personal links from a list still work.")
       + small(f.who === "list" ? "Only people you have added can join straight away. Anyone else who clicks your link has to wait until you or a Host says yes." : "Anyone who clicks your link joins straight away. You can change this until the game starts."))
@@ -430,6 +432,7 @@
   function stepTeam() {
     const T = S.team, max = (T && T.maxHosts) || 5, hosts = (T && T.hosts) || [], co = (T && T.cohosts) || [];
     let h = roleCards() + (S.teamNote ? `<div class="zc-toast" role="status">${esc(S.teamNote)}</div>` : "");
+    if (S.passMsg) h += `<div class="zc-toast" role="status" id="passmsg">${esc(S.passMsg)}</div>`; // from a demo pass link
     if (!T && S.teamErr) h += `<p class="zc-small zc-warnt" role="status">${esc(S.teamErr)}</p>`;
     h += `<span class="zc-lbl zc-sec">Your Hosts: ${hosts.length} of ${max}</span>` + hosts.map((p) => teamRow(p, "host")).join("");
     if (isOrg()) h += `<div class="zc-inline"><label class="zc-sr" for="hostlabel">Name of the new Host</label><input id="hostlabel" value="${esc((S.tv || {}).hostlabel || "")}" class="zc-in" maxlength="40" placeholder="Name" autocomplete="off" required><label class="zc-sr" for="hostphone">Mobile number of the new Host</label><input id="hostphone" value="${esc((S.tv || {}).hostphone || "")}" class="zc-in" inputmode="tel" placeholder="Mobile number, 415 555 0132" autocomplete="off"><label class="zc-sr" for="hostemail">E-mail of the new Host</label><input id="hostemail" value="${esc((S.tv || {}).hostemail || "")}" class="zc-in" type="email" maxlength="120" placeholder="E-mail (their link is sent here)" autocomplete="off"><button type="button" class="zc-btn zc-btn-s" id="hostadd"${hosts.length >= max ? " disabled" : ""}>Add a Host</button></div>${hosts.length >= max ? small(`You have the most Hosts allowed (${max}). Remove one to add another.`) : small("A Host needs a name and a mobile number or an e-mail, or both. With an e-mail we send their private link there. With only a mobile number, you send it on WhatsApp.")}`;
@@ -622,7 +625,7 @@
         <div class="zc-chips zc-gap"><a class="zc-chip" href="${esc(waUrl(""))}" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a></div>${S.draft ? small("Guests can join once you publish.") : ""}</div>
       <div class="zc-block"><h3>Big screen</h3><div class="zc-linkrow"><span class="zlink" id="biglink">${esc(bigLink())}</span><button type="button" class="zc-mini" id="copybig">Copy the link</button></div>
         <a class="zc-chip zc-gap" href="${esc(bigLink())}" target="_blank" rel="noopener">Open the big screen</a>${small("Open it on a laptop or phone connected to the big screen. It shows the target number, the countdown and the top-10 list, with nicknames only.")}</div>
-      <div class="zc-block"><h3>Run the game</h3><a class="zc-chip zc-gap" href="/host.html?e=${encodeURIComponent(eid)}">Open the game page</a>${small("Choose the number of rounds, the press window and the prizes, then start. Starting closes the list of players.")}</div>
+      <div class="zc-block"><h3>Run the game</h3><a class="zc-chip zc-gap" href="/host.html?e=${encodeURIComponent(eid)}">Open the game page</a>${small("Choose the prizes, then start. Starting closes the list of players.")}</div>
       ${peopleBlock()}${playBlock()}
       ${cont(6)}`;
   }
@@ -787,7 +790,7 @@
     const state = v.state === "done" ? "Finished" : v.state === "running" ? "Running" : "Not started yet";
     const standings = v.state === "done" && v.agreed && (rk.overall || []).length ? `<div class="zc-block"><h3>Results</h3><ol class="zc-rank" id="rankList">${rk.overall.slice(0, 5).map((r) => `<li><b>${esc(r.name)}</b> · ${esc(String(r.points))} points${r.line ? `<br><small class="zc-small zc-nomargin">${esc(r.line)}</small>` : ""}</li>`).join("")}</ol>${small("The first five places are named here. Any gift for them is yours to hand over: this tool gives and takes no money and no prizes.")}</div>` : "";
     return `<div class="zc-block"><h3>Run the game</h3>${rowl("Game", `<b id="tstate">${state}</b>`)}${rowl("Players who joined", `<b>${Number(v.joined != null ? v.joined : S.people.length) || 0}</b>`)}
-        <a class="zc-btn zc-gap" id="runt" href="/host.html?e=${eu}">Open the game page</a>${small("There you choose the number of rounds, the press window and the prizes, and press Start. Starting closes the list of players.")}</div>
+        <a class="zc-btn zc-gap" id="runt" href="/host.html?e=${eu}">Open the game page</a>${small("There you choose the prizes and press Start. Starting closes the list of players.")}</div>
       <div class="zc-block"><h3>Big screen</h3><a class="zc-chip" id="bigopen" href="${esc(bigLink())}" target="_blank" rel="noopener">Open the big screen</a>${small("For the laptop on the room screen or a shared video call. It shows the target number, the countdown and the top-10 list, with nicknames only.")}</div>`
       + announceBlock() + standings + playBlock() + cont(9);
   }
@@ -832,7 +835,7 @@
     ["What do players see?", "A target number and a dice button on their phone. No app to install, and they type only a nickname."],
     ["Is my guests' data safe?", "It is encrypted in transit and at rest. Names and numbers are erased within 24 hours after the game."],
     ["How is the winner chosen?", "Every player presses the dice in every dice round; a dice that shows the target scores that many points. The most points wins. If points are equal, the highest single hit, then the most hits, then who reached the score first decide, and a public random number is the last step. There are no ties."],
-    ["How do I start the game?", "Open Game day, open the game page, choose the rounds and the press window, and press Start. The Organizer and Hosts can do this."],
+    ["How do I start the game?", "Open Game day, open the game page, choose the prizes, and press Start. The Organizer and Hosts can do this."],
     ["Who can do what?", "The Organizer can do everything, including the account (keys, e-mail). A Host can do everything in the game except the account and adding Hosts. A Co-host invites people and can pay. Open step 5 to see it."],
     ["What is the big screen link?", "A page for a projector or TV. It shows the target number, the countdown and the top-10 list, with nicknames only. Copy it in step 6 and open it on the laptop connected to the screen."],
     ["Can I get a refund?", "We do not give refunds. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days. Unused credit lapses at the end of day 365."],
@@ -891,14 +894,14 @@
   // "About this step": a short, always-visible write-up under each talking line (docs/ROLES_AND_CONSOLE_SPEC_4.md, A). At most 5 short lines each.
   const ABOUT = {
     1: ["This is the basics. Pick the occasion, the day and the time.", "Times are in your own time zone, as your device shows it.", "Players can join before the start. You press Start on the game page when everybody is in.", "You can change all this until the game starts."],
-    2: ["Pick the biggest crowd you expect. Or type your own number. You see the price when you pay.", "Who can join: \"Only people on a list\" keeps it private, and people not on a list wait for you to let them in.", "\"Anyone with the link\" lets people in at once.", "Players type just a nickname to join. You choose the number of rounds and the press window on the game page, just before you press Start.", "Each guest can invite family or colleagues if you switch it on."],
+    2: ["Pick the biggest crowd you expect. Or type your own number. You see the price when you pay.", "Who can join: \"Only people on a list\" keeps it private, and people not on a list wait for you to let them in.", "\"Anyone with the link\" lets people in at once.", "Players type just a nickname to join. You choose the prizes on the game page, just before you press Start.", "Each guest can invite family or colleagues if you switch it on."],
     3: ["Tick the places that get a prize: 1st to 5th. Pick what each one is.", "\"I will decide later\" is fine. You can still publish and choose before the game starts.", "\"No prize\" shows as \"No prize\" in the results.", "You give the prizes. We provide the software.", "The software picks the winners from the scores. Nobody can change them, not even us."],
     4: ["Add your company name, a colour and a small logo for the top of every player's page and the big screen.", "Press \"See what players see\" to check it before you publish."],
     5: ["A Host runs the game with you. A Host needs a name, a mobile number and an e-mail.", "A Co-host invites people and can pay. A Co-host needs a name and a mobile number only.", "Players need a nickname only (a mobile number too if you chose that).", "Send each private link to one person only.", "Each Co-host can add up to 100 people unless you change it below."],
     6: ["Add your people here, one by one, from your phone contacts (where your phone allows it), by pasting from Excel or by uploading a CSV.", "Each person gets their own link to send by WhatsApp or e-mail. Or share the one common link in Slack, Teams, Zoom chat or any group.", "With \"Only people on a list\", people who are not on your list wait under \"Waiting to come in\". You can let them in one by one or press \"Approve all\".", "The big screen link is for the laptop connected to the room screen or shared in your video call. It shows the target number, the countdown and the top-10 list, with nicknames only."],
     7: ["Look through your game and change what you need.", "Publishing is free. Guests can join after you publish.", "You can cancel before the start time. We do not give refunds: a paid game becomes credit for your next game for 365 days. Or change the date instead.", "Press \"See what players see\" to look at a sample play screen."],
     8: ["Pay once, before the start time. You see the price here.", "The Organizer, a Host or a Co-host can pay.", "Paid late? The game opens 2 minutes after your payment is confirmed.", "A paid game cannot be cancelled after the start time. Before it, your payment stays as credit for 365 days.", "\"Copy payment link\" makes a link anyone can open to pay for this game."],
-    9: ["Open the game page, choose the number of rounds and the press window, and press Start.", "Starting closes the list of players.", "Only the Organizer and Host can start the game or remove a person."],
+    9: ["Open the game page, choose the prizes, and press Start.", "Starting closes the list of players.", "Only the Organizer and Host can start the game or remove a person."],
     10: ["A few minutes after the game, a report link is e-mailed to the Organizer.", "Guest names and numbers are erased within 24 hours.", "We keep the winners and the Organizer's and Hosts' details for 365 days.", "You can erase guest data earlier."],
   };
   const ABOUT_COH = { 1: ["You can see the game and what you may do."], 2: ["Add your people. Each gets their own WhatsApp link. You can bring up to your limit."], 3: ["One payment is enough. If someone has paid, you will see Paid.", "\"Copy payment link\" makes a link anyone can open to pay for this game."] };
@@ -1036,7 +1039,7 @@
     const main = `<div class="zc-block"><h3>1. Which game?</h3>${lbl("qk-name", "Name of the game (optional)")}<input id="qk-name" class="zc-in" data-fi="oname" maxlength="60" placeholder="Team event" value="${esc(f.oname)}">
         ${grp("occ", "Occasion", OCC.map((o) => [o, o]))}${lbl("qk-date", `Day (your time, ${tzName()})`)}<input id="qk-date" class="zc-in" type="date" data-fi="dayo" value="${esc(f.dayo)}" min="${istDateStr(istNow())}">${lbl("qk-time", `Start time (your time, ${tzName()})`)}<input id="qk-time" class="zc-in" type="time" data-fi="timeo" step="300" value="${esc(f.timeo)}">
         ${small("Players can join before. You press Start on the game page when everybody is in. Choose a time at least 2 hours ahead.")}</div>
-      <div class="zc-block"><h3>2. How many players?</h3><span class="zc-lbl" id="gl-cap">How many people at most? (people invited by your guests count too)</span><div role="group" aria-labelledby="gl-cap">${caps}</div>${grp("join", "Who can join?", [["list", "Only people on a list"], ["anyone", "Anyone with the link"]])}<div class="zc-chips zc-gap">${bchip("inv", "Let each guest invite up to 4 family or colleagues")}</div>${small("It is a dice game of pure luck. You choose the number of rounds and the press window on the day.")}</div>
+      <div class="zc-block"><h3>2. How many players?</h3><span class="zc-lbl" id="gl-cap">How many people at most? (people invited by your guests count too)</span><div role="group" aria-labelledby="gl-cap">${caps}</div>${grp("join", "Who can join?", [["list", "Only people on a list"], ["anyone", "Anyone with the link"]])}<div class="zc-chips zc-gap">${bchip("inv", "Let each guest invite up to 4 family or colleagues")}</div>${small("It is a dice game of pure luck. The game has 10 rounds with a press window of 10 seconds.")}</div>
       <div class="zc-block"><h3>3. Prizes for the top places</h3>${grp("bundle", "Start from", ["Classic", "Simple", "Rich"].map((b) => [b, BUNDLE_WORDS[b]]))}${houses}${small("You give the prizes; we only provide the software. Your company name and logo are added on the next page.")}</div>
       <div class="zc-block"><h3>4. Check and save</h3><div id="qk-summary" class="zc-small" aria-live="polite"></div><div id="qk-err" class="zc-toast zc-badt" role="alert" style="display:none"></div><div class="zc-foot"><button class="zc-btn" id="qk-save" type="button">Yes, save my draft</button></div>${small("Nothing is charged. Nobody else can see a draft. Next you publish it (free) and pay before the start time.")}</div>`;
     return frame(`<div class="zc-body"><div class="zc-main">${main}</div></div>`, false);
@@ -1116,7 +1119,16 @@
   }
   async function loadPacks() { try { S.packs = (await fetch(BASE + "/api/z/ai-manifest").then((r) => r.json())).packs || []; } catch { S.packs = []; } }
 
+  async function redeemPass() { // a demo pass link was opened in this browser and the person is now signed in as an organizer: it gives ONE free game, once
+    let v = null; try { v = JSON.parse(ls.get("cbz-pass") || "null"); } catch { v = null; }
+    if (!v || !v.t) return; if (Date.now() - (Number(v.at) || 0) > 14 * 86400000) { ls.set("cbz-pass", ""); return; }
+    if (!isOrg() || !secret) return;
+    ls.set("cbz-pass", ""); // used or refused, it is not tried again
+    try { const r = await call("POST", "/api/pass", { token: v.t }); S.passMsg = r.again ? "This demo link is already yours: start a new game." : `Your free demo is ready: one game of up to ${r.cap} people at Rs 0. In step 2 choose "Up to ${r.cap} people".`; }
+    catch (e) { S.passMsg = e && e.message ? e.message : "This demo link could not be used. Please ask us for a new one."; }
+  }
   async function refreshHome() {
+    if (isOrg()) await redeemPass(); // a demo pass link opened in this browser is used now (before a first game is made for a new person)
     S.screen = "home";
     try { S.keys = (await call("GET", "/api/org/keys")).keys; } catch { S.keys = []; }
     try { S.sugs = (await call("GET", "/api/z/suggestions")).suggestions.slice(0, 6); } catch { S.sugs = []; }
@@ -1677,6 +1689,7 @@
     if (r === "cohost") { if (eid) return refreshCohost(); return redraw(); }
     if (r === "host" && !eid) { try { S.history = await call("GET", "/api/history"); } catch { S.history = null; } const gs = (S.history && S.history.engagements) || []; if (gs.length === 1) { eid = gs[0].id; refreshTeam(); return refreshEng(); } return redraw(); } // a Host with one game goes straight in; with several they pick
     refreshTeam();
+    if (eid && isOrg()) { await redeemPass(); } // a demo link opened while the person is taken straight back into a game must still be used (found with a real prospect in Corporate Tambola 1.3.5)
     if (eid) refreshEng();
     else if (QUICK) { S.screen = "quick"; S.f = quickDefault(); await loadPacks(); redraw(); }
     else refreshHome();
