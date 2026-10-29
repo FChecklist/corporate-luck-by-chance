@@ -46,7 +46,8 @@ describe("the logo", () => {
     for (const p of SITE) {
       const h = rd(p + ".html");
       expect([p, h.includes('<a class="ck-brand" href="/" aria-label="Corporate Luck by Chance, home"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-luck"/></svg><span class="ck-name"><i>Corporate</i><b>Luck by Chance</b></span></a>')]).toEqual([p, true]);
-      expect([p, /<body class="ck">\s*(<svg[\s\S]*?<\/svg>\s*)*<a class="ck-skip" href="#main">Skip to the content<\/a>/.test(h)]).toEqual([p, true]);
+      const at = h.indexOf('<body class="ck">'), skip = h.indexOf('<a class="ck-skip" href="#main">Skip to the content</a>');
+      expect([p, at > 0 && skip > at && h.slice(at + 17, skip).replace(/<svg[\s\S]*?<\/svg>/g, "").trim() === ""]).toEqual([p, true]); // only the hidden icon sets may come before the skip link
       expect([p, h.includes('id="main"')]).toEqual([p, true]);
       expect([p, /<symbol id="i-luck"/.test(h)]).toEqual([p, true]); // the badge is drawn in the page
     }

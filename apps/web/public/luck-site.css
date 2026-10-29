@@ -98,3 +98,17 @@
 
 /* the old sprite block must never show */
 body.ck>svg[aria-hidden]{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- small parts used by the landing, How it works and Brochure pages ---------- */
+.ck-choose .g-tambola{--c:var(--g-tambola)}.ck-choose .g-bingo{--c:var(--g-bingo)}.ck-choose .g-ttt{--c:var(--g-ttt)}.ck-choose .g-snakes{--c:var(--g-snakes)}.ck-choose .g-luck{--c:var(--g-luck)}.ck-choose .g-draw{--c:var(--g-draw)}
+.ck-choose .ck-name{align-items:flex-start}
+.ck-choose .ck-name i{color:var(--muted);font-size:var(--fs-xs)}
+.ck-choose .ck-name b{font-size:15px;white-space:nowrap;color:var(--ink)}
+.ck-allgames{display:inline-flex;align-items:center;min-height:var(--tap);margin-top:6px;font-weight:700}
+.ck-ticks{list-style:none;margin:0 0 1em;padding:0;display:grid;gap:8px}
+.ck-ticks li{position:relative;padding-left:32px;color:var(--ink)}
+.ck-ticks li:before{content:"";position:absolute;left:0;top:.25em;width:20px;height:20px;border-radius:50%;background:var(--teal)}
+.ck-ticks li:after{content:"";position:absolute;left:5px;top:.55em;width:9px;height:5px;border:solid #fff;border-width:0 0 2.5px 2.5px;transform:rotate(-45deg)}
+.ck-facts-table th{width:45%;text-transform:none;letter-spacing:0;font-size:16px;color:var(--ink)}
+.ck-sec .ck-table{margin-bottom:12px}
+.ck-old-sprite{position:absolute;width:0;height:0;overflow:hidden}

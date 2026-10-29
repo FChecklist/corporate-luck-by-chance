@@ -7,7 +7,7 @@ KIT = os.environ.get("BRAND_KIT", r"C:\ct\test-sites\corporate-brand-kit")
 ORIGIN = "https://luck.corporatetambola.com"
 SITE = "Corporate Luck by Chance"
 CARD = ORIGIN + "/og-card.png"
-V = {"fonts": 2, "tokens": 2, "components": 2, "legacy": 1, "shell": 1, "site": 1, "kit": 2, "theme": 2, "bar": 3, "icon": 3}
+V = {"fonts": 2, "tokens": 2, "components": 2, "legacy": 1, "shell": 1, "site": 2, "kit": 2, "theme": 2, "bar": 3, "icon": 3}
 
 MENU = [  # (key, label, link, extra class)
     ("how", "How it works", "/how-it-works", ""),

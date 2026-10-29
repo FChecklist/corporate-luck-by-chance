@@ -155,6 +155,7 @@ def index_page(old_sprite_svg):
     scripts = ["/pwa.js", "/guide.js", "/blackbox.js", "/rum.js", "/v.js"]
     out = head(C.TITLE, C.DESC, "/", ld=ld_json(), scripts=scripts)
     out += sprite() + old_sprite_svg + "\n" + header("")
+    out += '<main id="main">\n'
     out += ('<select id="pack" hidden aria-hidden="true" tabindex="-1"></select><button id="payBtn" type="button" hidden tabindex="-1" aria-hidden="true">Create your game</button>\n')  # the pricing script needs both; the price card below is what people see
     out += ('<section class="ck-hero g-luck" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div>\n<span class="ck-kicker">For HR teams and managers</span>\n'
             '<h1 id="h1">This week, which teams will you engage with a <span class="ck-hl">close group game of Luck by Chance?</span></h1>\n'
@@ -164,7 +165,7 @@ def index_page(old_sprite_svg):
             '\n<p class="ck-hero-contact">No software to buy: you pay per game. Talk to a person: <a href="mailto:hello@corporatetambola.com">hello@corporatetambola.com</a> or <a href="tel:+919650397480">(+91) 96503 97480</a>.</p>\n</div>\n'
             '<div class="ck-panel"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-luck"/></svg><p class="ck-name"><i>Corporate</i><b>Luck by Chance</b></p>'
             '<ul><li>A dice game of pure luck</li><li>Every round has a clock</li><li>A top 10 list is shown</li></ul></div>\n</div></section>\n')
-    out += '<main id="main">\n' + trust_section() + day_section()
+    out += trust_section() + day_section()
     out += ('<section class="ck-sec" id="players" aria-labelledby="pvh"><div class="ck-wrap ck-split"><div><span class="ck-kicker">What your players see</span><h2 id="pvh">A big target. A big dice. A clear answer.</h2>'
             '<p class="ck-lead">The target number is shown in words and as a dice face. Players press once. The dice rolls on the screen, and the result is worked out by the software, not by a person.</p>'
             '<div class="ck-btn-row"><a class="ck-btn" href="/demo">Try five dice rounds</a></div></div>'
