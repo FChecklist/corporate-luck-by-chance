@@ -65,6 +65,15 @@ describe("the lobby and the start", () => {
     }
     expect((await call("POST", "/api/z/LK-1/luck/start", { delaySecs: 2 }, h)).status).toBe(400);
   });
+  test("QA S2: a game that has been started cannot be cancelled for credit (pay, play, cancel used to return the whole payment as credit)", async () => {
+    const h = await game("LK-CXL"); await joinAll("LK-CXL", 3);
+    const pre0 = await j(await call("GET", "/api/z/LK-CXL/cancel-preview", undefined, h)); expect(pre0.canCancel).toBe(true); // paid, not started, start time ahead: cancelling is allowed
+    expect((await call("POST", "/api/z/LK-CXL/luck/start", { settings: SET }, h)).status).toBe(200);
+    const pre = await j(await call("GET", "/api/z/LK-CXL/cancel-preview", undefined, h)); expect(pre.canCancel).toBe(false); expect(pre.reason).toMatch(/already started/);
+    const c = await call("POST", "/api/z/LK-CXL/cancel", { confirmations: 3 }, h); expect(c.status).toBe(409);
+    expect(raw.query("SELECT cancelled_ms FROM engagement WHERE id='LK-CXL'").get()).toEqual({ cancelled_ms: null });
+    expect(raw.query("SELECT COUNT(*) c FROM credit WHERE eid='LK-CXL'").get()).toEqual({ c: 0 });
+  });
   test("QA C2: a long prize list is read in full; settings that cannot be read stop the Start with a plain 400 and start nothing (they used to become a default game with no error)", async () => {
     const h = await game("LK-BIG"); await joinAll("LK-BIG", 3);
     const gifts = (r: number) => Array.from({ length: 5 }, (_, i) => `Gift ${r}-${i + 1} ${"x".repeat(34)}`);

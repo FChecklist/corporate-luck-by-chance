@@ -9,6 +9,7 @@ import { zoneStamp, tzOfRow } from "./tz";
 import { creditExpiryMs, creditFromPayment, creditLastDay, mailTeam, NO_REFUND_LINE, restoreCreditUses, rs, teamEmails, type CreditRow } from "./credit";
 import type { PayEnv } from "./pay";
 import type { D1 } from "./worker";
+import { gameStarted } from "./luck";
 
 export { teamEmails };
 const r2 = (x: number) => Math.round(x * 100) / 100;
@@ -53,6 +54,7 @@ export async function cancelPreview(env: PayEnv, e: any, now: number): Promise<{
     const c = await creditOfCancelled(env.DB, e.id), rb = await reopenBlocker(env.DB, e, now);
     return { canCancel: false, reason: "This game is already cancelled.", paid, cancelled: true, credit: c, ...(paid ? { rescheduleUntilMs: rescheduleUntilMs(e.cancelled_ms) } : {}), canReschedule: !rb.reason, ...(rb.reason ? { rescheduleReason: rb.reason } : { maxStartMs: Math.min(rb.maxStartMs, now + 30 * 86_400_000) }) };
   }
+  if (await gameStarted(env, e.id)) return { canCancel: false, reason: "The game has already started, so it cannot be cancelled now. Please use End the game instead.", paid, credit: null }; // pay, play and cancel before the scheduled day would hand the payment back as credit
   if (paid && roundMs(e.start_round) <= now) return { canCancel: false, reason: "The start time has passed and this game is paid, so it cannot be cancelled now. Please use End the game instead.", paid, credit: null };
   if (e.unplayed_ms) return { canCancel: false, reason: "This game did not start and is closed. You can create a new game like this one.", paid, credit: null };
   const c = await creditIfCancelled(env.DB, e.id); // a paid game: what was paid. Any game: credit that had been applied to it comes back
