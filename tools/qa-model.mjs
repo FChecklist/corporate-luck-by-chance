@@ -179,7 +179,7 @@ function world(extra = {}) {
   const call = (method, path, body, headers = {}, now = T) => handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }), env, now);
   const j = async (r) => r.json();
   const W = { env, raw: d.raw, call, j };
-  W.organizer = async () => { const r = await j(await call("POST", "/api/start", { email: `o${++n}@acme.com` }, { "cf-connecting-ip": `10.1.${n >> 8}.${n & 255}` })); return { "x-organizer": r.token }; };
+  W.organizer = async () => { const r = await j(await call("POST", "/api/start", { email: `o${++n}@acme.com` }, { "cf-connecting-ip": `10.1.${n >> 8}.${n & 255}` })); const h = { "x-organizer": r.token }; Object.defineProperty(h, "ai", { value: r.aiKey }); return h; };
   W.game = async (id, over = {}, h, paid = true) => { h = h || (await W.organizer()); const c = await call("POST", "/api/z", { id, startRound: START, callSeconds: 6, cap: 100, ...over }, h); if (c.status !== 200) throw new Error("create " + c.status + " " + (await c.text())); const p = await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210" }, h); if (p.status !== 200) throw new Error("publish " + p.status + " " + (await p.text())); if (paid) raw_run(d.raw, "UPDATE engagement SET pack=100 WHERE id=?", [id]); return h; };
   W.join = async (id, count, from = 1, nameOf = (i) => `Nick ${i}`) => { const out = []; for (let i = from; i < from + count; i++) { const r = await call("POST", `/api/z/${id}/join`, { name: nameOf(i), device: dev(i) }); if (r.status !== 200) throw new Error("join " + r.status + " " + (await r.text())); out.push({ pid: (await j(r)).pid, device: dev(i) }); } return out; };
   W.view = async (id, now = T) => j(await call("GET", `/api/z/${id}/luck/view`, undefined, {}, now));
@@ -283,6 +283,13 @@ const SET = { rounds: 2, windowSecs: 10, prizeMode: "both", prizes: { overall: [
   const pay = readFileSync("apps/edge/src/pay.ts", "utf8"), wk = readFileSync("apps/edge/src/worker.ts", "utf8");
   const freeCap = Number(/FREE_CAP = (\d+)/.exec(pay)?.[1]);
   say(`  free game: FREE_CAP ${freeCap}, only while the platform switch FREE_LAUNCH=1 (pay.ts:78-82); owner wants: 10-person game at Rs 0, always`);
+  const grid = [];
+  for (const launch of [undefined, "1"]) for (const cap of [10, 11, 100, 101]) {
+    const W = world(launch ? { FREE_LAUNCH: launch } : {}); const h = await W.organizer(); await W.call("POST", "/api/z", { id: "QA-FR", startRound: START, callSeconds: 6, cap }, h);
+    const p = await W.call("POST", "/api/z/QA-FR/publish", { email: "boss@acme.com", phone: "98765 43210" }, h); const b = await W.j(p);
+    grid.push(`FREE_LAUNCH=${launch ?? "off"} cap ${cap}: ${p.status === 200 ? (b.paid ? "free" : "must pay") : "HTTP " + p.status}`);
+  }
+  say(`  publish with no payment: ${grid.join(" | ")}`);
   if (freeCap !== 10) found({ id: "E8", cls: "GAP", title: `the free game is ${freeCap} people and only while a platform switch is on; the owner's rule is a Rs 0 game for 10 people for everyone`, where: "apps/edge/src/pay.ts:78-82; apps/edge/src/worker.ts:1593", live: true, tambola: "yes (961189f 'Rs 0 game for 10 people' is already in origin/port/tambola-2026-10-24)" });
   const hasRecord = /game_record|gamerecord/i.test(wk + readFileSync("apps/edge/src/lifecycle.ts", "utf8")), hasLease = /lease/i.test(pay + wk);
   if (!hasRecord) found({ id: "E9", cls: "GAP", title: "no game_record: there is no permanent log of what happened in a game (start, end, pause, who pressed what) that survives the 20 hour erase", where: "apps/edge/src (no match for game_record); apps/edge/migrations/0021_luck.sql has luck_t/luck_p/luck_v only", live: true, tambola: "yes (platform file gamerecord.ts)" });
@@ -295,7 +302,7 @@ const SET = { rounds: 2, windowSecs: 10, prizeMode: "both", prizes: { overall: [
   let pubd = 0; for (let i = 0; i < 10; i++) { const p = await W.call("POST", `/api/z/QA-DR${i}/publish`, { email: "boss@acme.com", phone: "98765 43210" }, h); if (p.status === 200) pubd++; }
   const eleventh = await W.call("POST", "/api/z", { id: "QA-DRX", startRound: START, callSeconds: 6, cap: 100 }, h); const msg = eleventh.status === 200 ? "" : (await eleventh.json()).error;
   say(`  drafts: made ${made}, published (unpaid) ${pubd}; creating one more answers ${eleventh.status} ${msg.slice(0, 70)}`);
-  if (eleventh.status !== 200 && pubd === 10) found({ id: "E11", cls: "FAIL", title: "published games that only wait for payment are counted as 'unpublished drafts': 10 of them block the organizer from making a new game, and the message says 'unpublished' about games that are published", where: "apps/edge/src/worker.ts:1185 and apps/edge/src/clone.ts:54 (COUNT where pack=0)", live: true, tambola: "yes (the draft-limit fix is part of the Tambola hardening list)", fix: "count only pack=0 AND not published (kv pub/<id>) AND not cancelled AND not unplayed" });
+  if (eleventh.status !== 200 && pubd === 10) found({ id: "E11", cls: "GAP", title: "the 10-draft limit counts every game with no pack, including games that are already published and only wait for payment, but the message says 'unpublished drafts'. clone.test.ts:125 says counting them is intended, so this is the owner's rule to confirm; the Tambola hardening list names a 'draft-limit counting' fix whose exact rule this session cannot see", where: "apps/edge/src/worker.ts:1185 and apps/edge/src/clone.ts:54 (COUNT where pack=0); apps/edge/test/free-launch.test.ts:172", live: true, tambola: "yes (listed in the Tambola hardening; take its rule)", decision: "owner: should published games that wait for payment count toward the 10? if yes, say 'unpaid games' in the message" });
   else ok("E11", "draft limit counts only real drafts");
 }
 
@@ -304,8 +311,12 @@ const SET = { rounds: 2, windowSecs: 10, prizeMode: "both", prizes: { overall: [
   const W = world(); const h = await W.game("QA-L1", { whoCanJoin: "list" }); const j1 = await W.call("POST", "/api/z/QA-L1/join", { name: "Stranger", device: dev(1) });
   say(`  list-only game, a stranger joins: HTTP ${j1.status} ${(await j1.json()).code ?? ""}`);
   const W2 = world(); await W2.game("QA-L2", { cap: 2 }); await W2.join("QA-L2", 2); const full = await W2.call("POST", "/api/z/QA-L2/join", { name: "Third", device: dev(3) }); say(`  cap 2, third player: HTTP ${full.status}`);
-  const W3 = world(); const h3 = await W3.game("QA-L3"); await W3.join("QA-L3", 2); const noKey = await W3.call("POST", "/api/z/QA-L3/luck/start", {}, {}); const okStart = await W3.call("POST", "/api/z/QA-L3/luck/start", {}, h3);
-  say(`  start with no key: ${noKey.status}; start by the organizer: ${okStart.status}`);
+  const W3 = world(); const h3 = await W3.game("QA-L3"); const ps3 = await W3.join("QA-L3", 2); const ai3 = h3.ai;
+  const tryStart = async (who, hdr) => (await W3.call("POST", "/api/z/QA-L3/luck/start", ps3[0] && who === "a player" ? { pid: ps3[0].pid, device: ps3[0].device } : {}, hdr)).status;
+  const roles = { stranger: await tryStart("stranger", {}), "wrong key": await tryStart("wrong", { "x-organizer": "wrong" }), "a player": await tryStart("a player", {}), "AI helper": ai3 ? await tryStart("ai", { "x-organizer": ai3 }) : "n/a" };
+  const okStart = await W3.call("POST", "/api/z/QA-L3/luck/start", {}, h3);
+  say(`  roles on Start: ${Object.entries(roles).map(([k, v]) => `${k} ${v}`).join(", ")}; the Organizer ${okStart.status} (the Host is allowed and the Co-host is not by worker.ts:514, covered by luck-end.test.ts / roles.test.ts)`);
+  if (Object.values(roles).some((v) => v !== 403 && v !== "n/a") || okStart.status !== 200) found({ id: "E13", cls: "FAIL", title: `wrong role answers on Start: ${JSON.stringify(roles)}`, where: "apps/edge/src/worker.ts:514,1346-1349", live: true, tambola: "no" }); else ok("E13", "only the Organizer (and a Host) can start; a stranger, a wrong key, a player and the AI helper get 403");
   // an unpaid game (published, nobody paid): can the organizer still press Start and play a whole game?
   const W4 = world(); const h4 = await W4.game("QA-L4", {}, undefined, false); await W4.join("QA-L4", 3);
   const packBefore = W4.raw.query("SELECT pack FROM engagement WHERE id='QA-L4'").get().pack, pays = W4.raw.query("SELECT COUNT(*) c FROM payment").get().c;
