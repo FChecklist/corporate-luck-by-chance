@@ -1,0 +1,100 @@
+/* Corporate Luck by Chance public website: the few parts the shared brand kit (components.css) does not have.
+   Loaded after tokens.css, components.css, luck-legacy.css and luck-shell.css. Colours, type, radius and spacing come ONLY from tokens.css,
+   so light, dark and the three header colours follow automatically. */
+
+/* ---------- page text blocks (privacy, terms, guide, about ...) ---------- */
+.ck-doc{width:min(100% - 2*var(--gutter),880px);margin:clamp(24px,4vw,48px) auto clamp(48px,7vw,96px);max-width:none;padding:0}
+.ck-doc h1{font-size:clamp(30px,4.2vw,44px);line-height:1.1;margin:6px 0 14px}
+.ck-doc h2{font-size:clamp(22px,2.4vw,28px);margin:1.4em 0 .5em}
+.ck-doc h3{font-size:19px;margin:1.2em 0 .4em}
+.ck-doc section{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:clamp(18px,3vw,28px);margin:22px 0;box-shadow:var(--shadow)}
+.ck-doc .wrap{max-width:none;margin:0;padding:0}
+.ck-doc li{margin:7px 0;color:var(--ink)}
+.ck-doc p,.ck-doc li,.ck-doc td,.ck-doc th{color:var(--ink)}
+.ck-doc .muted,.ck-doc .lead{color:var(--muted)}
+.ck-doc .eyebrow{font:700 13.5px/1.3 var(--sans);letter-spacing:var(--track-kicker);text-transform:uppercase;color:var(--accent);margin:0 0 6px}
+.ck-doc .toc{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+.ck-doc .toc a{display:inline-flex;align-items:center;min-height:var(--tap);padding:0 16px;border-radius:var(--r-pill);border:1.5px solid var(--field-line);background:var(--paper);color:var(--link);font:600 15px/1 var(--sans);text-decoration:none}
+.ck-doc .toc a:hover{border-color:var(--action)}
+.ck-doc :target{scroll-margin-top:16px;outline:3px solid var(--focus);outline-offset:4px;border-radius:8px}
+.ck-doc table,.ck-doc table.kv{display:table;width:100%;border-collapse:collapse;font-size:16px;background:var(--paper)}
+.ck-doc table th,.ck-doc table td{text-align:left;padding:12px 14px;border:1px solid var(--line);vertical-align:top}
+.ck-doc table th{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--tint)}
+.ck-doc .tw{overflow-x:auto;margin:14px 0}
+.ck-doc a{color:var(--link)}
+.ck-doc .back{display:inline-flex;align-items:center;min-height:var(--tap)}
+
+/* ---------- landing page parts ---------- */
+.ck-benef{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:18px;margin:0;padding:0;list-style:none}
+.ck-benef>li{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:22px 22px 18px;box-shadow:var(--shadow);min-width:0}
+.ck-benef>li:before{content:"";position:absolute;left:0;right:0;top:0;height:7px;border-radius:var(--r) var(--r) 0 0;background:var(--c,var(--saffron))}
+.ck-benef>li:nth-child(5n+1){--c:var(--g-luck)}.ck-benef>li:nth-child(5n+2){--c:var(--teal)}.ck-benef>li:nth-child(5n+3){--c:var(--rose)}.ck-benef>li:nth-child(5n+4){--c:var(--saffron)}.ck-benef>li:nth-child(5n+5){--c:#2D3FE0}
+.ck-benef h3{margin:6px 0 .3em}
+.ck-benef p{margin:0;color:var(--muted);font-size:16px}
+.ck-split{display:grid;gap:clamp(24px,4vw,48px);align-items:center;grid-template-columns:1fr}
+.ck-shot{margin:0;text-align:center}
+.ck-shot img{width:min(100%,520px);height:auto;border-radius:var(--r);box-shadow:var(--shadow-lift);background:var(--paper)}
+.ck-shot figcaption{margin-top:10px;font-size:var(--fs-sm);color:var(--muted)}
+@media (min-width:900px){.ck-split{grid-template-columns:1fr 1fr}}
+.ck-steps{list-style:none;margin:0;padding:0;display:grid;gap:16px;counter-reset:s}
+.ck-steps>li{counter-increment:s;position:relative;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px 22px 18px 76px;box-shadow:var(--shadow)}
+.ck-steps>li:before{content:counter(s);position:absolute;left:20px;top:18px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--g-luck);color:#fff;font:700 19px/1 var(--sans)}
+.ck-steps h3{margin:0 0 .25em}
+.ck-steps p{margin:0;color:var(--muted)}
+.ck-faq{max-width:860px}
+.ck-faq details{border:1px solid var(--line);background:var(--paper);border-radius:var(--r-md);margin:10px 0;box-shadow:var(--shadow)}
+.ck-faq summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:17px;min-height:var(--tap);display:flex;align-items:center;color:var(--ink)}
+.ck-faq details[open] summary{color:var(--link)}
+.ck-faq details>p,.ck-faq details>ul{margin:0;padding:0 18px 16px;color:var(--muted)}
+.ck-faq details>ul{padding-left:38px}
+.ck-faq .ck-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;padding:0 18px 18px}
+.ck-faq .ck-opts>div{border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;background:var(--tint)}
+.ck-faq .ck-opts h4{margin:0 0 6px;font:700 17px/1.25 var(--serif);color:var(--ink)}
+.ck-faq .ck-opts p{margin:0;font-size:15.5px;color:var(--ink)}
+.ck-price-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ck-price-head h2{margin:0}
+.ck-price-lead{max-width:44em;color:var(--muted)}
+.ck-sec .offer{display:inline-flex;align-items:center;gap:10px;margin:4px 0 18px;padding:8px 16px;border-radius:var(--r-pill);background:var(--tint);border:1.5px solid var(--saffron);color:var(--ink);font-size:15px}
+.ck-sec .offer b{background:var(--rose);color:#fff;border-radius:var(--r-pill);padding:3px 12px;font:800 12.5px var(--sans);letter-spacing:.06em}
+.ck-sec .pricenote{margin-top:16px;color:var(--muted);font-size:var(--fs-sm)}
+.ck-sec .packs{display:block;max-width:780px}
+.cur{display:inline-flex;border:1.5px solid var(--field-line);border-radius:var(--r-pill);overflow:hidden;background:var(--paper)}
+.cur button{min-height:var(--tap);min-width:64px;border:0;background:transparent;color:var(--ink);font:700 14px var(--sans);padding:0 16px}
+.cur button.on,.cur button[aria-pressed=true]{background:var(--action);color:var(--on-action)}
+
+/* the price card the pricing script draws */
+.pcard{border-radius:var(--r-lg);color:#fff;background:radial-gradient(120% 140% at 0% 0%,var(--bar-a) 0%,var(--bar-b) 48%,var(--bar-deep) 100%);box-shadow:var(--shadow-lift),0 0 0 2px var(--bar-edge) inset}
+.pwho label{color:#E3ECFF}
+.pwho select{background:var(--paper);color:var(--ink);border-color:var(--bar-edge)}
+.pmain{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35)}
+.pburst{background:var(--rose);border-color:#FFE08A}
+.pamt .was,.pamt .tot small,.pamt .gstn{color:#E3ECFF}
+.pamt .tot{font-family:var(--serif)}
+.pcta{background:var(--marigold);color:var(--bar-ink);border-radius:var(--r-pill)}
+.pcta:hover{background:#FFE08A}
+.pperks .tick{background:var(--marigold);color:var(--bar-ink)}
+
+/* ---------- pop-ups (sign-in, checkout): the older markup, dressed in the kit ---------- */
+.modal{background:rgba(20,10,50,.58)}
+.sheet,.xbtn{background:var(--paper);color:var(--ink)}
+.sheet{border-radius:var(--r);box-shadow:var(--shadow-lift)}
+.sheet h2{font-family:var(--serif);color:var(--ink)}
+.xbtn{border:1.5px solid var(--field-line)}
+.sheet .inp,.inp,.selwrap select{background:var(--field);color:var(--ink);border:1.5px solid var(--field-line);border-radius:var(--r-sm)}
+.sheet .inp:focus,.inp:focus{border-color:var(--action);background:var(--field)}
+.btn{border-radius:var(--r-pill);font-weight:650}
+.btn.line{background:var(--paper);color:var(--ink);border:1.5px solid var(--field-line)}
+.ck a.btn:not(.line){color:var(--on-action)}
+.ck a.btn.line{color:var(--ink)}
+.sheet a{color:var(--link)}
+.spriv a,.sheethelp{color:var(--muted)}
+.err{background:var(--bad-bg);color:var(--bad)}
+.note,.kv span{color:var(--muted)}
+.tcheck,.tb-row{color:var(--ink)}
+.mono,.devcode b{font-family:var(--mono)}
+
+/* the small bar that used to slide in while scrolling is not needed: the header above and the price card say everything */
+#topbar{display:none!important}
+
+/* the old sprite block must never show */
+body.ck>svg[aria-hidden]{position:absolute;width:0;height:0;overflow:hidden}
