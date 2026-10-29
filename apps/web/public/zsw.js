@@ -7,9 +7,9 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
-const CACHE = "luck-game-v6"; // bump when the game files change shape, so every phone saves a matching set
-const FILES = ["/z.html", "/blackbox.js", "/guide.js", "/zc.html", "/big.html", "/host.html", "/offline.html", "/demo.html", "/demo.js", "/luck.js", "/luck-dice.js", "/rights.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
-  "/app.css", "/z.css", "/luck.css", "/luck-dice.css", "/luck-big.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-192.png", "/icon-maskable-512.png",
+const CACHE = "luck-game-v7"; // bump when the game files change shape, so every phone saves a matching set
+const FILES = ["/z.html", "/blackbox.js", "/guide.js", "/zc.html", "/big.html", "/host.html", "/offline.html", "/demo.html", "/demo.js", "/luck.js", "/luck-dice.js", "/rights.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/zc.css", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
+  "/app.css", "/z.css", "/luck.css", "/luck-dice.css", "/luck-big.css", "/big.css", "/fonts.css", "/fonts-app.css", "/tokens.css", "/luck-shell.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-192.png", "/icon-maskable-512.png",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 
 // A saved copy must be a plain answer (not a redirect) or the browser refuses to show it from the saved set.

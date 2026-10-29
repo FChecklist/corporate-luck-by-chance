@@ -472,6 +472,7 @@ describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
     const fh = await frag.text(); expect(fh).toContain("<style>"); expect(fh).toContain("payment test"); expect(fh).not.toContain("<html"); expect(fh).not.toContain("<!doctype");
     const pdf = await call("GET", `${v.invoiceUrl}.pdf`); expect(pdf.status).toBe(200); expect(pdf.headers.get("content-type")).toBe("application/pdf"); expect(pdf.headers.get("content-disposition")).toContain(v.invoiceNumber);
     const bytes = new Uint8Array(await pdf.arrayBuffer()); expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe("%PDF-"); expect(bytes.length).toBeGreaterThan(900);
+    expect(Buffer.from(bytes).toString("latin1")).toContain("0.42 0.17 0.85 rg"); // the Corporate Luck by Chance badge is on the invoice PDF
     expect((await call("POST", `${v.invoiceUrl}/email`, { to: "nope" })).status).toBe(400);
     for (let i = 0; i < 5; i++) expect((await call("POST", `${v.invoiceUrl}/email`, { to: "friend@acme.in" })).status).toBe(200);
     expect((await call("POST", `${v.invoiceUrl}/email`, { to: "friend@acme.in" })).status).toBe(429);

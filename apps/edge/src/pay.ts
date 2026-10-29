@@ -507,7 +507,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     }
     if (req.method === "GET" && ix[2] === ".pdf") {
       const pdf = new PdfDoc(); pdf.footer = `${data.brand.name} · ${r.number}`;
-      pdf.para(data.brand.name, { font: "F2", size: 18, color: NAVY }); pdf.gap(8);
+      pdf.badge(pdf.M, pdf.y, 40); pdf.y -= 8; pdf.para(data.brand.name, { font: "F2", size: 18, color: NAVY, x: pdf.M + 52 }); pdf.y = pdf.H - pdf.M - 52; // the badge, then the name beside it
       for (const line of renderInvoiceText(data).split("\n").slice(1)) { if (line.trim()) pdf.para(line, { size: 10 }); else pdf.gap(7); }
       return new Response(pdf.build() as unknown as BodyInit, { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="invoice-${r.number.replace(/[^A-Za-z0-9._-]/g, "_")}.pdf"`, "cache-control": "no-store", "x-robots-tag": "noindex" } });
     }
