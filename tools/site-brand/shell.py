@@ -61,6 +61,9 @@ def footer():
     f = f.replace('href="/zc"', 'href="/#login"').replace('<li><a href="/demo.html">Free demo game</a></li>', '<li><a href="/demo.html">Free demo game</a></li>')
     f = f.replace('<li><a href="/guide">Guide</a></li>', '<li><a href="/organizer-guide">Guide</a></li>').replace('<li><a href="/refer">Refer &amp; earn</a></li>', '<li><a href="/partner">Refer &amp; earn</a></li>')
     assert 'href="/terms.html"' in f and "housie.corporatetambola.com/terms" not in f, "footer legal column was not replaced"
+    # the owner's payment order (29 Oct 2026): every place that names the payee says who takes the money and how
+    f = f.replace("Payments are collected by IT Services by Rajat Agarwal.", "All payments are taken only by IT Services by Rajat Agarwal, through Razorpay.")
+    assert "through Razorpay." in f, "footer payment line was not replaced"
     return f
 
 
