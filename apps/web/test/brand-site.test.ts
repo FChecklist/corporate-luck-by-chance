@@ -61,12 +61,17 @@ describe("the header menu", () => {
   test("no Free AI assistant, Video, Pricing or WhatsApp item in the header, and the colour dots are there", () => {
     for (const p of SITE) { const n = navOf(rd(p + ".html")); expect([p, /AI assistant|Video|Pricing|WhatsApp/i.test(n.replace(/<span class="ck-dots"[\s\S]*?<\/span>/, ""))]).toEqual([p, false]); expect(n).toContain('aria-label="Colour theme"'); }
   });
-  test("the links go where the words say: the demo game opens the free 10-person game, Log in opens the sign-in box, the other four are pages of this site that exist", () => {
+  test("the links go where the words say: the demo game opens the try-it page, Log in opens the sign-in box, the other four are pages of this site that exist", () => {
     const n = navOf(rd("index.html")); const hrefs = [...n.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
-    expect(hrefs).toEqual(["/how-it-works", "/zc?demo=1", "/organizer-guide", "/brochure", "/partner", "/#login"]);
-    for (const f of ["how-it-works", "organizer-guide", "brochure", "partner"]) expect(existsSync(join(PUB, f + ".html"))).toBe(true);
+    expect(hrefs).toEqual(["/how-it-works", "/demo.html", "/organizer-guide", "/brochure", "/partner", "/#login"]);
+    for (const f of ["how-it-works", "organizer-guide", "brochure", "partner", "demo"]) expect(existsSync(join(PUB, f + ".html"))).toBe(true);
     expect(rd("index.html")).toContain('id="loginLink"'); // the pricing script opens the sign-in box from it
-    expect(rd("index.html")).toContain('href="/zc?demo=1">Try a free game with 10 people</a>');
+    expect(rd("index.html")).toContain('href="/demo.html">Try a free demo game</a>');
+  });
+  test("no page sends anybody to /zc?demo=1: the console has no demo mode, so that address would only show the sign-in wall (open gap: the free 10-person game is not in this code yet)", () => {
+    for (const f of readdirSync(PUB).filter((x) => /\.(html|js)$/.test(x))) expect([f, /demo=1/.test(rd(f))]).toEqual([f, false]);
+    expect(rd("zc.js")).not.toMatch(/[?&]demo=|get\("demo"\)/); // if the console ever learns ?demo=1, point the header back at it and change this test
+    expect(rd("demo.js")).toContain("LuckEngine"); expect(rd("demo.html")).toContain("/demo.js"); // the try-it page is the real one-person game of five dice rounds
   });
   test("a page marks its own menu item as the current one", () => {
     for (const [p, label] of [["how-it-works", "How it works"], ["organizer-guide", "Guide"], ["brochure", "Brochure"], ["partner", "Refer &amp; earn"]] as const) {

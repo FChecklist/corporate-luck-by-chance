@@ -11,7 +11,7 @@ V = {"fonts": 2, "tokens": 2, "components": 2, "legacy": 1, "shell": 1, "site": 
 
 MENU = [  # (key, label, link, extra class)
     ("how", "How it works", "/how-it-works", ""),
-    ("demo", "Free demo game", "/zc?demo=1", "demo"),
+    ("demo", "Free demo game", "/demo.html", "demo"),
     ("guide", "Guide", "/organizer-guide", ""),
     ("brochure", "Brochure", "/brochure", ""),
     ("refer", "Refer &amp; earn", "/partner", ""),
@@ -58,7 +58,7 @@ def footer():
              '<li><a href="/about.html">About</a></li><li><a href="/contact.html">Contact</a></li></ul></div>')
     f = re.sub(r'<div><h2>Legal, on corporatetambola\.com</h2>.*?</ul></div>', lambda m: legal, f, flags=re.S)
     f = f.replace('<a href="/how-it-works">How it works</a>', '<a href="/how-it-works">How it works</a>')
-    f = f.replace('href="/zc"', 'href="/#login"').replace('<li><a href="/zc?demo=1">Free demo game</a></li>', '<li><a href="/zc?demo=1">Free demo game</a></li>')
+    f = f.replace('href="/zc"', 'href="/#login"').replace('<li><a href="/demo.html">Free demo game</a></li>', '<li><a href="/demo.html">Free demo game</a></li>')
     f = f.replace('<li><a href="/guide">Guide</a></li>', '<li><a href="/organizer-guide">Guide</a></li>').replace('<li><a href="/refer">Refer &amp; earn</a></li>', '<li><a href="/partner">Refer &amp; earn</a></li>')
     assert 'href="/terms.html"' in f and "housie.corporatetambola.com/terms" not in f, "footer legal column was not replaced"
     return f

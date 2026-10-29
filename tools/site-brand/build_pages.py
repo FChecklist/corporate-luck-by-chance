@@ -134,7 +134,7 @@ def day_section():
     items = "".join(f"<li>{arts[i]}<h3>{t}</h3><p>{d}</p></li>" for i, (t, d) in enumerate(C.DAY))
     return ('<section class="ck-wash-rose ck-sec" id="game-day" aria-labelledby="gdh"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">How a game day feels</span>'
             f'<h2 id="gdh">Easy for you. Fun for your people.</h2></div>\n<ol class="ck-moments">{items}</ol>'
-            '<div class="ck-day-actions"><div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a></div><a href="/how-it-works">More about how it works</a></div></div></section>\n')
+            '<div class="ck-day-actions"><div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div><a href="/how-it-works">More about how it works</a></div></div></section>\n')
 
 
 def trust_section():
@@ -157,10 +157,10 @@ def index_page(old_sprite_svg):
     out += sprite() + old_sprite_svg + "\n" + header("")
     out += '<main id="main">\n'
     out += ('<select id="pack" hidden aria-hidden="true" tabindex="-1"></select><button id="payBtn" type="button" hidden tabindex="-1" aria-hidden="true">Create your game</button>\n')  # the pricing script needs both; the price card below is what people see
-    out += ('<section class="ck-hero g-luck" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div>\n<span class="ck-kicker">For HR teams and managers</span>\n'
+    out += ('<section class="ck-hero g-luck" id="top" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div>\n<span class="ck-kicker">For HR teams and managers</span>\n'
             '<h1 id="h1">This week, which teams will you engage with a <span class="ck-hl">close group game of Luck by Chance?</span></h1>\n'
             '<p class="ck-lead">A dice game of pure luck. Everyone presses the dice on their own phone, every round has a clock, and the software names the winners.</p>\n'
-            '<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a><a class="ck-btn" href="/demo">Try five dice rounds</a></div>\n'
+            '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div>\n'
             + choose() +
             '\n<p class="ck-hero-contact">No software to buy: you pay per game. Talk to a person: <a href="mailto:hello@corporatetambola.com">hello@corporatetambola.com</a> or <a href="tel:+919650397480">(+91) 96503 97480</a>.</p>\n</div>\n'
             '<div class="ck-panel"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-luck"/></svg><p class="ck-name"><i>Corporate</i><b>Luck by Chance</b></p>'
@@ -189,8 +189,8 @@ def index_page(old_sprite_svg):
             '<p class="ck-price-lead">Try a free game with 10 people first. After that, packs are sold as &ldquo;Up to N players&rdquo;, per game. No yearly plan, no tax added. We do not give refunds. '
             'If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. See the <a href="/pricing.html">full price list</a>.</p>\n'
             '<p class="offer"><b>Festive offer: 50% off</b> on every pack</p>\n<div class="packs" id="packs" aria-live="polite"></div>\n<p class="pricenote" id="priceNote"></p>\n</div></section>\n')
-    out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>Ready for your game day?</h2><p>Try a free game with 10 people. It takes a few minutes.</p>'
-            '<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a></div></div></section>\n</main>\n')
+    out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>Ready for your game day?</h2><p>Try a free demo game. It takes about a minute.</p>'
+            '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div></div></section>\n</main>\n')
     out += footer() + '\n<script src="/common.js"></script><script src="/google.js"></script><script src="/termsbox.js"></script><script src="/site.js"></script>\n</body></html>\n'
     wr("index.html", out)
 
@@ -204,7 +204,7 @@ def how_page():
     out += ('<main id="main">\n<section class="ck-hero g-luck" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div><span class="ck-kicker">How it works</span>'
             '<h1 id="h1">From one link to the winners, <span class="ck-hl">in five steps.</span></h1>'
             '<p class="ck-lead">One organizer sets it up in a few minutes. Players need only a phone and a link. Nobody pays, nobody installs anything.</p>'
-            '<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a><a class="ck-btn" href="/demo">Try five dice rounds</a></div></div>'
+            '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div></div>'
             '<div class="ck-panel"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-luck"/></svg><p class="ck-name"><i>Corporate</i><b>Luck by Chance</b></p>'
             '<ul><li>Share one link</li><li>Press the dice</li><li>The software names the winners</li></ul></div></div></section>\n')
     out += f'<section class="ck-sec" aria-labelledby="sh"><div class="ck-wrap"><div class="ck-sec-head"><h2 id="sh">The five steps</h2></div><ol class="ck-steps">{steps}</ol></div></section>\n'
@@ -216,8 +216,8 @@ def how_page():
             '<li><h3>Your dice</h3><p>Your dice is made from public random data that is published only after the window closes. Not even we can know it while the window is open.</p></li>'
             '<li><h3>The same chance for all</h3><p>Whatever the target is, your chance of a hit is exactly 1 in 6, the same for everybody. Anyone can re-check the standings.</p></li>'
             '<li><h3>Press on time</h3><p>You may press only inside the 10 second window, decided by the server&rsquo;s clock. A late press is not counted and nothing is recorded.</p></li></ul></div></section>\n')
-    out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>See it for yourself</h2><p>Try a free game with 10 people, or play five dice rounds on your own phone.</p>'
-            '<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a><a class="ck-btn" href="/demo">Try five dice rounds</a></div></div></section>\n</main>\n')
+    out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>See it for yourself</h2><p>Play five dice rounds on your own phone.</p>'
+            '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div></div></section>\n</main>\n')
     out += footer() + "\n</body></html>\n"
     wr("how-it-works.html", out)
 
@@ -234,7 +234,7 @@ def brochure_page():
     out += ('<main id="main">\n<section class="ck-hero g-luck" aria-labelledby="h1"><div class="ck-wrap ck-hero-in"><div><span class="ck-kicker">Brochure</span>'
             '<h1 id="h1">A game of luck for your whole <span class="ck-hl">close group.</span></h1>'
             '<p class="ck-lead">Turn your company event into ten rounds of pure luck, on everyone&rsquo;s own phone. Share one link. No app to download. Easy for you to set up, fun for every player.</p>'
-            '<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a></div></div>'
+            '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div></div>'
             '<div class="ck-panel"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-luck"/></svg><p class="ck-name"><i>Corporate</i><b>Luck by Chance</b></p>'
             '<ul><li>A dice game of pure luck</li><li>Every round has a clock</li><li>A top 10 list is shown</li></ul></div></div></section>\n')
     out += f'<section class="ck-sec" aria-labelledby="wh"><div class="ck-wrap"><div class="ck-sec-head"><h2 id="wh">Why organizers choose it</h2></div><ul class="ck-benef">{why}</ul></div></section>\n'
@@ -244,8 +244,8 @@ def brochure_page():
             '<p class="ck-small">No tax added. One payment is for one game only. No commitment, no repeat charges. A game that is not paid for simply does not begin and nothing is charged. We do not give refunds. '
             'If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.</p>'
             f'<h3>What a game includes</h3><ul class="ck-ticks">{inc}</ul></div></section>\n')
-    out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>See it in about a minute. It is free.</h2><p>Try a free game with 10 people, or play five dice rounds on your own phone.</p>'
-            '<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a><a class="ck-btn" href="/demo">Try five dice rounds</a></div></div></section>\n</main>\n')
+    out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>See it in about a minute. It is free.</h2><p>Play five dice rounds on your own phone.</p>'
+            '<div class="ck-btn-row"><a class="ck-btn main" href="/demo.html">Try a free demo game</a></div></div></section>\n</main>\n')
     out += footer() + "\n</body></html>\n"
     wr("brochure.html", out)
 
