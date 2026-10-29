@@ -1366,7 +1366,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
     if (!ph && !tok) { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
       if (cfgOf(e).join === "phone") return json({ error: "Enter a valid mobile number." }, 400);
-      const typedName = cleanName(b?.name)?.replace(/s+/g, " ").trim() ?? "";
+      const typedName = cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "";
       if (typedName.length < 2) return json({ error: "Please type your name." }, 400);
       if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
       ph = await sha(`nm|${eid}|${dev}`); digits = "";
