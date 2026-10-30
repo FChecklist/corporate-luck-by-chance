@@ -72,6 +72,15 @@ export async function endBoundMs(env: Env, e: any): Promise<number> {
   return endBoundLuck(roundMs(e.start_round), t);
 }
 
+/** The real end of the game, or null while it can still be live: the stored end once phones confirmed it (whatever the clock), else the scheduled end once the clock has reached it. A purge or a cancel is not an end. */
+export async function endedAtMsOf(env: Env, e: any, now: number): Promise<number | null> {
+  if (e.cancelled_ms) return null;
+  const l = await env.DB.prepare("SELECT end_ms, end_src FROM life WHERE eid=?").bind(e.id).first<{ end_ms: number; end_src: string }>();
+  if (l && l.end_src === "phones") return l.end_ms;
+  const bound = await endBoundMs(env, e);
+  return now >= bound ? bound : null;
+}
+
 /** When this game's guest data will be (or was) erased: 20 hours after it ended, after it was cancelled, or, for a game nobody paid for, after it was meant to end. Follows the newest schedule. */
 export async function erasureOf(env: Env, e: any): Promise<number> {
   if (e.cancelled_ms) return personalDeleteAt(e.cancelled_ms);

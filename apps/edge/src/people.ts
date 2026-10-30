@@ -61,7 +61,7 @@ export const idHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }
 /** The cleaned list identifier typed or uploaded for a game: employee ID (normEmpFor) or Email ID (listEmail). "" = nothing typed, null = refused. */
 export const listIdFor = (vf: { kind: "emp" | "email" }, raw: unknown, createdMs: number | null | undefined): string | null => (vf.kind === "email" ? listEmail(raw) : looksLikeEmail(raw) ? null : normEmpFor(raw, createdMs)); // an Email ID typed where an employee ID is asked is refused, never turned into letters
 /** Why a list identifier was refused, and the name of it in messages. */
-export const badIdWhy = (vf: { kind: "emp" | "email" }, createdMs: number | null | undefined, raw?: unknown) => (vf.kind === "email" ? BAD_EMAIL : looksLikeEmail(raw) ? EMP_LOOKS_LIKE_EMAIL : badEmpWhy(createdMs));
+export const badIdWhy = (vf: { kind: "emp" | "email" }, createdMs: number | null | undefined, raw?: unknown) => (vf.kind === "email" ? BAD_EMAIL : looksLikeEmail(raw) ? EMP_LOOKS_LIKE_EMAIL : badEmpWhy(createdMs, raw));
 export const idWord = (vf: { kind: "emp" | "email" }) => (vf.kind === "email" ? "Email ID" : "employee ID");
 
 export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";

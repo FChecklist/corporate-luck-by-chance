@@ -33,7 +33,8 @@ export const normEmpFor = (raw: unknown, createdMs: number | null | undefined, f
 };
 /** Plain refusal for an ID that cleaned to nothing or is too long: what happened, where, how to fix. */
 export const BAD_EMP_NEW = "That employee ID has no letters or numbers in it, or is longer than 30 characters. Type it again in the Employee ID box using the letters and numbers on your ID card.";
-export const badEmpWhy = (createdMs: number | null | undefined) => (Number(createdMs) >= EMP_CLEAN_FROM_MS ? BAD_EMP_NEW : "An employee ID has letters and numbers only (up to 30).");
+export const EMP_TOO_LONG = "This ID is too long. An employee ID may be up to 30 characters once cleaned.";
+export const badEmpWhy = (createdMs: number | null | undefined, raw?: unknown) => (Number(createdMs) >= EMP_CLEAN_FROM_MS ? (empId(raw).length > EMP_MAX ? EMP_TOO_LONG : BAD_EMP_NEW) : "An employee ID has letters and numbers only (up to 30).");
 
 /** The shape every list e-mail must have after emailId: something@something.tld, no spaces. */
 export const LIST_EMAIL_SHAPE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
