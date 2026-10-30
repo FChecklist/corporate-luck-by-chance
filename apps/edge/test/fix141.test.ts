@@ -1,6 +1,6 @@
 // Fix 1.4.1 (docs/TEST_HANDOFF.md, "Fix 1.4.1"): R1 account e-mails refuse a space inside, R3 the kind of ID is locked once anyone is listed or has joined,
 // R4 EMP_CLEAN_FROM_MS is a placeholder until the release session sets it, and the regexes the coder wrote really have backslashes.
-// Every rule here has a deliberate-break check in apps/edge/test/break-checks-1.4.1.sh (the product is broken on purpose, the test must go red, then the product is restored).
+// Every rule here has a deliberate-break check in apps/edge/test/break-checks-v3.sh (the product is broken on purpose, the test must go red, then the product is restored).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";

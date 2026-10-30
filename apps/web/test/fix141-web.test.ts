@@ -1,7 +1,7 @@
 // Fix 1.4.1, the page side: the "The system will read this as ..." hint is chosen by the kind of ID only (never for an e-mail typed in an employee-ID box),
 // the guide has an entry for each new thing the Worker says (the strings below are taken from the REAL Worker's answers, not typed from the guide),
 // the browser mirror idclean.js has real backslashes, and the test harness loads idclean.js before zc.js.
-// Deliberate-break checks for these rules: apps/edge/test/break-checks-1.4.1.sh.
+// Deliberate-break checks for these rules: apps/edge/test/break-checks-v3.sh.
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
