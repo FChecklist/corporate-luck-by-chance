@@ -141,7 +141,7 @@ describe("guide.js has an entry for each new thing the Worker says (strings take
     expect(got.needEmp.message).toBe("Enter your employee ID."); expect(got.needEml.message).toBe("Enter your Email ID.");
     expect(got.usedEmp.message).toMatch(/^This employee ID already has a ticket on another phone/); expect(got.usedEml.message).toMatch(/^This Email ID already has a ticket on another phone/);
     expect(got.alone.message).toMatch(/^An Email ID is asked on its own/); expect(got.looksEmail.message).toMatch(/^This looks like an Email ID, but this game asks for an employee ID/); expect(got.badEmail.message).toMatch(/^That Email ID does not look like an email address/);
-    const TITLE: Record<string, string> = { lock: "The kind of ID cannot change now", needEmp: "Your employee ID is needed", needEml: "Your Email ID is needed", // today these are answered by the older entries (guide.js:35, :108); see the PRODUCT NOTE test below
+    const TITLE: Record<string, string> = { lock: "The kind of ID cannot change now", needEmp: "Please type your ID to go in", needEml: "Please type your ID to go in", // guide.js:35 (fixed in 1.4.1b: the match texts are the real strings)
        usedEmp: "This employee ID already has a ticket", usedEml: "This Email ID already has a ticket", alone: "Choose Email ID on its own", looksEmail: "This game asks for an employee ID, not an Email ID", badEmail: "" };
     for (const [k, a] of Object.entries(got)) { const f = CTG.find({ status: a.status, message: a.message }); expect([k, a.message, f.matched]).toEqual([k, a.message, true]); if (TITLE[k]) expect([k, f.entry.t]).toEqual([k, TITLE[k]]); }
     // the guide's own entry strings are the strings the Worker sends: every `m` of the new entries is a piece of text that occurs in the Worker or the config source
@@ -149,10 +149,8 @@ describe("guide.js has an entry for each new thing the Worker says (strings take
     for (const m of ["You already have people listed. Start a new game to use a different kind of ID", "An Email ID is asked on its own", "This looks like an Email ID, but this game asks for an employee ID"]) { expect([m, src.includes(m)]).toEqual([m, true]); expect([m, pub("guide.js").includes(m)]).toEqual([m, true]); }
     expect(pub("guide.js")).toContain("This Email ID already has a ticket on another phone"); expect(src).toContain("This ${W} already has a ticket on another phone"); // the Worker builds both from one template; the guide carries both spellings
   });
-  // PRODUCT NOTE (found by this test author, not fixed here): guide.js:209 matches on the text `Enter your ${W}.` with the placeholder still in it. The Worker sends "Enter your employee ID." / "Enter your Email ID.",
-  // so that entry can never match a real answer (the older entries at guide.js:35 and :108 catch them, so people are still guided). guide.test.ts passes only because it reads the source text of the Worker, not its answers.
-  // test.failing: this passes while the entry is dead; the day the entry is fixed it fails, and then `.failing` must be removed.
-  test.failing("PRODUCT NOTE: every match text in guide.js is real text a person can be sent (no unexpanded ${...} placeholder)", () => {
+  // Was a PRODUCT NOTE on 1.4.1 (guide.js matched the text `Enter your ${W}.` with the placeholder still in it). Fixed in 1.4.1b; now an ordinary test.
+  test("every match text in guide.js is real text a person can be sent (no unexpanded ${...} placeholder)", () => {
     const dead = [...pub("guide.js").matchAll(/m:\s*\[([^\]]*)\]/g)].map((m) => m[1]!).filter((m) => m.includes("${"));
     expect(dead).toEqual([]);
   });

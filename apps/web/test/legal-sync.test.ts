@@ -29,10 +29,12 @@ describe("the deployed legal pages equal the final pages", () => {
 describe("no internal notes in the site pages or the docs that are committed", () => {
   const PATTERN = /COUNSEL|\[●\]|legal(ly)?\s+(review|pending|sign-?off)|review\s+pending|pending\s+(legal|review|approval)|awaiting\s+(legal|counsel|lawyer|approval|review)|\blawyer\b|\badvocate\b|owner'?s?\s+(told|instruction|order|directive|decision)|\bTODO\b|\bFIXME\b|under review|not yet (reviewed|approved)/i;
   const walk = (dir: string, out: string[] = []): string[] => { for (const n of readdirSync(dir)) { const p = join(dir, n); if (statSync(p).isDirectory()) { if (!["fonts", "node_modules"].includes(n)) walk(p, out); } else if (/\.(html|md|txt|xml|css|js|json|svg)$|^_headers$/.test(n)) out.push(p); } return out; };
+  // docs/TEST_HANDOFF.md line 202 QUOTES the words as a rule ("No 'Boss', TODO or FIXME in shipped files"); that exact sentence is the one exemption, so a real note in that file (or anywhere else) still fails.
+  const HANDOFF_RULE = "No 'Boss', TODO or FIXME in shipped files";
   test("site/ and the docs have none (the site pages and the docs may use the word draft only for an unpublished game, never for their own status)", () => {
     const files = [...walk(join(ROOT, "site")), ...walk(join(ROOT, "docs")).filter((f) => !f.endsWith("SPEC.md"))];
     expect(files.length).toBeGreaterThan(15);
-    expect(files.filter((f) => PATTERN.test(readFileSync(f, "utf8"))).map((f) => f.slice(ROOT.length))).toEqual([]);
+    expect(files.filter((f) => PATTERN.test(readFileSync(f, "utf8").split(HANDOFF_RULE).join(""))).map((f) => f.slice(ROOT.length))).toEqual([]);
     for (const f of walk(join(ROOT, "site"))) if (/\.html$/.test(f)) expect([f.slice(ROOT.length), /\bdraft\b/i.test(readFileSync(f, "utf8"))]).toEqual([f.slice(ROOT.length), false]);
     expect(existsSync(join(ROOT, "site", "terms.html"))).toBe(true);
   });
