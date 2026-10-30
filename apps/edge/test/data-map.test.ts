@@ -58,7 +58,8 @@ describe("D2: the notice and the data map agree", () => {
     const asksNumber = /id="ph"|type="tel"|name="phone"|id="phone"/.test(code);
     expect(asksNumber).toBe(always.includes("mobile number") || sometimes.includes("mobile number"));
     expect(/id="nm"|id="name"|name="name"/.test(code)).toBe(always.includes("name"));
-    expect(/type="email"|id="email"|name="email"/.test(code)).toBe(false);
+    // an e-mail field exists only if the organizer chose Email ID, and the data map lists "e-mail" as asked-if-switched-on
+    expect(/type="email"|id="email"|name="email"/.test(code)).toBe(sometimes.includes("e-mail") || always.includes("e-mail"));
   });
   test("the box wording the server sends is the one the page script carries (no second wording)", () => {
     if (notice && existsSync(join(ROOT, "apps/web/public/consent.js")) && /\bK4:\s*\{/.test(pub("consent.js"))) { expect(pub("consent.js").includes(notice)).toBe(true); } // a game whose page fetches the wording from the server has no second copy
