@@ -1,0 +1,10 @@
+apps/edge/test/data-map.test.ts exit 1
+ 7 pass  1 fail Ran 8 tests across 1 file. [23.00ms] 
+apps/web/test/legal-sync.test.ts exit 1
+ 6 pass  1 fail Ran 7 tests across 1 file. [14.00ms] 
+apps/web/test/pages.test.ts exit 1
+ 6 fail Ran 92 tests across 1 file. [83.12s] 
+apps/web/test/guide.test.ts exit 1
+ 12 pass  1 fail Ran 13 tests across 1 file. [763.00ms] 
+apps/web/test/no-internal-notes.test.ts exit 1
+ 3 pass  1 fail Ran 4 tests across 1 file. [31.00ms] 

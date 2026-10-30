@@ -1,0 +1,6 @@
+install 0
+build:control 0
+build:report 0
+build:zgame 0
+build:luck 0
+typecheck 0
