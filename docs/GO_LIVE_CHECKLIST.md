@@ -63,7 +63,7 @@ Not yet built (see parity map): five-step console flow and Game dashboard, Host/
 |---|---|---|---|---|
 | C1 | Host: sign-in screens, same game link, limit 5, can change like organizer. | UNTICKED | | |
 | C2 | Co-host: sign-in, limit set by organizer/Host, invites, admits only own people, no payment. | UNTICKED | | |
-| C3 | Family Passes: 1+4, host card (5 passes), member needs no ID/passcode, approval, 15-minute cutoff, plays on the device clicked from. | UNTICKED | | Open owner question: note 300 s34 lists family approvals as Tambola only. Until the owner confirms N/A for Luck, this row stays a TODO and is not N/A. |
+| C3 | Family Passes: 1+4, host card (5 passes), member needs no ID/passcode, approval, 15-minute cutoff, plays on the device clicked from. | UNTICKED | | Open owner question: note 300 s34 lists family approvals as Tambola only. Until the owner confirms N/A for Luck, this row stays a OPEN and is not N/A. |
 | C4 | Every role screen says who approves whom; role chips; "you were made Co-host by ...". | UNTICKED | | |
 | C5 | Authorization: nobody approves themselves; approver cannot act on another game; negative tests. | UNTICKED | | |
 
@@ -142,7 +142,7 @@ Not yet built (see parity map): five-step console flow and Game dashboard, Host/
 | L1 | Same look as games; games bar with full names; each game row Game ID, status pill, banner, role line; features per game from config/games.json (never shown if undeclared). | UNTICKED | | Console product row, tracked in the console's own checklist. Luck side: declare Luck's features in config/games.json when the console slice starts. |
 | L2 | Sign-in: code valid 30 min, stays signed in until Sign out (5-year sliding limit), case-insensitive email, ID cleaning on pass-through; real release stamp/commit, not "dev". | UNTICKED | | Console product row. Luck side: ID and Email ID cleaning on pass-through (see A2). |
 | L3 | "100% data deletion" claim true per game or softened; Lucky Draw says "coming soon" until built. | UNTICKED | | Console product row. Luck side: the deletion claim for Luck must be true (see J2). |
-| L4 | Billing per game; bridge to games only after CONSOLE_PUBKEYS set (owner step); console.corporatetambola.com address later. | UNTICKED | | Console product row; owner order is games first, console second. CONSOLE_PUBKEYS is not set on Luck (owner step). |
+| L4 | Billing per game; bridge to games only after CONSOLE_PUBKEYS set (owner step); console.corporatetambola.com address later. | UNTICKED | | Console product row; decision is games first, console second. CONSOLE_PUBKEYS is not set on Luck (owner step). |
 
 ### M. Campaign (Tambola, then each game)
 

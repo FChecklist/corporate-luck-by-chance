@@ -10,8 +10,11 @@ export const EMP_MAX = 30;
 /** (A) EMPLOYEE ID: NFKC, upper case, then everything that is not A-Z or 0-9 is dropped. 1B-678, 1b-678, 1B/678 and 1B 678 are all 1B678. "" when nothing is left. */
 export const empId = (s: unknown): string => String(s ?? "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-/** (B) EMAIL ID: NFKC (folds a full-width ＠), trim, inner whitespace removed, lower case. Never run empId on an email. */
+/** (B) EMAIL ID (a PARTICIPANT's ID in an Email ID game only): NFKC (folds a full-width ＠), trim, inner whitespace removed, lower case. Never run empId on an email. */
 export const emailId = (s: unknown): string => String(s ?? "").normalize("NFKC").trim().replace(/\s+/g, "").toLowerCase();
+
+/** (C) ACCOUNT E-MAIL (organizer sign-in, Host, Co-host, invites, partner, help desk, payment and credit contact, Google sign-in, test logins): NFKC, trim, lower case. An address with a space inside is NOT repaired: the result is "" (not an address), so the caller refuses it. For an ordinary address it gives the same text as before. */
+export const accountEmail = (s: unknown): string => { const v = String(s ?? "").normalize("NFKC").trim().toLowerCase(); return /\s/.test(v) ? "" : v; };
 
 /** The old rule, kept for games created before EMP_CLEAN_FROM_MS. "" = nothing typed, null = not a usable ID. */
 export const legacyNormEmp = (raw: unknown): string | null => { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); if (!s) return ""; return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; };

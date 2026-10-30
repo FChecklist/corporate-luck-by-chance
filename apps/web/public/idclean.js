@@ -1,4 +1,4 @@
-// Plain-JS mirror of apps/edge/src/idclean.ts (empId, emailId, looksLikeEmail). test/idclean.test.ts checks both copies on one table.
+// Plain-JS mirror of apps/edge/src/idclean.ts (empId, emailId, looksLikeEmail). emailId is for a PARTICIPANT's Email ID only; account e-mails (sign-in, Host, payment, invites) are never cleaned in the browser and the server refuses a space inside them (accountEmail in idclean.ts). test/idclean.test.ts checks both copies on one table.
 (function (g) {
   var empId = function (s) { return String(s == null ? "" : s).normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, ""); };
   var emailId = function (s) { return String(s == null ? "" : s).normalize("NFKC").trim().replace(/\s+/g, "").toLowerCase(); };

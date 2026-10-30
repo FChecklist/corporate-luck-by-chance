@@ -34,7 +34,7 @@ import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
-import { emailId, EMP_CLEAN_FROM_MS } from "./idclean";
+import { accountEmail, EMP_CLEAN_FROM_MS } from "./idclean";
 import { idHashOf, listIdFor, badIdWhy, idWord, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
@@ -329,7 +329,7 @@ async function useHeldPass(env: Env, org: string, eh: string, now: number): Prom
 async function ownerTestGrant(env: Env, org: string, cap: number, now: number): Promise<boolean> {
   for (const t of OWNER_TEST_FREE) {
     if (now > t.until || cap > t.maxCap) continue;
-    const eh = await sha("email|" + emailId(t.email));
+    const eh = await sha("email|" + accountEmail(t.email));
     if (!(await env.DB.prepare("SELECT 1 AS x FROM organizer_email WHERE email_hash=? AND org=?").bind(eh, org).first())) continue;
     const open = (await env.DB.prepare("SELECT COUNT(*) AS c FROM entitlement WHERE org=? AND payment_id='owner-test' AND eid IS NULL").bind(org).first<{ c: number }>())?.c ?? 0;
     if (open >= 3) return true; // enough unused free packs already
@@ -607,7 +607,7 @@ const waLinkFor = (digits: string, name: string, link: string): string => `https
 /** A brand-new organizer account for a work e-mail (used by the first-time start and by Google sign-up): the console key, the lasting AI key (shown only in the console), and the 24-hour AI-link mail. */
 /* AI_LINK_MAIL_AT_SIGNUP="0" (a Pages variable, set on the live site): the AI work link is not offered in the organizer console, so the welcome e-mail that carried it is not sent either. A new organizer then gets only the sign-in e-mail (the 6-digit code as option 1, the sign-in link as option 2). Any other value sends it as before. */
 async function createOrganizer(env: Env, req: Request, email: string, now: number, via: "start" | "signin-google" | "host-to-organizer", ticked = false): Promise<{ ok: true; org: string; token: string; aiKey: string; aiMessage: string } | { error: string; status: number }> {
-  const eh = await sha("email|" + emailId(email));
+  const eh = await sha("email|" + accountEmail(email));
     const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
     const used = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(ipk).first<{ v: string }>())?.v ?? 0);
     if (used >= STARTS_PER_DAY) return { error: "Too many new games from this network today. Please try again tomorrow.", status: 429 };
@@ -850,9 +850,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   }
   if (req.method === "POST" && p === "/api/start") {
     const b = await body(req);
-    const email = typeof b?.email === "string" ? emailId(b.email) : "";
+    const email = typeof b?.email === "string" ? accountEmail(b.email) : "";
     if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
-    const eh = await sha("email|" + emailId(email));
+    const eh = await sha("email|" + accountEmail(email));
     if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) { await holdPassForSignIn(env, eh, b?.pass, now); return json({ ok: true, exists: true }); }
     if (await hostForEmail(env.DB, eh)) { await holdPassForSignIn(env, eh, b?.pass, now); return json({ ok: true, exists: true }); } // a Host who confirmed this address signs in with a code, like an Organizer: the sign-in door must not offer them a new Organizer account
     { const cm = consentRequired(b, "K2"); if (cm) return cm; } // K2: a new account needs the Terms box ticked (checked on the server, not only on the page)
@@ -867,9 +867,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   }
   if (req.method === "POST" && p === "/api/auth/email") {
     const b = await body(req);
-    const email = typeof b?.email === "string" ? emailId(b.email) : "";
+    const email = typeof b?.email === "string" ? accountEmail(b.email) : "";
     if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
-    const eh = await sha("email|" + emailId(email));
+    const eh = await sha("email|" + accountEmail(email));
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
     const ticked = consentRequired(b, "K2") === null; // K2 is recorded when the Terms box was ticked; an existing account asks for a code without it (the box is for a new account)
     const hostAcct = await hostForEmail(env.DB, eh); // a Host who confirmed this address signs in the same way; a person who is both gets both roles
@@ -904,7 +904,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const bad = async (msg: string, code?: string) => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(fk, String(fails + 1), String(fails + 1)).run(); return json({ error: msg, ...(code ? { code } : {}) }, 400); };
     const g = await verifyGoogleCredential(env, b.credential, now);
     if (!g.ok) return bad("That Google sign-in could not be checked. Please try again, or use an e-mail code.", "google-failed");
-    const email = emailId(g.email), eh = await sha("email|" + email);
+    const email = accountEmail(g.email), eh = await sha("email|" + email);
     await recordConsent(env.DB, { subject: eh.slice(0, 16), kind: intent === "host" ? "K5" : "K2", ref: "google", now });
     if (intent === "host") { // a Host finishing the first open: Google confirms the e-mail the Organizer added them with
       const hk = typeof b.hostKey === "string" ? b.hostKey : "";
@@ -913,7 +913,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const ident = ha && ha.kind === "host" && ha.hid === kh ? await env.DB.prepare("SELECT expires_ms FROM organizer_key WHERE hash=?").bind(kh).first<{ expires_ms: number | null }>() : null;
       if (!ha || !ident || ident.expires_ms !== null || !ha.org) return bad("This link has been used or has expired. Ask the Organizer for a new one, or sign in with your e-mail.", "host-link-gone");
       const row = await identityRow(env.DB, ha.hid!), onFile = row?.email_sealed ? await openText(env as any, row.email_sealed) : null;
-      if (onFile && emailId(onFile) !== email) return json({ error: `This link is for ${maskEmail(onFile)}`, code: "email-mismatch" }, 403);
+      if (onFile && accountEmail(onFile) !== email) return json({ error: `This link is for ${maskEmail(onFile)}`, code: "email-mismatch" }, 403);
       if (!(await spend(env, now, 3))) return BUSY();
       const done = await confirmHostEmail(env, ha.hid!, ha.org, email, newHostKey(), now);
       return json({ ok: true, token: done.token, kind: "host", ready: done.ready, needMobile: done.needMobile });
@@ -962,10 +962,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   }
   if (req.method === "POST" && p === "/api/auth/verify") {
     const b = await body(req);
-    const email = typeof b?.email === "string" ? emailId(b.email) : "";
+    const email = typeof b?.email === "string" ? accountEmail(b.email) : "";
     const code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
     if (!email || code.length !== 6) return json({ error: "Enter the 6-digit code." }, 400);
-    const eh = await sha("email|" + emailId(email));
+    const eh = await sha("email|" + accountEmail(email));
     if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE) {
       { // a per-network daily limit and the write budget apply, like every other public write
         const tk = `tlg/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local") + "|" + email)).slice(0, 16)}`; // per network and per account: one account cannot lock out another
@@ -1050,7 +1050,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (a.kind !== "host" || a.viaLink || !a.hid || a.hostReady === false) return deny(a);
     const row = await identityRow(env.DB, a.hid), mail = row?.email_sealed ? await openText(env as any, row.email_sealed) : null;
     if (!mail) return json({ error: "Your e-mail is not confirmed yet. Finish your Host setup first." }, 409);
-    const email = emailId(mail), eh = await sha("email|" + email);
+    const email = accountEmail(mail), eh = await sha("email|" + email);
     if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ error: "You already have an Organizer account. Sign out and sign in again with your e-mail code to use it.", code: "has-organizer" }, 409);
     const b = await body(req);
     { const cm = consentRequired(b, "K2"); if (cm) return cm; }
@@ -1087,10 +1087,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (a.kind === "ai") return json({ error: "A Host needs a mobile number or an e-mail address. Only the owner enters those, in the console (Your team). Tell the organizer to add the Host there." }, 403);
     if (a.kind !== "master" || !a.org) return deny(a);
     const hb = await body(req);
-    const hEmail = typeof hb?.email === "string" ? emailId(hb.email) : "";
+    const hEmail = typeof hb?.email === "string" ? accountEmail(hb.email) : "";
     const rawMob = hb?.mobile ?? hb?.phone, hasMob = rawMob !== undefined && rawMob !== null && String(rawMob).trim() !== "";
     if (!hEmail && !hasMob) return json({ error: "Please give the Host's e-mail address or mobile number (at least one). Their own link is sent there." }, 400);
-    if (hEmail && !EMAIL_RE.test(hEmail)) return json({ error: "That e-mail address does not look right. Please check it." }, 400);
+    if ((hEmail && !EMAIL_RE.test(hEmail)) || (!hEmail && typeof hb?.email === "string" && hb.email.trim())) return json({ error: "That e-mail address does not look right. Please check it." }, 400); // an address with a space inside is refused, never repaired
     const hMob = hasMob ? cleanPhone(rawMob) : null;
     if (hMob && !hMob.ok) return json({ error: "Please check the Host's mobile number. " + hMob.why }, 400);
     const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE org=? AND kind='host' AND revoked=0 AND expires_ms IS NULL AND (host_id IS NULL OR host_id=hash) AND COALESCE(created_by,'')<>'d'").bind(a.org).first<{ c: number }>())?.c ?? 0; // a Help Desk Host (created_by 'd') does not use one of the 5 places
@@ -1400,7 +1400,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const codes = [...new Set(text.match(/\b\d{6}\b/g) ?? [])].slice(0, 5);
     for (const tok of [...new Set(text.match(/[A-Za-z0-9_-]{4,40}/g) ?? [])].slice(0, 80)) {
       const c = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`contact/${tok}`).first<{ v: string }>();
-      if (!c || emailId(JSON.parse(c.v).email) !== from) continue;
+      if (!c || accountEmail(JSON.parse(c.v).email) !== from) continue;
       const registered = String(JSON.parse(c.v).email);
       const pend = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`delreq/${tok}`).first<{ v: string }>();
       const pv = pend ? JSON.parse(pend.v) : null;
@@ -2007,6 +2007,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!a.plat && e.pack !== 0 && next.cap > (e.pack ?? e.cap)) return json({ error: `Your pack allows up to ${e.pack ?? e.cap} people. For more people, make a new game like this one.` }, 402);
     const listed = await env.DB.prepare("SELECT COUNT(*) AS c FROM person WHERE eid=? AND status<>'removed'").bind(eid).first<{ c: number }>().catch(() => null); // people on the lists who have not come in yet count too
     if (next.cap < Math.max(have?.c ?? 0, listed?.c ?? 0)) return json({ error: "The limit cannot be lower than the people already on the list." }, 409);
+    { const was = verifyOf(e), now2 = verifyOf({ config: cfgJson(vc.cfg) }); if ((was.mode !== now2.mode || was.kind !== now2.kind) && ((have?.c ?? 0) > 0 || (listed?.c ?? 0) > 0)) return json({ error: "You already have people listed. Start a new game to use a different kind of ID.", code: "id-kind-locked" }, 409); } // the kind of ID (employee ID or Email ID) and the way in cannot change once anyone is listed or has joined
     if (!(await spend(env, now))) return BUSY();
     await env.DB.prepare("UPDATE engagement SET start_round=?, call_seconds=?, cap=?, closed=?, tickets=?, config=?, cohost_limit=? WHERE id=?").bind(next.start_round, next.call_seconds, next.cap, next.closed, vc.cfg.tickets, cfgJson(vc.cfg), next.cohost_limit, eid).run();
     if (next.start_round !== e.start_round) { // a new time: for a game nobody paid for, the erasure clock follows it (the lifecycle tick re-reads the schedule), and the date has been chosen
