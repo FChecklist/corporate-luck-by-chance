@@ -137,7 +137,7 @@ describe("R3: the kind of ID (and the way in) is locked once anyone is listed or
       const r = await call(method, "/api/z/LCK-1/settings", body, m); const b = await j(r);
       expect([method, what, r.status, b.code, b.error]).toEqual([method, what, 409, "id-kind-locked", SENTENCE]);
     }
-    expect(JSON.parse(raw.prepare("SELECT config FROM engagement WHERE id='LCK-1'").get()!["config"] as string)).toMatchObject({ verify: "id" }); // nothing changed
+    expect(JSON.parse((raw.prepare("SELECT config FROM engagement WHERE id='LCK-1'").get() as any).config as string)).toMatchObject({ verify: "id" }); // nothing changed
   });
   test("with a participant JOINED (nobody listed, a mobile-number game): the same lock, whatever it is changed to", async () => {
     const m = await mk("LCK-2", { whoCanJoin: "anyone" });
@@ -160,7 +160,7 @@ describe("R3: the kind of ID (and the way in) is locked once anyone is listed or
   test("before anyone is listed or has joined, the kind can still be changed (and a removed person does not hold the lock)", async () => {
     const m = await mk("LCK-4");
     expect((await call("PATCH", "/api/z/LCK-4/settings", { verify: "id", idKind: "email", employeesOnly: true }, m)).status).toBe(200);
-    expect(JSON.parse(raw.prepare("SELECT config FROM engagement WHERE id='LCK-4'").get()!["config"] as string).idKind).toBe("email");
+    expect(JSON.parse((raw.prepare("SELECT config FROM engagement WHERE id='LCK-4'").get() as any).config as string).idKind).toBe("email");
     const a = await j(await call("POST", "/api/z/LCK-4/people", { people: [{ name: "Asha", empId: "asha@acme.com" }] }, m)); expect(a.added).toBe(1);
     expect((await call("PATCH", "/api/z/LCK-4/settings", { verify: "id", idKind: "emp" }, m)).status).toBe(409);
     raw.prepare("UPDATE person SET status='removed' WHERE eid='LCK-4'").run();
