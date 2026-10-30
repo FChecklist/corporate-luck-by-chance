@@ -1,7 +1,7 @@
 // Organizer-side browser helper (bundled to apps/web/public/control.js, exposes window.TBControl).
 // Holds the engagement's signing key in IndexedDB as a NON-EXTRACTABLE CryptoKey: the page can sign, nothing can read the key out.
 // Built with: bun run build:control   (not covered by unit tests: needs a browser; the signing and publishing logic it calls is).
-import { generateOrganizerKey, nextMessage, signControl, type ControlAction, type PublishedFile } from "./control";
+import { generateOrganizerKey, nextMessage, publicKeyFromSecret, signControl, signControlWithSecret, type ControlAction, type PublishedFile } from "./control";
 
 const DB = "bingo-control";
 function idb(): Promise<IDBDatabase> {
@@ -12,13 +12,20 @@ function idb(): Promise<IDBDatabase> {
     r.onerror = () => rej(r.error);
   });
 }
-const get = async (k: string): Promise<{ privateKey: CryptoKey; publicKeyHex: string } | undefined> => { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction("keys").objectStore("keys").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); };
+/** A browser with WebCrypto Ed25519 holds a non-extractable CryptoKey; one without it (older Safari or Firefox) holds a raw secret made by the pure-JS fallback. */
+type StoredKey = { publicKeyHex: string; privateKey?: CryptoKey; secretHex?: string };
+const newKey = async (): Promise<StoredKey> => {
+  try { return await generateOrganizerKey(false); }
+  catch { const raw = crypto.getRandomValues(new Uint8Array(32)); const secretHex = Array.from(raw, (x) => x.toString(16).padStart(2, "0")).join(""); return { secretHex, publicKeyHex: publicKeyFromSecret(secretHex) }; }
+};
+const get = async (k: string): Promise<StoredKey | undefined> => { const d = await idb(); return new Promise((res, rej) => { const q = d.transaction("keys").objectStore("keys").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); };
 const put = async (k: string, v: unknown) => { const d = await idb(); return new Promise<void>((res, rej) => { const q = d.transaction("keys", "readwrite").objectStore("keys").put(v, k); q.onsuccess = () => res(); q.onerror = () => rej(q.error); }); };
 
 const MIRRORS = ["https://api.drand.sh", "https://api2.drand.sh", "https://api3.drand.sh", "https://drand.cloudflare.com"];
 const CHAIN = "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971";
 /** Current beacon round. Only used to stamp a message; a wrong value can hurt only this organizer's own game, never forge anything. */
 const relay = () => { try { return location.origin && /^https?:$/.test(location.protocol) ? [location.origin + "/api/beacon"] : []; } catch { return []; } }; // our own server relays the beacon for a network that blocks the beacon's servers
+const GENESIS = 1692803367;
 const BEACON_MS = 4000; // one address gets this long: a network that silently drops the traffic must never hold a press
 /** One address's answer for the latest round, or null. Gives up after `ms`; the abort covers reading the answer too, and a fetch that ignores the abort is dropped by the race. */
 async function askRound(m: string, ms: number): Promise<number | null> {
@@ -54,7 +61,7 @@ const TBControl = {
     const pub = await (await fetch(`${P(a)}/${code}/control`)).json().catch(() => null);
     const mine = await get(code);
     if (pub?.pubKey) return mine && mine.publicKeyHex === pub.pubKey ? { ok: true } : { ok: false, reason: "This engagement's signing key lives in another browser." };
-    const k = await generateOrganizerKey(false);
+    const k = await newKey();
     const r = await fetch(`${P(a)}/${code}/control/key`, { method: "PUT", headers: hdr(a), body: JSON.stringify({ publicKey: k.publicKeyHex, profile }) });
     if (!r.ok) return { ok: false, reason: (await r.json().catch(() => ({}))).error ?? "Could not register the key." };
     await put(code, k);
@@ -67,7 +74,8 @@ const TBControl = {
     const f = (await (await fetch(`${P(a)}/${code}/control`, { cache: "no-store", headers: hdr(a) })).json()) as PublishedFile;
     const k = await get(code);
     if (!k || k.publicKeyHex !== f.pubKey) throw new Error("This browser does not hold the signing key for this engagement.");
-    return signControl(k.privateKey, nextMessage(f, await beaconRound(), { action, ...o }));
+    const msg = nextMessage(f, await beaconRound(), { action, ...o });
+    return k.secretHex ? signControlWithSecret(k.secretHex, msg) : signControl(k.privateKey!, msg);
   },
   /** Sign and publish in one step (what the console's Pause / Resume buttons call). */
   async publish(code: string, a: Auth, action: ControlAction, o: { pauseForRounds?: number; untilRound?: number; addRounds?: number } = {}) {

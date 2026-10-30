@@ -329,12 +329,12 @@ describe("console (organizer page)", () => {
     await p.waitFor((x) => /2 good/.test(x)); expect(p.text()).toMatch(/E-101/); expect(p.text()).toMatch(/E102/);
     expect(p.errors).toEqual([]);
   });
-  test("How it plays: who can join is a tap; the game has no card, marking, number-speed or rounds choices here (rounds and press window are chosen on the game page); the invitation option explains its three levels; all of it is saved", async () => {
+  test("How it plays: who can join is a tap; the game has no card, marking, number-speed or rounds choices here (a game has 10 rounds and a 10-second press window); the invitation option explains its three levels; all of it is saved", async () => {
     const o = await organizer(); await make(o, "UI-PLAY"); const pw = spy();
     const p = await consolePage(o, "UI-PLAY", o.token, {}, { afterLoad: pw.hook }); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 2);
     expect(p.win.document.querySelectorAll('[data-ck="cap"]').length).toBe(9); expect(p.text()).toMatch(/Up to 100 people/); expect(p.text()).not.toMatch(/Rs [\d,]+(\.\d\d)? (with|including) GST/); /* no price while choosing the size */ expect(p.$("#f-cap")).toBeTruthy(); expect((p.$("#f-cap") as any).type).toBe("number"); expect(p.text()).toMatch(/Or type your own number of players/);
     p.click('[data-ck="who"][data-v="anyone"]');
-    expect(p.text()).not.toMatch(/How many people can each guest invite/); for (const key of ["tix", "mk", "spd", "rnd"]) expect([key, p.win.document.querySelectorAll(`[data-ck="${key}"]`).length]).toEqual([key, 0]); expect(p.$("#sec2")!.textContent).not.toMatch(/Cards for each person|between two numbers|How many rounds|daub|75 numbers/i); expect(p.text()).toMatch(/10 dice rounds/); expect(p.text()).toMatch(/press window \(6, 10 or 15 seconds\)/); expect(p.text()).toMatch(/Anyone who clicks your link joins straight away/);
+    expect(p.text()).not.toMatch(/How many people can each guest invite/); for (const key of ["tix", "mk", "spd", "rnd"]) expect([key, p.win.document.querySelectorAll(`[data-ck="${key}"]`).length]).toEqual([key, 0]); expect(p.$("#sec2")!.textContent).not.toMatch(/Cards for each person|between two numbers|How many rounds|daub|75 numbers/i); expect(p.text()).toMatch(/10 dice rounds/); expect(p.text()).toMatch(/press window of 10 seconds/); expect(p.text()).toMatch(/Anyone who clicks your link joins straight away/);
     p.click('[data-bool="inv"]'); const t = p.text();
     expect(t).toMatch(/Can guests bring their own people\?/); expect(t).toMatch(/The people they invite can play, but cannot invite anyone else\./); expect(t).toMatch(/You, Hosts and Co-hosts: invite as many as you like\./); expect(t).toMatch(/A guest: up to 4 people\./); expect(t).toMatch(/A person a guest invited: can play, cannot invite\./);
     p.click('[data-ck="per"][data-v="2"]'); p.click('[data-ck="cats"][data-v="friends"]'); p.click('[data-ck="cats"][data-v="family"]');
@@ -817,7 +817,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
 
 });
 describe("console: About this step write-ups (spec 4, A)", () => {
-  const FIRST = ["This is the basics.", "Pick the biggest crowd you expect.", "Tick the places that get a prize", "Add your company name, a colour and a small logo", "A Host runs the game with you.", "Add your people here, one by one", "Look through your game and change what you need.", "Pay once, before the start time. You see the price here.", "Open the game page, choose the number of rounds", "A few minutes after the game, a report link is e-mailed to the Organizer."];
+  const FIRST = ["This is the basics.", "Pick the biggest crowd you expect.", "Tick the places that get a prize", "Add your company name, a colour and a small logo", "A Host runs the game with you.", "Add your people here, one by one", "Look through your game and change what you need.", "Pay once, before the start time. You see the price here.", "Open the game page, choose the prizes", "A few minutes after the game, a report link is e-mailed to the Organizer."];
   test("each of the ten steps shows its box under the talking line: a title, at most 5 short lines, the agreed first line, and no drop-down", async () => {
     const o = await organizer(); await make(o, "UI-ABT"); await publish(o, "UI-ABT");
     const p = await consolePage(o, "UI-ABT", o.token, {}, { afterLoad: spy().hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x));

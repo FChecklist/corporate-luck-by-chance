@@ -323,7 +323,7 @@ describe("TEST mode drops mail to strangers, LIVE sends it", () => {
 // ---------------------------------------------------------------------------------------------------------- Help Desk
 describe("Help Desk with several parameter sets", () => {
   let ipn = 0; const ipOf = () => `7.7.${Math.floor(++ipn / 200)}.${ipn % 200}`;
-  const hcall = (method: string, path: string, body?: unknown, headers: Record<string, string> = {}, now = T) => call(method, path, body, { "cf-connecting-ip": ipOf(), ...headers }, now);
+  const hcall = (method: string, path: string, body?: unknown, headers: Record<string, any> = {}, now = T) => call(method, path, body, { "cf-connecting-ip": ipOf(), ...headers }, now);
   const lastMail = (to: string, re?: RegExp) => [...mails(to)].reverse().find((m) => !re || re.test(m.subject));
   const tokenOf = (m: any, page: string) => m.body.match(new RegExp(`${page}\\.html\\?t=([0-9a-f]{48})`))?.[1] as string;
   beforeEach(() => { reset({ TEST_MODE: "1" } as any); ipn = 0; });

@@ -17,7 +17,7 @@ describe("release history (owner only)", () => {
     expect(w).toMatch(/p === "\/api\/owner\/releases"[\s\S]{0,400}a\.plat[\s\S]{0,200}404/);
     const page = readFileSync(new URL("../../web/public/owner-versions.html", import.meta.url), "utf8");
     expect(page).toMatch(/name="robots" content="noindex, nofollow"/);
-    for (const f of ["index.html", "pricing.html", "about.html", "terms.html", "privacy.html", "trust.html", "contact.html", "sw.js"]) expect(readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8")).not.toContain("owner-versions");
+    for (const f of ["index.html", "pricing.html", "about.html", "terms.html", "privacy.html", "trust.html", "contact.html", "zsw.js"]) expect(readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8")).not.toContain("owner-versions");
     expect(readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8")).toContain('["/owner-versions", PLAINCSP, true]');
   });
 });

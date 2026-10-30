@@ -449,6 +449,31 @@ export async function housekeeping(env: Env, now: number): Promise<void> {
     await helpdeskSweep(env.DB, now);
   } catch { /* try again on the next request */ }
 }
+/** Everything the scheduled job does on each call (POST /api/lifecycle/tick), in one place so the lazy tick below runs exactly the same housekeeping. Records when it last ran (`tick_last_ms`). */
+export async function runTick(env: Env, now: number) {
+  await adminTick(env.DB, now); // old error counters and old mail events go (admin.ts)
+  await remindUnpaid(env, now);
+  let luckClosed = 0; try { luckClosed = await luckTick(env, now); } catch { /* tried again next minute */ } // games whose result never reached agreement
+  const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
+  const life = await lifecycleTick(env as any, now);
+  const purged = await purgeOld(env, now);
+  try { await env.DB.prepare("INSERT INTO kv(k,v) VALUES('tick_last_ms',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(now)).run(); } catch { /* the stamp only spares a repeat */ }
+  return { ...life, purged, luckClosed, ledgerC };
+}
+/** The lazy tick: the scheduler runs the real tick only now and then, but the promise to players is deletion within 24 hours. So any /api request also runs the same housekeeping when the last tick is older than LAZY_TICK_MS. It never delays the answer (waitUntil), never throws, and only one run starts at a time (an in-memory flag per instance, and one row claimed in D1 across instances). */
+export const LAZY_TICK_MS = 5 * 60_000;
+let lazyBusy = false, lazyCheckedAt = 0;
+export function lazyTickReset() { lazyBusy = false; lazyCheckedAt = 0; }
+async function lazyTick(env: Env, now: number): Promise<void> {
+  if (lazyBusy) return;
+  lazyBusy = true;
+  try {
+    lazyCheckedAt = now;
+    const claimed = await env.DB.prepare("INSERT INTO kv(k,v) VALUES('tick_last_ms',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v WHERE CAST(kv.v AS INTEGER) <= ?").bind(String(now), now - LAZY_TICK_MS).run();
+    if ((claimed.meta?.changes ?? 0) < 1) return; // a tick ran within the last 5 minutes (or another instance just claimed the slot)
+    await runTick(env, now);
+  } catch { /* the next request tries again */ } finally { lazyBusy = false; }
+}
 /** Safety net while the scheduled job is not running: an organizer-side request, or a phone saying the game is over, also nudges the lifecycle (at most once a minute per Worker instance). The scheduled job is the real clock. */
 let lastNudge = 0;
 /** The names of the secrets this Worker needs in production (STRICT_KEYS=1) and does not have. Empty when strict mode is off (local runs and tests). */
@@ -604,6 +629,7 @@ async function createOrganizer(env: Env, req: Request, email: string, now: numbe
 }
 async function handle0(req: Request, env: Env, now: number, waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (waitUntil && !lazyBusy && now - lazyCheckedAt >= 60_000 && /^\/api\//.test(new URL(req.url).pathname) && new URL(req.url).pathname !== "/api/lifecycle/tick") { lazyCheckedAt = now; try { waitUntil(lazyTick(env, now)); } catch { /* never blocks or breaks a request */ } } // the lazy tick: at most one look a minute per instance
   if (waitUntil && now - lastNudge > 60_000 && (req.headers.has("x-organizer") || /\/over$/.test(new URL(req.url).pathname))) { lastNudge = now; waitUntil(lifecycleTick(env as any, now).then(() => undefined, () => undefined)); }
   if ((req.method === "POST" && new URL(req.url).pathname === "/api/z") || new URL(req.url).pathname === "/api/history") { const h = housekeeping(env, now); if (waitUntil) waitUntil(h); else await h; }
   const r = await route(req, env, now);
@@ -1406,11 +1432,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const jobKey = req.headers.get("x-cron-key") ?? "";
     const jobSecret = (env.CRON_KEY ?? "").trim(); // a secret pasted in with a trailing line break still matches
     if (!a.plat && !(jobSecret.length >= 16 && jobKey.trim() === jobSecret)) return deny(a);
-    await adminTick(env.DB, now); // old error counters and old mail events go (admin.ts)
-    await remindUnpaid(env, now);
-    let luckClosed = 0; try { luckClosed = await luckTick(env, now); } catch { /* tried again next minute */ } // games whose result never reached agreement
-    const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
-    return json({ ok: true, ...(await lifecycleTick(env as any, now)), purged: await purgeOld(env, now), luckClosed, ledgerC });
+    return json({ ok: true, ...(await runTick(env, now)) });
   }
   if (req.method === "POST" && p === "/api/purge") { // run daily (Cron trigger) or by hand: removes everything older than the retention period
     if (!a.plat) return deny(a);
@@ -1563,6 +1585,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const idOnly = (vf.mode === "id" || vf.mode === "either") && !!empNorm && !typedGiven && !tok; // known by employee ID alone
     let digits = typedDigits ?? tokPii?.phone ?? (idOnly ? "" : null);
     if (vf.mode === "both" && empNorm && !tok && !typedGiven) return json({ error: "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
+    if (vf.mode === "id" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400); // the organizer asked for an ID: a nickname alone is no way in
     let nameOnly = false;
     let ph = idOnly ? await empHashOf(env, empNorm) : typedPh ?? tok?.ph ?? null;
     if (!ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && vf.mode !== "both" && cfgOf(e).join !== "phone") { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id

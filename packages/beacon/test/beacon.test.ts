@@ -65,10 +65,10 @@ describe("mirrors", () => {
     const aborted: string[] = [];
     const f: Fetcher = (url, init) => (url.includes("hang") ? new Promise(() => { init?.signal?.addEventListener("abort", () => aborted.push(url)); }) : Promise.resolve({ ok: true, status: 200, json: async () => REAL }));
     const t0 = performance.now();
-    const x = await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://hang", "https://good"], timeoutMs: 5000, hedgeMs: 60 });
+    const x = await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://hang-hedge", "https://good"], timeoutMs: 5000, hedgeMs: 60 });
     expect(x?.round).toBe(REAL.round);
     const took = performance.now() - t0; expect(took).toBeGreaterThanOrEqual(50); expect(took).toBeLessThan(1000);
-    expect(aborted).toEqual(["https://hang/" + QUICKNET.chainHash + "/public/" + REAL.round]);
+    expect(aborted).toEqual(["https://hang-hedge/" + QUICKNET.chainHash + "/public/" + REAL.round]);
   });
   test("hedged: a mirror that fails at once makes the next one start at once (no waiting for the hedge time); a lying first mirror does not win", async () => {
     const f: Fetcher = async (url) => { if (url.includes("down")) throw new Error("offline"); if (url.includes("liar")) return { ok: true, status: 200, json: async () => ({ ...REAL, signature: REAL.signature.replace(/^b7/, "b8") }) }; return { ok: true, status: 200, json: async () => REAL }; };

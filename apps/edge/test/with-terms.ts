@@ -32,3 +32,4 @@ export async function handle(req: Request, env: Env, now?: number): Promise<Resp
   }
   return realHandle(req, env, now);
 }
+export const consentFor = termsFor; // the name the Tambola-port tests use

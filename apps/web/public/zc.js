@@ -1689,7 +1689,7 @@
     if (r === "cohost") { if (eid) return refreshCohost(); return redraw(); }
     if (r === "host" && !eid) { try { S.history = await call("GET", "/api/history"); } catch { S.history = null; } const gs = (S.history && S.history.engagements) || []; if (gs.length === 1) { eid = gs[0].id; refreshTeam(); return refreshEng(); } return redraw(); } // a Host with one game goes straight in; with several they pick
     refreshTeam();
-    if (eid && isOrg()) { await redeemPass(); } // a demo link opened while the person is taken straight back into a game must still be used (found with a real prospect in Corporate Tambola 1.3.5)
+    if (eid && isOrg()) { await redeemPass(); } // a demo link opened while the person is taken straight back into a game must still be used
     if (eid) refreshEng();
     else if (QUICK) { S.screen = "quick"; S.f = quickDefault(); await loadPacks(); redraw(); }
     else refreshHome();

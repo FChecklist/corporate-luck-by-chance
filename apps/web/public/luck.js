@@ -54,7 +54,7 @@
   const BUSY_TRIES = 15;
   let busyTries = 0, busyTimer = 0;
   const busyView = () => {
-    set(`${brand()}${head()}<div class="zcard zwait" role="status"><h2>Many people are joining right now</h2><p style="margin:0 0 6px">Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall" style="margin:0">Try ${busyTries} of ${BUSY_TRIES}.</p></div><div class="zagain"><button class="zbtn s alt" id="again" type="button">Stop and try myself</button></div>`);
+    set(`${brand()}${head()}<div class="zcard zwait" role="status"><h2>Many people are joining right now</h2><p class="zwait-p">Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall zwait-n">Try ${busyTries} of ${BUSY_TRIES}.</p></div><div class="zagain"><button class="zbtn s alt" id="again" type="button">Stop and try myself</button></div>`);
     const a = document.getElementById("again"); if (a) a.addEventListener("click", () => { clearTimeout(busyTimer); busyTries = 0; tb = null; joinView(); });
   };
   async function doJoin() {
@@ -68,7 +68,7 @@
       if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
       if ((e.code === "busy" || !e.status) && busyTries < BUSY_TRIES) { // no answer at all (no status) or a busy answer: ask again by itself, a little later each time
         busyTries++; busyView(); clearTimeout(busyTimer);
-        busyTimer = setTimeout(doJoin, Math.round((4 + Math.min(26, busyTries * 2)) * 1000 * (0.7 + Math.random() * 0.6)));
+        busyTimer = setTimeout(doJoin, Math.round((4 + Math.min(26, busyTries * 2)) * 1000 * (0.7 + (((busyTries * 37) + (parseInt(String(device).slice(-2), 16) || 0)) % 61) / 100)));
         return;
       }
       busyTries = 0; joinMsg = e.message || "Could not join. Please try again."; joinView();
