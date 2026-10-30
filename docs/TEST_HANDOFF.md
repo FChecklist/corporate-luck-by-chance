@@ -71,7 +71,7 @@ Nothing here has been run; no test file was created or edited by the coder. This
 - Stored config: `idKind:"email"` is stored only when `verify` is `"id"` ("Email ID only"); `"emp"` is never stored (absent = emp). `validateCfg` (packages/beacon/src/config.ts) is the ONE place that keeps the two in step. `verifyOf` (people.ts) derives `{mode:"id", kind:"email"}` from it with the same rule.
 - Offer only "Email ID only": email with `verify` `either`, `both` or `mobile` sent in the same call is refused 400 "An Email ID is asked on its own: choose Email ID only, not a mobile number with it."
 - Old spelling `verify:"email"` (built in 028efee, may exist in stored configs or old requests) is still READ and means `verify:"id"` + `idKind:"email"`; it is never written again. `"email"` is no longer in `VERIFY_MODES`.
-- Request fields at join, who and people are unchanged from Task 2: an Email ID game reads `email` (people also `emailId`), every other game reads `empId`.
+- Request field (changed after M3b, owner decision): join, who and people ALWAYS read the ID value from `empId` in every game; `idKind` says what it is. `email` (people also `emailId`) is accepted only as an ALIAS for old callers, read when `empId` (and `employeeId`) is absent; it is never written or sent. luck.js now sends `empId` for an Email ID game too.
 
 ### Behaviours to test (expected result)
 1. Default: a new game, an old game and a game whose stored config has no idKind: `GET /api/z/:id` (info) has `idKind:"emp"`, the organizer summary has `idKind:"emp"`; stored `config` JSON has no `idKind` key.
@@ -110,3 +110,43 @@ packages/beacon/src/config.ts (EngagementCfg.idKind, VerifyMode without "email",
 - `bun run build:zgame` : packages/beacon/src/config.ts is imported by phone-runtime and zgame-browser (apps/web/public/zgame.js).
 - `bun run build:control` : only if control-browser.ts pulls in config.ts (it was not edited); rebuild to be safe.
 - `bun run pages:build` : apps/web/public (zc.js, luck.js, guide.js, idclean.js, zgame.js) is copied into pages/public.
+
+## M3 addition: empId is the one request field (Part A)
+Not run. Join (`POST /api/z/:id/join`), verify (`/who`) and people upload read `empId ?? employeeId ?? email ?? emailId` in that order for BOTH kinds; the cleaner chosen by `idKind` is unchanged. Test: Email ID game, join with `{empId:"Rajat1@Demo.com"}` -> admitted, same stored person as before; join with only `{email:"rajat1@demo.com"}` (old caller) -> same result; both given -> `empId` wins; employee game with `{empId:"rajat1@demo.com"}` -> 400 bad-id as in case 8; luck.js Email ID game: the join request body has `empId` and no `email` key. Files: apps/edge/src/worker.ts (join, who), apps/edge/src/people.ts, apps/web/public/luck.js.
+Break: make join read `b?.email` only for kind email; the empId-only Email ID join fails.
+
+## Slice 1 dashboard (Game dashboard shell, B9 B10 B11 minimal)
+Nothing here was run or built by the coder; no test file was created or edited.
+
+### What was done (it is the shared pack, not new Luck code)
+The console repo pack (branch master-console-complete-882589, head 66f2ff8) is vendored byte for byte into apps/web/public/pack/ with the hash list apps/web/public/pack/MANIFEST.json (done with `node tools/vendor-pack.mjs --game <this worktree>`; `--check` printed "in step"). Files: confirm.js, employee-id.js, gamelog.html, gamelog.js, pack.css, polish.js, runbar.js, zc-flow.css, zc-flow.js. Do not edit them here.
+Luck's own small files: apps/web/public/zc-flow-game.js (descriptor for the five steps and the Game dashboard: one entry per player, idKind:true so the pack's "Which ID?" reads and writes the setting idKind emp|email; board, claims, hand-over, rehearsal, lucky, control, feed, presence all off), apps/web/public/live-luck.js (descriptor for the live control bar: Start and End only; story "Round N of 10"; joined count; Big screen link; Start goes to the game page /host.html because rounds and prizes are chosen there; End posts the existing /luck/end), apps/web/public/zc-mode.js (which screens open, see below).
+Other files touched: zc.html (loads the pack css, zc-mode.js, descriptors, pack scripts), zc.js (first line after ZG: returns when `?flow=new`), zc.css (.zcmodetop), pages/build.mjs (FILES + pack folder), apps/web/public/zsw.js (FILES, cache name luck-game-v8).
+
+### How to start
+`bun run dev`, open `/zc.html?e=<game id>` (signed in). The previous console opens as before. `/zc.html?flow=new` opens the new screens. The link above the page ("Try the new screens" / "Use the previous screens") swaps `flow=new` and `flow=old` and keeps every other part of the address. Nothing is stored on the device; `DEFAULT_NEW = false` in zc-mode.js (one change makes the new screens the default; page tests that open the console would then need updating).
+
+### Behaviours to test (expected result)
+1. `/zc.html?e=ID` with no flow: previous console, identical to before; link "Try the new screens" shown above it.
+2. `?flow=new`: zc.js draws nothing; the pack draws five steps and the Game dashboard; the link reads "Use the previous screens"; pressing it gives `flow=old` and the previous console.
+3. Links `do=`, `k=`, `demo=`, `pass=`, `quick=`, `new=`, `cap=`, `api=` without flow: previous console, no mode link. A game whose start time is within 15 minutes before to 4 hours after now: previous console unless `flow=new` is explicit.
+4. After a game exists, new screens: Game ID bar (Copy), status pill, banner, share card with the player link, in the pack's words: Draft; Published, payment pending; Published and paid; Payment pending, start time passed (red); Live now; Completed; Cancelled; Data deleted.
+5. Step 2 "Which ID?": Employee ID default; choosing Email ID saves `{idKind:"email"}` (PATCH settings); re-opening shows Email ID selected; /info shows the same.
+6. Hidden, never disabled: no ticket count, sample ticket, number board, claims table, rehearsal, lucky draw, pause, resume or add-time button anywhere in the new screens. The page text has no "coming soon".
+7. Previous console still has all ten steps and every previous button (Open the game page, Start on host.html, End).
+8. Player-facing text never says "private" (the words are "close group").
+9. Build: `bun run pages:build` ships /pack/*, zc-mode.js, zc-flow-game.js, live-luck.js; every name in FILES exists; MANIFEST.json shipped; source files hash as in MANIFEST.json (before minifying).
+10. CSP: no inline script or style on zc.html (the mode link is made by zc-mode.js).
+
+### Known gaps, test them as TODO, not as bugs
+- The pack decides "Live now" from the start time. Luck starts only when the Host presses Start, so between the start time and Start the pill says Live now (wrong for Luck), and the start time is not shown in red for "not started yet". Needs a Luck status adapter (read /luck/view state open, running, done) in a Luck-side file, because the pack must not be edited here.
+- Start and End on the new dashboard: live-luck.js is ready but nothing in the vendored pack mounts the control bar (this pack version has no mount point). Until then Start and End are on the game page (host.html) and in step 9 of the previous console.
+- Prize step: the pack lists prizes from window.ZG.PRIZE_HOUSES (Housie names). Luck prizes are gift text for places 1 to 5; the new step 3 is not adapted. Do not test prize saving in the new screens yet.
+- The pack banner for a paid game says it can be postponed or changed up to 5 minutes before it begins. Not verified for Luck.
+- Slices 2 and 3 (five-step skeleton for Luck, payment inside the dashboard) are not done. No setting remembers the chosen screens per browser (needs a storage-list line and a Privacy sentence first).
+
+### Break ideas
+- Change one byte of apps/web/public/pack/zc-flow.js: the console repo drift check (`node tools/vendor-pack.mjs --game <this worktree> --check`) must say DRIFT.
+- Remove the early return in zc.js: with `?flow=new` both screens draw.
+- Set `idKind:false` in zc-flow-game.js: "Which ID?" disappears.
+- Open `?flow=new` while signed out: the pack must show a sign-in message, not a blank page.

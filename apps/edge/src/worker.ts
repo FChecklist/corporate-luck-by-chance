@@ -1533,7 +1533,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   const locked = unpaid && !isDraft && !cancelled && !didNotStart && roundMs(e.start_round) - LOCK_LEAD_MS <= now; // published but not paid by its start time: it does not begin
   if (isDraft && (((action === "join" || action === "who") && req.method === "POST") || (action === "info" && !can(a, e)))) return json({ error: "This game is not open yet." }, 403);
   if (action === "who" && req.method === "POST") { // "Is this you?": once the employee ID is typed and both boxes are ticked, the first name and the first letter of the last name the organizer gave, so the person sees the name that will be used. Nothing is kept; a wrong ID counts like a wrong ID at the door.
-    const b = await body(req), vf = verifyOf(e), id = listIdFor(vf, vf.kind === "email" ? b?.email : b?.empId, e.created_ms);
+    const b = await body(req), vf = verifyOf(e), id = listIdFor(vf, (b?.empId ?? b?.email), e.created_ms);
     if (vf.mode === "mobile" || !id) return json({ known: false });
     const ck = consentRequired(b, "K4"); if (ck) return ck;
     const eh = await idHashOf(env, vf, id);
@@ -1571,8 +1571,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (typedDigits) typedDigits = keptPhone(b?.phone); // kept with its country: 91 + 10 digits for India, +<code><number> for any other country
     if (typedGiven && !typedPh) return json({ error: "Enter a valid mobile number." }, 400);
     // What the organizer asked people to give: a mobile number (default), an employee ID, or both. An outsider (a vendor, a customer, a family member) has no ID and gives a mobile number.
-    const vf = verifyOf(e), empNorm = listIdFor(vf, vf.kind === "email" ? b?.email : b?.empId, e.created_ms), W = idWord(vf); // the criterion decides: an Email ID game reads b.email with the e-mail cleaner, every other game reads b.empId as before
-    if (empNorm === null) return json({ error: badIdWhy(vf, e.created_ms, vf.kind === "email" ? b?.email : b?.empId), code: "bad-id" }, 400);
+    const vf = verifyOf(e), empNorm = listIdFor(vf, (b?.empId ?? b?.email), e.created_ms), W = idWord(vf); // the criterion decides: an Email ID game reads b.email with the e-mail cleaner, every other game reads b.empId as before
+    if (empNorm === null) return json({ error: badIdWhy(vf, e.created_ms, (b?.empId ?? b?.email)), code: "bad-id" }, 400);
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !empNorm && !tok) return json({ error: vf.mode === "id" ? `Enter your ${W}.` : "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
     if (vf.employeesOnly && vf.mode === "either" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your mobile number or your employee ID.", code: "need-id" }, 400);

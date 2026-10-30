@@ -273,13 +273,13 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0;
   const seen = new Set<string>(); const seenRaw = new Map<string, string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
   const vf = verifyOf(c.e);
-  const rawEmp = (x: any) => String(vf.kind === "email" ? (x?.email ?? x?.emailId ?? "") : (x?.empId ?? x?.employeeId ?? "")).trim();
+  const rawEmp = (x: any) => String(x?.empId ?? x?.employeeId ?? x?.email ?? x?.emailId ?? "").trim();
   /** Two rows whose IDs differ as typed but read the same once cleaned (1B-678 and 1B/678): shown to the organizer, never dropped silently. */
   const flagCleanDup = (raw: string, x: any, emp: string, ph: string): boolean => { if ((vf.kind === "email" || Number(c.e.created_ms) >= EMP_CLEAN_FROM_MS) && (rawEmp(x) !== emp || seenRaw.get(ph) !== emp)) { invalid.push({ raw, why: `This ${idWord(vf)} reads as ${emp}, the same as another row in this list. Check the two rows and fix the ${idWord(vf)}.` }); return true; } return false; };
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
-    const emp = listIdFor(vf, vf.kind === "email" ? (x?.email ?? x?.emailId) : (x?.empId ?? x?.employeeId), c.e.created_ms);
-    if (emp === null) { invalid.push({ raw, why: badIdWhy(vf, c.e.created_ms, vf.kind === "email" ? (x?.email ?? x?.emailId) : (x?.empId ?? x?.employeeId)) }); continue; }
+    const emp = listIdFor(vf, (x?.empId ?? x?.employeeId ?? x?.email ?? x?.emailId), c.e.created_ms);
+    if (emp === null) { invalid.push({ raw, why: badIdWhy(vf, c.e.created_ms, (x?.empId ?? x?.employeeId ?? x?.email ?? x?.emailId)) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: vf.kind === "email" ? "This game is for people on the list: the Email ID is missing." : "This game is for employees: the employee ID is missing." }); continue; }

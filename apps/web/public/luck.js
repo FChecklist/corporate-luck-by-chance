@@ -60,7 +60,7 @@
   };
   async function doJoin() {
     try {
-      const r = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { [INFO && INFO.idKind === "email" && INFO.verify === "id" ? "email" : "empId"]: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+      const r = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
       clearTimeout(busyTimer); busyTries = 0;
       pid = r.pid; ls.set(pidKey(), pid);
       start();
@@ -82,7 +82,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { [INFO && INFO.idKind === "email" && INFO.verify === "id" ? "email" : "empId"]: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}) }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}) }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);

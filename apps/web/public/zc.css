@@ -178,3 +178,6 @@ a.zc-chip::before,.zc-chips .zc-chip[data-mode]::before{display:none}
 @media (prefers-reduced-motion:reduce){.zc-secb .zc-box,.zc-secb .zc-hint2{animation:none}}
 .zc-secb a.zc-chip::before,.zc-secb .zc-chips .zc-chip[data-mode]::before{display:none}
 .zc-hide{display:none !important}
+.zcmodetop{margin:0 0 8px;font-size:13px;text-align:right}
+
+.zcmodetop{margin:0 0 8px;font-size:13px;text-align:right}
