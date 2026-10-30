@@ -1,0 +1,5 @@
+$ bun build packages/beacon/src/control-browser.ts --target browser --format iife --minify --outfile apps/web/public/control.js
+Bundled 14 modules in 133ms
+
+  control.js  38.29 KB  (entry point)
+
