@@ -50,18 +50,18 @@ export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: strin
 
 /** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
 export { legacyNormEmp as normEmp } from "./idclean"; // the OLD rule only (games made before EMP_CLEAN_FROM_MS); every live path uses normEmpFor
-import { normEmpFor, badEmpWhy, EMP_CLEAN_FROM_MS, listEmail, BAD_EMAIL } from "./idclean";
+import { normEmpFor, badEmpWhy, EMP_CLEAN_FROM_MS, listEmail, BAD_EMAIL, looksLikeEmail, EMP_LOOKS_LIKE_EMAIL } from "./idclean";
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
-export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean; kind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; const email = j.verify === "email"; return { mode: email ? "id" : j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true, kind: email ? "email" : "emp" }; } catch { return { mode: "mobile", employeesOnly: false, kind: "emp" }; } };
+export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean; kind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; const email = j.verify === "email" || (j.idKind === "email" && j.verify === "id"); /* idKind is the field; verify:"email" is the older spelling of the same thing */ return { mode: email ? "id" : j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true, kind: email ? "email" : "emp" }; } catch { return { mode: "mobile", employeesOnly: false, kind: "emp" }; } };
 /** The criterion "Email ID" is the ID mode with a different KIND of identifier: the list is matched by e-mail address (emailId), never by the employee-ID cleaner, and it has its own hash so an address and an employee ID can never be taken for each other. Games without the criterion are kind "emp" and behave as before. (The cleaned value is kept in the same sealed field, pii.empId, as the list identifier.) */
 export const emailListHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emaillist|${id}`);
 export const idHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, vf: { kind: "emp" | "email" }, id: string) => (vf.kind === "email" ? emailListHashOf(env, id) : empHashOf(env, id));
 /** The cleaned list identifier typed or uploaded for a game: employee ID (normEmpFor) or Email ID (listEmail). "" = nothing typed, null = refused. */
-export const listIdFor = (vf: { kind: "emp" | "email" }, raw: unknown, createdMs: number | null | undefined): string | null => (vf.kind === "email" ? listEmail(raw) : normEmpFor(raw, createdMs));
+export const listIdFor = (vf: { kind: "emp" | "email" }, raw: unknown, createdMs: number | null | undefined): string | null => (vf.kind === "email" ? listEmail(raw) : looksLikeEmail(raw) ? null : normEmpFor(raw, createdMs)); // an Email ID typed where an employee ID is asked is refused, never turned into letters
 /** Why a list identifier was refused, and the name of it in messages. */
-export const badIdWhy = (vf: { kind: "emp" | "email" }, createdMs: number | null | undefined) => (vf.kind === "email" ? BAD_EMAIL : badEmpWhy(createdMs));
+export const badIdWhy = (vf: { kind: "emp" | "email" }, createdMs: number | null | undefined, raw?: unknown) => (vf.kind === "email" ? BAD_EMAIL : looksLikeEmail(raw) ? EMP_LOOKS_LIKE_EMAIL : badEmpWhy(createdMs));
 export const idWord = (vf: { kind: "emp" | "email" }) => (vf.kind === "email" ? "Email ID" : "employee ID");
 
 export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";
@@ -279,7 +279,7 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
     const emp = listIdFor(vf, vf.kind === "email" ? (x?.email ?? x?.emailId) : (x?.empId ?? x?.employeeId), c.e.created_ms);
-    if (emp === null) { invalid.push({ raw, why: badIdWhy(vf, c.e.created_ms) }); continue; }
+    if (emp === null) { invalid.push({ raw, why: badIdWhy(vf, c.e.created_ms, vf.kind === "email" ? (x?.email ?? x?.emailId) : (x?.empId ?? x?.employeeId)) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: vf.kind === "email" ? "This game is for people on the list: the Email ID is missing." : "This game is for employees: the employee ID is missing." }); continue; }

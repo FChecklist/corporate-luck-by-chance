@@ -33,3 +33,8 @@ export const LIST_EMAIL_SHAPE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 export const listEmail = (raw: unknown): string | null => { const s = emailId(raw); if (!s) return ""; return s.length <= 254 && LIST_EMAIL_SHAPE.test(s) ? s : null; };
 /** Plain refusal for an Email ID that does not look like an address: what happened, where, how to fix. */
 export const BAD_EMAIL = "That Email ID does not look like an email address. Type it again in the Email ID box, for example rajat1@demo.com.";
+
+/** Does the text look like an e-mail address (an "@" after NFKC, which also folds the full-width at sign)? An employee-ID box never turns one into letters and digits: it refuses it. */
+export const looksLikeEmail = (raw: unknown): boolean => String(raw ?? "").normalize("NFKC").includes("@");
+/** Plain refusal for an Email ID typed where an employee ID is asked: what happened, where, how to fix. */
+export const EMP_LOOKS_LIKE_EMAIL = "This looks like an Email ID, but this game asks for an employee ID. Type it again in the Employee ID box using the letters and numbers on your ID card.";

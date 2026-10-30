@@ -94,9 +94,9 @@ export const MAX_INVITES_PER_PERSON = 10;
 export const defaultInvites = (): InviteCfg => ({ on: false, per: 4, cats: ["family", "colleagues"] });
 /** A game for up to this many people costs Rs 0: a real game in every way, it publishes without payment. */
 export const DEMO_CAP = 10;
-export type VerifyMode = "mobile" | "id" | "either" | "both" | "email";
-export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both", "email"];
-export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
+export type VerifyMode = "mobile" | "id" | "either" | "both";
+export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both"];
+export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** What the ID is: an employee ID (default, absent) or an Email ID. ONE field the console reads and writes; it is kept only with verify "id" (Email ID only), and validateCfg is the single place that keeps the two in step. */ idKind?: "email"; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
 /**
  * Who decides the winners: the software, never a person. Every phone works out the winners from the public numbers and reports them; our store accepts a result
  * only when this many DIFFERENT phones (one ticket per phone) reported exactly the same winners. Tiny games need half their people; larger ones 5% (3 to 25).
@@ -161,8 +161,8 @@ export const SITE_MEDIA = /^\/[A-Za-z0-9._-]{1,80}\.(mp4|webm|m4a|mp3)$/i;
 export const DEFAULT_TZ = "Asia/Kolkata";
 /** True for a real IANA time zone name this runtime knows. */
 export const isTimeZone = (z: unknown): z is string => { if (typeof z !== "string" || z.length > 64 || !/^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+){0,2}$/.test(z)) return false; try { new Intl.DateTimeFormat("en-US", { timeZone: z }); return true; } catch { return false; } };
-export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
-  const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}) };
+export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown; idKind?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
+  const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}), ...(base.idKind === "email" && base.verify === "id" ? { idKind: "email" as const } : {}) };
   if (input.rounds !== undefined) {
     if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `The number of rounds is a whole number from 1 to ${MAX_ROUNDS}.` };
     cfg.rounds = input.rounds as number;
@@ -223,9 +223,21 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     cfg.breaks = out;
   }
   if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is \"auto\" or \"tap\"." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
-  if (input.verify !== undefined) {
-    if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, Email ID, or both mobile number and employee ID." };
-    if (input.verify === "mobile") delete cfg.verify; else cfg.verify = input.verify as VerifyMode;
+  // idKind is the source of truth for "which ID". The older spelling verify:"email" (Email ID only) is still read and means verify "id" + idKind "email".
+  const legacyEmail = input.verify === "email", verifyIn = legacyEmail ? "id" : input.verify;
+  if (verifyIn !== undefined) {
+    if (!VERIFY_MODES.includes(verifyIn as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, Email ID, or both mobile number and employee ID." };
+    if (verifyIn === "mobile") delete cfg.verify; else cfg.verify = verifyIn as VerifyMode;
+    if (verifyIn !== "id" && input.idKind === undefined) delete cfg.idKind; // an Email ID needs "Email ID only"; leaving that choice drops it
+  }
+  const kindIn = input.idKind !== undefined ? input.idKind : legacyEmail ? "email" : undefined;
+  if (kindIn !== undefined) {
+    if (kindIn !== "email" && kindIn !== "emp") return { ok: false, error: "What the ID is: an employee ID or an Email ID." };
+    if (kindIn === "email") {
+      if (verifyIn !== undefined && verifyIn !== "id") return { ok: false, error: "An Email ID is asked on its own: choose Email ID only, not a mobile number with it." };
+      if (cfg.verify !== undefined && cfg.verify !== "id") return { ok: false, error: "An Email ID is asked on its own: choose Email ID only, not a mobile number with it." };
+      cfg.verify = "id"; cfg.idKind = "email"; // choosing the Email ID is what turns the ID question on
+    } else delete cfg.idKind;
   }
   if (input.employeesOnly !== undefined) {
     if (typeof input.employeesOnly !== "boolean") return { ok: false, error: "Employees only: say yes or no." };
