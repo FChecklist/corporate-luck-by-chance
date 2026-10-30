@@ -18,7 +18,8 @@ const lists = (() => {
   return out;
 })();
 const always = lists.asked_from_player ?? [], sometimes = lists.asked_if_organizer_switches_on ?? [];
-const FIELDS: [string, RegExp][] = [["name", /\bname\b/i], ["mobile number", /mobile number|phone number|\bphone\b/i], ["e-mail", /e-?mail/i], ["address", /\baddress\b/i], ["photo", /\bphoto\b|\bpicture\b/i]];
+// a postal address; "e-mail address" is the e-mail field, not this one
+const FIELDS: [string, RegExp][] = [["name", /\bname\b/i], ["mobile number", /mobile number|phone number|\bphone\b/i], ["e-mail", /e-?mail/i], ["address", /(?<!e-?mail )\baddress\b/i], ["photo", /\bphoto\b|\bpicture\b/i]];
 
 describe("D1: the data map", () => {
   test("it exists, with the player notice block, and says why, where and who for every field", () => {
@@ -76,5 +77,13 @@ describe("D11: where the data is, and no backup claim", () => {
       .concat([["lifecycle.ts", readFileSync(join(ROOT, "apps/edge/src/lifecycle.ts"), "utf8")], ["report-layout.ts", readFileSync(join(ROOT, "apps/edge/src/report-layout.ts"), "utf8")], ["ai-facts.ts", readFileSync(join(ROOT, "apps/edge/src/ai-facts.ts"), "utf8")]]);
     for (const [f, t] of files) expect([f, /backups?\b[^.]{0,80}(roll off|overwritten|clear)|(roll off|overwritten)[^.]{0,60}backups?/i.test(plain(t))]).toEqual([f, false]);
     expect(doc).toMatch(/no backup of our own/i);
+  });
+});
+
+describe("D2 helper: the postal-address pattern does not mistake an e-mail address for one", () => {
+  const re = FIELDS.find(([n]) => n === "address")![1];
+  test("e-mail address (any spelling) is not a postal address; a home address is", () => {
+    for (const t of ["mobile number, employee ID or e-mail address", "your email address", "E-mail address"]) expect([t, re.test(t)]).toEqual([t, false]);
+    for (const t of ["your home address", "Address", "send to this address"]) expect([t, re.test(t)]).toEqual([t, true]);
   });
 });
