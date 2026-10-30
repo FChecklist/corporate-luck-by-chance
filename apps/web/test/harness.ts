@@ -46,7 +46,10 @@ export async function openPage(world: { env: Env; now: number }, o: { url: strin
   try { Object.defineProperty(win, "indexedDB", { value: undefined, configurable: true }); } catch { /* the signing-key store needs a real browser; the page treats it as unavailable */ }
   win.addEventListener("error", (e: any) => errors.push(String(e?.message ?? e)));
   win.addEventListener("unhandledrejection", (e: any) => errors.push(String(e?.reason?.message ?? e?.reason ?? e)));
-  for (const f of o.scripts.includes("keep.js") ? o.scripts : ["keep.js", ...o.scripts]) { // keep.js (staying signed in) is the first script of every real page that has a sign-in
+  const withKeep = o.scripts.includes("keep.js") ? o.scripts : ["keep.js", ...o.scripts];
+  // zc.html loads idclean.js (the ID cleaners, window.IDCLEAN) before zc.js; the console reads IDCLEAN while listing people
+  const list = withKeep.includes("idclean.js") || !withKeep.includes("zc.js") ? withKeep : withKeep.flatMap((f) => (f === "zc.js" ? ["idclean.js", f] : [f]));
+  for (const f of list) { // keep.js (staying signed in) is the first script of every real page that has a sign-in
     const code = readFileSync(join(PUB, f), "utf8");
     try { new Function("window", `with (window) { ${code}\n}`).call(win, win); } catch (e: any) { errors.push(f + ": " + e.message); }
     o.afterLoad?.(win, f);
