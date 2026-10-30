@@ -43,7 +43,7 @@ apps/web summary lines exactly: `257 pass`, `9 fail`, `1 error`, `Ran 266 tests 
 
 ## Failures (copied from the logs; no interpretation)
 
-Failure 5 shows a ReferenceError (`IDCLEAN is not defined`) in harness.ts. The log also has a "# Unhandled error between tests" block (pages.test.ts:725, "timed out waiting; page says: ") that is not attached to a named test; it is the 1 error.
+Failure 6 shows a ReferenceError (`IDCLEAN is not defined`) in harness.ts. The log also has a "# Unhandled error between tests" block (pages.test.ts:725, "timed out waiting; page says: ") that is not attached to a named test; it is the 1 error.
 
 ### Failure 1 (results/edge.log)
 - File: apps/edge/test/data-map.test.ts
