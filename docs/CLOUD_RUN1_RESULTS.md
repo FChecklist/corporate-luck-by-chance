@@ -57,7 +57,7 @@ Note: the "unhandled errors" in apps/edge are not extra tests. They come from fi
    - 2 to 5 fail at `packages/beacon/src/control-browser.ts:43`: `GENESIS` is not defined.
 6. numbering a press > a press right after another is numbered from the live file...
 7. numbering a press > the confirm page (no token of its own) is numbered from the live file too
-   - 6 and 7 throw inside `signControl` (`packages/beacon/src/control.ts:62`, the Ed25519 `sign` call, reached from `control-browser.ts:70`). The exact error text was not captured; cause not confirmed.
+   - 6 and 7 throw inside `signControl` (`packages/beacon/src/control.ts:62`, the Ed25519 `sign` call, reached from `control-browser.ts:70`). Error: `TypeError: Argument 2 ('key') to SubtleCrypto.sign must be an instance of CryptoKey` (the test passes a key that is not a real CryptoKey under Bun).
 
 ## apps/edge: 9 named failures + 5 load errors, all NEW (base: 0 fail)
 
@@ -106,7 +106,7 @@ PRE-EXISTING (also fail on 752ff60, same tests):
 
 ## Suggested order for luck-port
 
-1. Fix `GENESIS` in `packages/beacon/src/control-browser.ts` (explains beacon failures 2 to 5 and the typecheck error; the hedge test and failures 6 and 7 need their own look).
+1. Fix `GENESIS` in `packages/beacon/src/control-browser.ts` (explains beacon failures 2 to 5 and the typecheck error; the hedge test and failures 6 and 7 are a key type problem).
 2. Add `z.js` to `apps/web/public` or remove it from `pages/build.mjs` FILES.
 3. Port `lazyTickReset` / `LAZY_TICK_MS` exports to `worker.ts`, and `draft` / `ticks` helpers to `consent.test.ts`.
 4. Check the real behaviour gaps: erase and reuse (privacy), ID verify, draft limit, K4 deletion.
