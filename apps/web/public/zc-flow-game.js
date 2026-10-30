@@ -1,5 +1,5 @@
 /* What Corporate Luck by Chance tells the shared new organizer flow (pack/zc-flow.js) about itself. The flow holds no game rules.
-   Owner rule: hide what Luck cannot do (no coming soon, no demo stub): one entry per player (no ticket choice), no sample ticket, no number board, no claims, no Super Bumper, no rehearsal, no lucky draw, no next-number control, no pause. */
+   Rule: hide what Luck cannot do (no coming soon, no demo stub): one entry per player (no ticket choice), no sample ticket, no number board, no claims, no Super Bumper, no rehearsal, no lucky draw, no next-number control, no pause. */
 window.ZFLOW_GAME = {
   brand: "Corporate Luck by Chance",
   tickets: [1],

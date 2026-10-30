@@ -478,7 +478,7 @@
   const vmode = () => vraw();
   const IDN = () => (emKind() ? "Email ID" : "Employee ID");
   function cleanBatch(rows) {
-    const seen = new Set(), seenRawE = new Map(), good = [], wrong = []; let dups = 0;
+    const seen = new Set(), seenRawE = new Map(), good = [], wrong = [], dupRows = []; let dups = 0;
     for (const r of rows) {
       const name = String(r.name || "").trim(), rawEmp = String(r.empId || "").trim(), em = emKind(), newR = em || empNew(), atSign = !em && IDCLEAN.looksLikeEmail(rawEmp), emp = em ? IDCLEAN.emailId(rawEmp) : newR ? IDCLEAN.empId(rawEmp) : IDCLEAN.legacy(rawEmp), badId = em ? !/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(emp) || emp.length > 254 : !emp || emp.length > 30; // newer games: every symbol, dash and space is dropped (1B-678 = 1B678); older games keep the old rule
       if (atSign) { wrong.push({ name, raw: rawEmp, why: "This looks like an Email ID, but this game asks for an employee ID. Fix it in the list using the letters and numbers on the ID card." }); continue; }
@@ -486,15 +486,15 @@
       if (vmode() === "id" && emp) { // known by employee ID: a mobile number is welcome but not needed
         const d0 = String(r.phone || "").trim() ? cleanPhone(r.phone) : "";
         if (String(r.phone || "").trim() && !d0) { wrong.push({ name, raw: String(r.phone || ""), why: "The mobile number looks wrong." }); continue; }
-        if (seen.has("E" + emp)) { if (newR && ((em ? rawEmp : rawEmp.toUpperCase()) !== emp || seenRawE.get(emp) !== emp)) { wrong.push({ name, raw: rawEmp, why: "This " + (em ? "Email ID" : "employee ID") + " reads as " + emp + ", the same as another row in this list. Check the two rows and fix the " + (em ? "Email ID" : "ID") + "." }); continue; } dups++; continue; }
+        if (seen.has("E" + emp)) { if (newR && ((em ? rawEmp : rawEmp.toUpperCase()) !== emp || seenRawE.get(emp) !== emp)) { wrong.push({ name, raw: rawEmp, why: "This " + (em ? "Email ID" : "employee ID") + " reads as " + emp + ", the same as another row in this list. Check the two rows and fix the " + (em ? "Email ID" : "ID") + "." }); continue; } dups++; dupRows.push({ name, raw: rawEmp, why: "This " + (em ? "Email ID" : "employee ID") + " is already in the list." }); continue; }
         seen.add("E" + emp); seenRawE.set(emp, em ? rawEmp : rawEmp.toUpperCase()); good.push({ name, phone: d0, empId: emp }); continue;
       }
       const d = cleanPhone(r.phone);
       if (!d) { wrong.push({ name, raw: String(r.phone || ""), ...(vmode() !== "mobile" && !emp ? { why: "A mobile number or an employee ID is needed." } : {}) }); continue; }
-      if (seen.has(d)) { dups++; continue; }
+      if (seen.has(d)) { dups++; dupRows.push({ name, raw: String(r.phone || ""), why: "This mobile number is already in the list." }); continue; }
       seen.add(d); good.push({ name, phone: d, ...(emp && vmode() !== "mobile" ? { empId: emp } : {}) });
     }
-    return { good, dups, wrong };
+    return { good, dups, wrong, dupRows };
   }
   async function pdfText(file) { // reads the PDF on this device with the bundled pdf.js; nothing is uploaded
     if (file.size > 8 * 1024 * 1024) throw new Error("This PDF is too big (over 8 MB). Please send fewer people at a time.");
@@ -546,17 +546,17 @@
     const P = S.pp;
     if (!raw.length) { P.sum = "Add a name and a number first."; return redraw(); }
     const terms = tbTerms("ppl" + eid); if (!terms) { P.sum = "Please tick the box above first."; return redraw(); }
-    const { good, dups, wrong } = cleanBatch(raw); let added = good.length, serverDup = 0, got = 0, counted = false; const bad = wrong.slice();
+    const { good, dups, wrong, dupRows } = cleanBatch(raw); let added = good.length, serverDup = 0, got = 0, counted = false; const bad = wrong.slice(), dl = dupRows.slice();
     try {
       for (let i = 0; i < good.length; i += 200) {
         const r = await call("POST", `/api/z/${eid}/people`, { people: good.slice(i, i + 200).map((p) => ({ name: p.name, ...(p.phone ? { phone: "+" + p.phone } : {}), ...(p.empId ? { [emKind() ? "email" : "empId"]: p.empId } : {}) })), consent: terms });
-        serverDup += Number(r.duplicates) || 0; if (typeof r.added === "number") { got += r.added; counted = true; }
+        serverDup += Number(r.duplicates) || 0; for (const x of r.duplicateRows || []) dl.push({ name: "", raw: String(x && x.raw || ""), why: String(x && x.why || "") }); if (typeof r.added === "number") { got += r.added; counted = true; }
         for (const x of r.invalid || []) { const q = parseList(String(typeof x === "string" ? x : x.raw || ""))[0] || { name: "", phone: "" }; bad.push({ name: q.name, raw: q.phone, why: typeof x === "string" ? "" : x.why || "" }); }
       }
       if (counted) added = got;
       const d = dups + serverDup;
       P.sum = `${added} good, ${d === 1 ? "1 duplicate" : d + " duplicates"} removed, ${bad.length === 1 ? "1 looks wrong" : bad.length + " look wrong"}`;
-      P.wrong = keep ? P.wrong.concat(bad) : bad;
+      P.wrong = keep ? P.wrong.concat(bad) : bad; P.dupList = keep ? (P.dupList || []).concat(dl) : dl;
     } catch (e) { P.sum = friendly(e); }
     await loadPeople(); redraw();
   }
@@ -611,6 +611,7 @@
     h += full ? small(`You have reached your limit of ${P.limit} people. Remove someone to add another.`) : addBox();
     if (P.sum) h += `<p class="zc-small" id="cleansum" role="status"><b>${esc(P.sum)}</b></p>`;
     if (P.wrong.length) h += `<div class="zc-box" id="wronglist"><b class="zc-bt">These look wrong. Fix the number and add them.</b>${P.wrong.map((w, i) => `<div class="zc-inline"><span>${esc(w.name || "No name")}${w.why ? ` <span class="zc-small zc-nomargin">${esc(w.why)}</span>` : ""}</span><label class="zc-sr" for="fixin${i}">Mobile number for ${esc(w.name || "this person")}</label><input id="fixin${i}" class="zc-in" inputmode="tel" value="${esc(w.raw)}"><button type="button" class="zc-mini" data-fix="${i}">Fix and add</button></div>`).join("")}</div>`;
+    if ((P.dupList || []).length) h += `<div class="zc-box" id="duplist"><b class="zc-bt">Not added again: these rows repeat someone already in the list.</b>${P.dupList.map((w) => `<div class="zc-small zc-nomargin"><b>${esc(w.raw || w.name || "A row")}</b>${w.name && w.raw ? ` (${esc(w.name)})` : ""} ${esc(w.why || "")}</div>`).join("")}</div>`;
     h += list.map(personRow).join("") + (list.length ? "" : small("Nobody yet. Add your first person above."));
     h += `<div class="zc-chips zc-gap"><button type="button" class="zc-mini" id="copycommon">Copy common link</button>${P.canExport ? `<button type="button" class="zc-mini" id="dlpeople">Download my list</button>` : ""}</div>`;
     h += small("The common link is for groups. The person types their own mobile number. A personal link is made for one person only.");
