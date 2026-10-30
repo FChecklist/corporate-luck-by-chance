@@ -75,5 +75,5 @@ check V02 $E/idclean.ts 'export const EMP_MAX = 30;' 'export const EMP_MAX = 31;
 check V03 $E/idclean.ts 'String(s ?? "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, "")' 'String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "")' $RV3 $MAT
 check V04 $W/idclean.js 'var BLANKS_G = new RegExp("[\\s\\u200B-\\u200D\\u2060\\uFEFF\\u0085\\u2028\\u2029]+", "g");' 'var BLANKS_G = new RegExp("[\\s]+", "g");' $RW3
 # the guarantee that nothing is left changed
-PRODUCT="$(git diff --name-only origin/fix/luck-1.4.1-2026-10-30 -- . ':!apps/*/test' ':!docs/TESTER_REPORT.md' ':!packages/*/test' ':!tools/*/test')"
+PRODUCT="$(git diff --name-only origin/fix/luck-1.4.1-2026-10-30 -- . ':(exclude,glob)**/test/**' ':!docs/TESTER_REPORT.md')"
 [ -z "$PRODUCT" ] && echo "ALL FILES RESTORED (product-code git diff against the product branch is empty)" || { echo "WARNING: product files differ from the product branch:"; echo "$PRODUCT"; }
