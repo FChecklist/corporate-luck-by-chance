@@ -1,0 +1,84 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/web/test/pages.test.ts:
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+63 |     waitFor: async (pred, ms = 6000) => { const t0 = Date.now(); for (;;) { tickBoxes(); const t = text(); if (pred(t)) return t; if (Date.now() - t0 > ms) throw new Error("timed out waiting; page says: " + t.slice(0, 1200) + (errors.length ? " | errors: " + errors.join("; ").slice(0, 300) : "")); await new Promise((r) => setTimeout(r, 40)); } },
+                                                                                                                                                                           ^
+error: timed out waiting; page says: Corporate Luck by ChanceSigned in as OrganizerPayment pending for this gameYour game · 1 Oct 2026 4:30 pmAll gamesSign outA payment is pending for this game. Just one of you needs to make it: the Organizer, a Host or a Co-host. Guests pay nothing. It is for this one game only, with no commitment and no repeat charges. Guest data will be erased on 2 Oct 2026, 6:30 pm if the game does not start.Your progress · saved1 of 10 done · 10% Jump to12345678910HelpOSigned in asOrganizerYour game at a glance1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○2Number of participantsUp to 100 players○3Set Prizes3 prizes○4Your brandCorporate Luck by Chance, no logo○5Make hosts and co-hosts0 Hosts, 0 Co-hosts○6Invite and Share linksGuest link ready○7Check and publishPublished✓8PayPayment pending○9Game dayOpens when you press Start○10After the gameYour report, then erasing data○Payment: Pending0 people · game not started yetYou made this game. You can do everything.Next: Date and time of the game. Hello. Let us start with the basics.Go1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○ To do▼2Number of participantsUp to 100 players○ To do▼3Set Prizes3 prizes○ To do▼4Your brandCorporate Luc | errors: IDCLEAN is not defined
+      at <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/harness.ts:63:167)
+      at async <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/pages.test.ts:329:13)
+(fail) console (organizer page) > My people with employee IDs: the Employee ID box and the PDF way are there, a pasted list with IDs is added, the ID shows on the person, and the list download has the column [6252.33ms]
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+63 |     waitFor: async (pred, ms = 6000) => { const t0 = Date.now(); for (;;) { tickBoxes(); const t = text(); if (pred(t)) return t; if (Date.now() - t0 > ms) throw new Error("timed out waiting; page says: " + t.slice(0, 1200) + (errors.length ? " | errors: " + errors.join("; ").slice(0, 300) : "")); await new Promise((r) => setTimeout(r, 40)); } },
+                                                                                                                                                                           ^
+error: timed out waiting; page says: Corporate Luck by ChanceSigned in as OrganizerPayment pending for this gameYour game · 1 Oct 2026 4:30 pmAll gamesSign outA payment is pending for this game. Just one of you needs to make it: the Organizer, a Host or a Co-host. Guests pay nothing. It is for this one game only, with no commitment and no repeat charges. Guest data will be erased on 2 Oct 2026, 6:30 pm if the game does not start.Your progress · saved1 of 10 done · 10% Jump to12345678910HelpOSigned in asOrganizerYour game at a glance1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○2Number of participantsUp to 100 players○3Set Prizes3 prizes○4Your brandCorporate Luck by Chance, no logo○5Make hosts and co-hosts0 Hosts, 0 Co-hosts○6Invite and Share linksGuest link ready○7Check and publishPublished✓8PayPayment pending○9Game dayOpens when you press Start○10After the gameYour report, then erasing data○Payment: Pending0 people · game not started yetYou made this game. You can do everything.Next: Date and time of the game. Hello. Let us start with the basics.Go1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○ To do▼2Number of participantsUp to 100 players○ To do▼3Set Prizes3 prizes○ To do▼4Your brandCorporate Luc | errors: IDCLEAN is not defined
+      at <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/harness.ts:63:167)
+      at async <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/pages.test.ts:697:13)
+(fail) console phase 2: wording fixes, My people, waiting room, remove, play now (real Worker) > My people: paste cleans the list ('2 good, 1 duplicate removed, 1 looks wrong'), lists the wrong one to fix, and the fixed number is added; a CSV with a header row works too [6229.11ms]
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+63 |     waitFor: async (pred, ms = 6000) => { const t0 = Date.now(); for (;;) { tickBoxes(); const t = text(); if (pred(t)) return t; if (Date.now() - t0 > ms) throw new Error("timed out waiting; page says: " + t.slice(0, 1200) + (errors.length ? " | errors: " + errors.join("; ").slice(0, 300) : "")); await new Promise((r) => setTimeout(r, 40)); } },
+                                                                                                                                                                           ^
+error: timed out waiting; page says: Corporate Luck by ChanceSigned in as OrganizerPayment pending for this gameYour game · 1 Oct 2026 4:30 pmAll gamesSign outA payment is pending for this game. Just one of you needs to make it: the Organizer, a Host or a Co-host. Guests pay nothing. It is for this one game only, with no commitment and no repeat charges. Guest data will be erased on 2 Oct 2026, 6:30 pm if the game does not start.Your progress · saved1 of 10 done · 10% Jump to12345678910HelpOSigned in asOrganizerYour game at a glance1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○2Number of participantsUp to 250 players○3Set Prizes3 prizes○4Your brandCorporate Luck by Chance, no logo○5Make hosts and co-hosts0 Hosts, 0 Co-hosts○6Invite and Share linksGuest link ready○7Check and publishPublished✓8PayPayment pending○9Game dayOpens when you press Start○10After the gameYour report, then erasing data○Payment: Pending0 people · game not started yetYou made this game. You can do everything.Next: Date and time of the game. Hello. Let us start with the basics.Go1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○ To do▼2Number of participantsUp to 250 players○ To do▼3Set Prizes3 prizes○ To do▼4Your brandCorporate Luc | errors: IDCLEAN is not defined
+      at <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/harness.ts:63:167)
+      at async <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/pages.test.ts:710:13)
+(fail) console phase 2: wording fixes, My people, waiting room, remove, play now (real Worker) > My people: a big paste goes up 200 at a time; a Co-host's over-limit answer from the server is shown calmly; the Organizer's Co-host limit chips are saved [20184.59ms]
+ReferenceError: IDCLEAN is not defined
+      at cleanBatch (file:///home/user/corporate-luck-by-chance/apps/web/test/harness.ts:479:149)
+      at addPeople (file:///home/user/corporate-luck-by-chance/apps/web/test/harness.ts:544:45)
+      at <anonymous> (file:///home/user/corporate-luck-by-chance/apps/web/test/harness.ts:1514:161)
+(fail) console phase 2: wording fixes, My people, waiting room, remove, play now (real Worker) > My people: 'From my contacts' appears only where the browser has a contact picker, and what is picked is added [245.89ms]
+
+# Unhandled error between tests
+-------------------------------
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+63 |     waitFor: async (pred, ms = 6000) => { const t0 = Date.now(); for (;;) { tickBoxes(); const t = text(); if (pred(t)) return t; if (Date.now() - t0 > ms) throw new Error("timed out waiting; page says: " + t.slice(0, 1200) + (errors.length ? " | errors: " + errors.join("; ").slice(0, 300) : "")); await new Promise((r) => setTimeout(r, 40)); } },
+                                                                                                                                                                           ^
+error: timed out waiting; page says: 
+      at <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/harness.ts:63:167)
+      at async <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/pages.test.ts:725:13)
+-------------------------------
+
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+63 |     waitFor: async (pred, ms = 6000) => { const t0 = Date.now(); for (;;) { tickBoxes(); const t = text(); if (pred(t)) return t; if (Date.now() - t0 > ms) throw new Error("timed out waiting; page says: " + t.slice(0, 1200) + (errors.length ? " | errors: " + errors.join("; ").slice(0, 300) : "")); await new Promise((r) => setTimeout(r, 40)); } },
+                                                                                                                                                                           ^
+error: timed out waiting; page says: Corporate Luck by ChanceSigned in as OrganizerDraft · not published yetCopied game · 1 Oct 2026 4:30 pmAll gamesSign outYour progress · saved0 of 10 done · 0% Jump to12345678910HelpOSigned in asOrganizerYour game at a glance1Date and time of the gameCopied game, 1 Oct 2026 4:30 pm○2Number of participantsUp to 100 players○3Set Prizes3 prizes○4Your brandCorporate Luck by Chance, no logo○5Make hosts and co-hosts0 Hosts, 0 Co-hosts○6Invite and Share linksGuest link ready after publishing○7Check and publishNot published yet○8PayPublish first○9Game dayOpens when you press Start○10After the gameYour report, then erasing data○Payment: PendingThis is a new game. Nothing is paid or published yet.Your new game is ready to check. Pick the date and time, then publish.You made this game. You can do everything.Next: Date and time of the game. Hello. Let us start with the basics.Go1Date and time of the gamePick the occasion, day and time.○ To do▲Hello. Let us start with the basics.About this stepThis is the basics. Pick the occasion, the day and the time.Times are in your own time zone, as your device shows it.Players can join before the start. You press Start on the game page when everybody is in
+      at <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/harness.ts:63:167)
+      at async <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/pages.test.ts:1094:247)
+(fail) console: no refunds (credit), games that wait or did not start, 'Create a new game like this one', rescheduling > Create a new game like this one: on the game page and in the games list (not for a Co-host); the people tick box only when the old list exists; the new game opens on step 1 with the date and time empty and the read-back with Change buttons [6276.97ms]
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+63 |     waitFor: async (pred, ms = 6000) => { const t0 = Date.now(); for (;;) { tickBoxes(); const t = text(); if (pred(t)) return t; if (Date.now() - t0 > ms) throw new Error("timed out waiting; page says: " + t.slice(0, 1200) + (errors.length ? " | errors: " + errors.join("; ").slice(0, 300) : "")); await new Promise((r) => setTimeout(r, 40)); } },
+                                                                                                                                                                           ^
+error: timed out waiting; page says: Corporate Luck by ChanceSigned in as OrganizerDraft · not published yetYour game · 1 Oct 2026 4:30 pmAll gamesSign outYour progress · saved0 of 10 done · 0% Jump to12345678910HelpOSigned in asOrganizerYour game at a glance1Date and time of the gameYour game, 1 Oct 2026 4:30 pm○2Number of participantsUp to 100 players○3Set Prizes3 prizes○4Your brandCorporate Luck by Chance, no logo○5Make hosts and co-hosts0 Hosts, 0 Co-hosts○6Invite and Share linksGuest link ready after publishing○7Check and publishNot published yet○8PayPublish first○9Game dayOpens when you press Start○10After the gameYour report, then erasing data○Payment: PendingYou made this game. You can do everything.Next: Date and time of the game. Hello. Let us start with the basics.Go1Date and time of the gamePick the occasion, day and time.○ To do▲Hello. Let us start with the basics.About this stepThis is the basics. Pick the occasion, the day and the time.Times are in your own time zone, as your device shows it.Players can join before the start. You press Start on the game page when everybody is in.You can change all this until the game starts.A game can start at most 30 days from today. Please pick a closer date.What is t
+      at <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/harness.ts:63:167)
+      at async <anonymous> (/home/user/corporate-luck-by-chance/apps/web/test/pages.test.ts:1114:164)
+(fail) console: no refunds (credit), games that wait or did not start, 'Create a new game like this one', rescheduling > Rescheduling: a date more than 30 days ahead is refused politely before anything is sent; the server's own message (a game that has started) is shown as it is [6232.40ms]
+
+ 86 pass
+ 6 fail
+ 1 error
+ 821 expect() calls
+Ran 92 tests across 1 file. [85.01s]
