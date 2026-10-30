@@ -49,7 +49,8 @@ export const tokenHash = async (token: string) => (await sha("pj|" + token.toLow
 export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, digits: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|${digits.slice(-10)}`);
 
 /** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
-export const normEmp = (raw: unknown): string | null => { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); if (!s) return ""; return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; };
+export { legacyNormEmp as normEmp } from "./idclean"; // the OLD rule only (games made before EMP_CLEAN_FROM_MS); every live path uses normEmpFor
+import { normEmpFor, badEmpWhy, EMP_CLEAN_FROM_MS } from "./idclean";
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
@@ -262,12 +263,15 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0;
-  const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
+  const seen = new Set<string>(); const seenRaw = new Map<string, string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
   const vf = verifyOf(c.e);
+  const rawEmp = (x: any) => String(x?.empId ?? x?.employeeId ?? "").trim();
+  /** Two rows whose IDs differ as typed but read the same once cleaned (1B-678 and 1B/678): shown to the organizer, never dropped silently. */
+  const flagCleanDup = (raw: string, x: any, emp: string, ph: string): boolean => { if (Number(c.e.created_ms) >= EMP_CLEAN_FROM_MS && (rawEmp(x) !== emp || seenRaw.get(ph) !== emp)) { invalid.push({ raw, why: `This employee ID reads as ${emp}, the same as another row in this list. Check the two rows and fix the ID.` }); return true; } return false; };
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
-    const emp = normEmp(x?.empId ?? x?.employeeId);
-    if (emp === null) { invalid.push({ raw, why: "An employee ID has letters and numbers only (up to 30)." }); continue; }
+    const emp = normEmpFor(x?.empId ?? x?.employeeId, c.e.created_ms);
+    if (emp === null) { invalid.push({ raw, why: badEmpWhy(c.e.created_ms) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
@@ -275,8 +279,8 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
       let digits = "";
       if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
       const ph = await empHashOf(c.env, emp);
-      if (seen.has(ph)) { duplicates++; continue; }
-      seen.add(ph); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
+      if (seen.has(ph)) { if (flagCleanDup(raw, x, emp, ph)) continue; duplicates++; continue; }
+      seen.add(ph); seenRaw.set(ph, rawEmp(x)); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
     }
     const cl = cleanPhone(x?.phone);
     if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; }

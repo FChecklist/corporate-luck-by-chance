@@ -35,14 +35,15 @@
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
-      ${needId ? `<label for="emp">Your employee ID</label><input id="emp" autocomplete="off" autocapitalize="characters" maxlength="30" disabled>` : ""}
+      ${needId ? `<label for="emp">Your employee ID</label><input id="emp" autocomplete="off" autocapitalize="characters" maxlength="60" disabled><div id="emphint" class="zsmall" aria-live="polite"></div>` : ""}
       ${needPhone ? `<label for="ph">${needId && INFO.verify === "id" ? "Your mobile number (only if you have no employee ID)" : "Your mobile number"}</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" disabled>` : ""}
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
     const nm = document.getElementById("nm"), go = document.getElementById("go");
     const emp = document.getElementById("emp"), ph = document.getElementById("ph");
-    if (emp) emp.value = EMP; if (ph) ph.value = PHONE;
+    const hintEmp = () => { const h = document.getElementById("emphint"); if (h && emp && window.IDCLEAN) h.textContent = IDCLEAN.empHint(emp.value, !!(INFO && INFO.empClean)); }; if (emp) emp.addEventListener("input", hintEmp);
+    if (emp) emp.value = EMP; hintEmp(); if (emp) emp.value = EMP; if (ph) ph.value = PHONE;
     const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (ph) ph.disabled = !ok; const idOk = !emp || vm === "id" ? true : emp.value.trim().length > 0, phOk = !ph || (vm === "id" ? true : vm === "both" || !!(INFO && INFO.joinPhone) ? ph.value.replace(/\D/g, "").length >= 10 : true), anyOk = vm !== "id" || (emp.value.trim() || ph.value.trim()); go.disabled = !ok || nm.value.trim().length < 2 || !idOk || !phOk || !anyOk; go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
     nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (ph) ph.addEventListener("input", sync);
