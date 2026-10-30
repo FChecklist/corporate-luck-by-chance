@@ -50,11 +50,19 @@ export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: strin
 
 /** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
 export { legacyNormEmp as normEmp } from "./idclean"; // the OLD rule only (games made before EMP_CLEAN_FROM_MS); every live path uses normEmpFor
-import { normEmpFor, badEmpWhy, EMP_CLEAN_FROM_MS } from "./idclean";
+import { normEmpFor, badEmpWhy, EMP_CLEAN_FROM_MS, listEmail, BAD_EMAIL } from "./idclean";
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
-export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
+export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean; kind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; const email = j.verify === "email"; return { mode: email ? "id" : j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true, kind: email ? "email" : "emp" }; } catch { return { mode: "mobile", employeesOnly: false, kind: "emp" }; } };
+/** The criterion "Email ID" is the ID mode with a different KIND of identifier: the list is matched by e-mail address (emailId), never by the employee-ID cleaner, and it has its own hash so an address and an employee ID can never be taken for each other. Games without the criterion are kind "emp" and behave as before. (The cleaned value is kept in the same sealed field, pii.empId, as the list identifier.) */
+export const emailListHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emaillist|${id}`);
+export const idHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, vf: { kind: "emp" | "email" }, id: string) => (vf.kind === "email" ? emailListHashOf(env, id) : empHashOf(env, id));
+/** The cleaned list identifier typed or uploaded for a game: employee ID (normEmpFor) or Email ID (listEmail). "" = nothing typed, null = refused. */
+export const listIdFor = (vf: { kind: "emp" | "email" }, raw: unknown, createdMs: number | null | undefined): string | null => (vf.kind === "email" ? listEmail(raw) : normEmpFor(raw, createdMs));
+/** Why a list identifier was refused, and the name of it in messages. */
+export const badIdWhy = (vf: { kind: "emp" | "email" }, createdMs: number | null | undefined) => (vf.kind === "email" ? BAD_EMAIL : badEmpWhy(createdMs));
+export const idWord = (vf: { kind: "emp" | "email" }) => (vf.kind === "email" ? "Email ID" : "employee ID");
 
 export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";
 export type { Cleaned } from "./phonekit";
@@ -265,20 +273,20 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0;
   const seen = new Set<string>(); const seenRaw = new Map<string, string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
   const vf = verifyOf(c.e);
-  const rawEmp = (x: any) => String(x?.empId ?? x?.employeeId ?? "").trim();
+  const rawEmp = (x: any) => String(vf.kind === "email" ? (x?.email ?? x?.emailId ?? "") : (x?.empId ?? x?.employeeId ?? "")).trim();
   /** Two rows whose IDs differ as typed but read the same once cleaned (1B-678 and 1B/678): shown to the organizer, never dropped silently. */
-  const flagCleanDup = (raw: string, x: any, emp: string, ph: string): boolean => { if (Number(c.e.created_ms) >= EMP_CLEAN_FROM_MS && (rawEmp(x) !== emp || seenRaw.get(ph) !== emp)) { invalid.push({ raw, why: `This employee ID reads as ${emp}, the same as another row in this list. Check the two rows and fix the ID.` }); return true; } return false; };
+  const flagCleanDup = (raw: string, x: any, emp: string, ph: string): boolean => { if ((vf.kind === "email" || Number(c.e.created_ms) >= EMP_CLEAN_FROM_MS) && (rawEmp(x) !== emp || seenRaw.get(ph) !== emp)) { invalid.push({ raw, why: `This ${idWord(vf)} reads as ${emp}, the same as another row in this list. Check the two rows and fix the ${idWord(vf)}.` }); return true; } return false; };
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
-    const emp = normEmpFor(x?.empId ?? x?.employeeId, c.e.created_ms);
-    if (emp === null) { invalid.push({ raw, why: badEmpWhy(c.e.created_ms) }); continue; }
+    const emp = listIdFor(vf, vf.kind === "email" ? (x?.email ?? x?.emailId) : (x?.empId ?? x?.employeeId), c.e.created_ms);
+    if (emp === null) { invalid.push({ raw, why: badIdWhy(vf, c.e.created_ms) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
-    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
+    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: vf.kind === "email" ? "This game is for people on the list: the Email ID is missing." : "This game is for employees: the employee ID is missing." }); continue; }
     if ((vf.mode === "id" || (vf.mode === "either" && !phoneTyped)) && emp) { // known by ID alone: a mobile number is welcome but not needed
       let digits = "";
       if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
-      const ph = await empHashOf(c.env, emp);
+      const ph = await idHashOf(c.env, vf, emp);
       if (seen.has(ph)) { if (flagCleanDup(raw, x, emp, ph)) continue; duplicates++; continue; }
       seen.add(ph); seenRaw.set(ph, rawEmp(x)); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
     }
@@ -356,7 +364,7 @@ async function exportPeople(c: Ctx, who: Caller): Promise<Response> {
     : c.env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND inviter=? ORDER BY added_ms, id`).bind(c.eid, who.id)).all<PersonRow>();
   const label = await labelsOf(c);
   const withId = verifyOf(c.e).mode !== "mobile"; // the Employee ID column only when the organizer asked for IDs
-  const lines = [["Name", "Mobile", ...(withId ? ["Employee ID"] : []), "Personal link", "WhatsApp link", "Status", ...(whole ? ["Invited by"] : [])].join(",")];
+  const lines = [["Name", "Mobile", ...(withId ? [verifyOf(c.e).kind === "email" ? "Email ID" : "Employee ID"] : []), "Personal link", "WhatsApp link", "Status", ...(whole ? ["Invited by"] : [])].join(",")];
   for (const r of rows.results ?? []) {
     const v = await viewOf(c, r, label, true), pii = await openPii(c.env, r.pii);
     lines.push([v.name, pii?.phone ?? "", ...(withId ? [pii?.empId ?? ""] : []), v.link ?? "", v.waLink ?? "", r.status === "invited" ? "Invited" : r.status === "joined" ? "Joined" : "Removed", ...(whole ? [v.inviter ?? ""] : [])].map(csvCell).join(","));
@@ -419,7 +427,7 @@ async function resendPerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
   if (b?.phone !== undefined && b.phone !== null && String(b.phone).trim() !== "") { // a new number: only for someone who has not joined yet
     const cl = cleanPhone(b.phone);
     if (!cl.ok) return c.json({ error: cl.why }, 400);
-    const idKeyed = !!pii?.empId && (await empHashOf(c.env, pii.empId)) === row.ph; // a person known by employee ID stays known by it: a new number is only a new contact number
+    const idKeyed = !!pii?.empId && (await idHashOf(c.env, verifyOf(c.e), pii.empId)) === row.ph; // a person known by employee ID stays known by it: a new number is only a new contact number
     ph = idKeyed ? row.ph : await phoneHashOf(c.env, cl.digits);
     if (idKeyed) { newPii = await sealPii(c.env, { phone: keptFromClean(cl.digits), name: pii?.name ?? null, empId: pii!.empId }); pii = { phone: keptFromClean(cl.digits), name: pii?.name ?? null, empId: pii!.empId }; }
     else if (ph !== row.ph) {

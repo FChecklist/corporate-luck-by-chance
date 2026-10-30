@@ -202,7 +202,7 @@
     const date = istDateStr(start), time = pad2(start.getUTCHours()) + ":" + pad2(start.getUTCMinutes());
     const nm = (c.name || "").trim();
     const f = { occ: nm ? (OCC.includes(nm) && nm !== "Other" ? nm : "Other") : "Team event", oname: nm && !OCC.includes(nm) ? nm : "", day: blank ? "" : dayOpts().some((d) => d[0] === date) ? date : "other", dayo: blank ? "" : date, time: blank ? "" : TIMES.some((x) => x[0] === time) ? time : "other", timeo: blank ? "" : time,
-      cap: String(inf.cap || 250), tix: String(t), mk: c.mark === "tap" ? "tap" : "auto", gj: c.join === "phone" ? "phone" : "name", spd: String(inf.callSeconds || 9), rnd: String(c.rounds || 1), who: whoNow(), emp: !!c.employeesOnly, idq: c.verify === "id" || c.verify === "both", ver: c.verify === "both" ? "both" : "id",
+      cap: String(inf.cap || 250), tix: String(t), mk: c.mark === "tap" ? "tap" : "auto", gj: c.join === "phone" ? "phone" : "name", spd: String(inf.callSeconds || 9), rnd: String(c.rounds || 1), who: whoNow(), emp: !!c.employeesOnly, idq: c.verify === "id" || c.verify === "both" || c.verify === "email", ver: c.verify === "both" ? "both" : c.verify === "email" ? "email" : "id",
       inv: !!(c.invites && c.invites.on), per: String((c.invites && c.invites.per) || 4), cats: ((c.invites && c.invites.cats) || ["family", "colleagues"]).slice(), bundle: "", hs: {}, ph: "" };
     for (const [k] of HS) f.hs[k] = { on: false, n: 1, pt: "later", pd: "", orig: [] };
     for (const l of c.rewards || []) { const k = l.pattern, h = f.hs[k]; if (!h) continue; h.on = true; h.n = Math.max(h.n, l.ordinal); h.orig[l.ordinal - 1] = l.text || ""; }
@@ -297,7 +297,7 @@
       + `<span class="zc-lbl zc-sec zc-sub">Who is this game for?</span><div class="zc-chips">${bchip("emp", "Only my employees (nobody can invite anyone)")}</div>`
       + small(f.emp ? "Only the employees on your list can play. Guests cannot invite anyone. Anyone else who opens your link waits for you to say yes." : "Employees, vendors, customers, families: everyone can play. Put the people you know on your list; others can still come in with the link.")
       + `<div class="zc-chips">${bchip("idq", "People give their employee ID to get in")}</div>`
-      + (f.idq ? `<div class="zc-box">${grp("ver", "What must a person give?", [["id", "Employee ID only"], ["both", "Employee ID and mobile number"]])}${small(f.ver === "both" ? "Each person types a nickname, their employee ID and their mobile number. Add your people with both." : "Each person types a nickname and their employee ID. A mobile number is optional when you add people. Vendors and families with no employee ID can type their mobile number instead" + (f.emp ? ", but they wait for your yes." : "."))}</div>` : "")
+      + (f.idq ? `<div class="zc-box">${grp("ver", "What must a person give?", [["id", "Employee ID only"], ["both", "Employee ID and mobile number"], ["email", "Email ID only"]])}${small(f.ver === "email" ? "Each person types a nickname and their Email ID, the e-mail address you put on your list. Capital letters and spaces do not matter. Vendors and families with no Email ID can type their mobile number instead" + (f.emp ? ", but they wait for your yes." : ".") : f.ver === "both" ? "Each person types a nickname, their employee ID and their mobile number. Add your people with both." : "Each person types a nickname and their employee ID. A mobile number is optional when you add people. Vendors and families with no employee ID can type their mobile number instead" + (f.emp ? ", but they wait for your yes." : "."))}</div>` : "")
       + (f.emp ? "" : `<span class="zc-lbl zc-sec zc-sub">Guests bringing their own people</span><span class="zc-lbl">Can guests bring their own people?</span><div class="zc-chips">${bchip("inv", "Yes, each guest can invite a few of their own family or colleagues")}</div>`
       + small("Each guest sends the invites on WhatsApp. The people they invite can play, but cannot invite anyone else.")
       + (f.inv ? `<div class="zc-box">${grp("per", "How many people can each guest invite?", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => [String(n), String(n)]))}${grp("cats", "Who can they invite?", cats.map((k) => [k.id, k.label]), true)}
@@ -470,17 +470,20 @@
   const whoBody = (v) => { const d = String(v || "").replace(/\D/g, ""); return d.length > 0 && d.length <= 6 && !/^\+/.test(String(v).trim()) ? { seat: Number(d) } : { phone: v }; };
   /** What the organizer asked people to give to get in: mobile (default), employee ID, or both. */
   const empNew = () => !!((S.sum && S.sum.empClean) || (S.cfg && S.cfg.empClean));
-  const vmode = () => (S.sum && S.sum.verify) || (S.cfg && S.cfg.verify) || "mobile";
+  const vraw = () => (S.sum && S.sum.verify) || (S.cfg && S.cfg.verify) || "mobile";
+  const emKind = () => vraw() === "email"; // the criterion "Email ID": the ID mode, but the list identifier is an e-mail address (IDCLEAN.emailId, never the employee-ID cleaner)
+  const vmode = () => (emKind() ? "id" : vraw());
+  const IDN = () => (emKind() ? "Email ID" : "Employee ID");
   function cleanBatch(rows) {
     const seen = new Set(), seenRawE = new Map(), good = [], wrong = []; let dups = 0;
     for (const r of rows) {
-      const name = String(r.name || "").trim(), rawEmp = String(r.empId || "").trim(), newR = empNew(), emp = newR ? IDCLEAN.empId(rawEmp) : IDCLEAN.legacy(rawEmp); // newer games: every symbol, dash and space is dropped (1B-678 = 1B678); older games keep the old rule
-      if (newR && rawEmp && (!emp || emp.length > 30)) { wrong.push({ name, raw: rawEmp, why: "This employee ID has no letters or numbers in it, or is longer than 30 characters. Fix it in the list." }); continue; }
+      const name = String(r.name || "").trim(), rawEmp = String(r.empId || "").trim(), em = emKind(), newR = em || empNew(), emp = em ? IDCLEAN.emailId(rawEmp) : newR ? IDCLEAN.empId(rawEmp) : IDCLEAN.legacy(rawEmp), badId = em ? !/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(emp) || emp.length > 254 : !emp || emp.length > 30; // newer games: every symbol, dash and space is dropped (1B-678 = 1B678); older games keep the old rule
+      if (newR && rawEmp && badId) { wrong.push({ name, raw: rawEmp, why: em ? "This Email ID does not look like an email address. Fix it in the list, for example rajat1@demo.com." : "This employee ID has no letters or numbers in it, or is longer than 30 characters. Fix it in the list." }); continue; }
       if (vmode() === "id" && emp) { // known by employee ID: a mobile number is welcome but not needed
         const d0 = String(r.phone || "").trim() ? cleanPhone(r.phone) : "";
         if (String(r.phone || "").trim() && !d0) { wrong.push({ name, raw: String(r.phone || ""), why: "The mobile number looks wrong." }); continue; }
-        if (seen.has("E" + emp)) { if (newR && (rawEmp.toUpperCase() !== emp || seenRawE.get(emp) !== emp)) { wrong.push({ name, raw: rawEmp, why: "This employee ID reads as " + emp + ", the same as another row in this list. Check the two rows and fix the ID." }); continue; } dups++; continue; }
-        seen.add("E" + emp); seenRawE.set(emp, rawEmp.toUpperCase()); good.push({ name, phone: d0, empId: emp }); continue;
+        if (seen.has("E" + emp)) { if (newR && ((em ? rawEmp : rawEmp.toUpperCase()) !== emp || seenRawE.get(emp) !== emp)) { wrong.push({ name, raw: rawEmp, why: "This " + (em ? "Email ID" : "employee ID") + " reads as " + emp + ", the same as another row in this list. Check the two rows and fix the " + (em ? "Email ID" : "ID") + "." }); continue; } dups++; continue; }
+        seen.add("E" + emp); seenRawE.set(emp, em ? rawEmp : rawEmp.toUpperCase()); good.push({ name, phone: d0, empId: emp }); continue;
       }
       const d = cleanPhone(r.phone);
       if (!d) { wrong.push({ name, raw: String(r.phone || ""), ...(vmode() !== "mobile" && !emp ? { why: "A mobile number or an employee ID is needed." } : {}) }); continue; }
@@ -542,7 +545,7 @@
     const { good, dups, wrong } = cleanBatch(raw); let added = good.length, serverDup = 0, got = 0, counted = false; const bad = wrong.slice();
     try {
       for (let i = 0; i < good.length; i += 200) {
-        const r = await call("POST", `/api/z/${eid}/people`, { people: good.slice(i, i + 200).map((p) => ({ name: p.name, ...(p.phone ? { phone: "+" + p.phone } : {}), ...(p.empId ? { empId: p.empId } : {}) })), consent: terms });
+        const r = await call("POST", `/api/z/${eid}/people`, { people: good.slice(i, i + 200).map((p) => ({ name: p.name, ...(p.phone ? { phone: "+" + p.phone } : {}), ...(p.empId ? { [emKind() ? "email" : "empId"]: p.empId } : {}) })), consent: terms });
         serverDup += Number(r.duplicates) || 0; if (typeof r.added === "number") { got += r.added; counted = true; }
         for (const x of r.invalid || []) { const q = parseList(String(typeof x === "string" ? x : x.raw || ""))[0] || { name: "", phone: "" }; bad.push({ name: q.name, raw: q.phone, why: typeof x === "string" ? "" : x.why || "" }); }
       }
@@ -580,12 +583,12 @@
     const modes = (canContacts() ? [["contacts", "From my contacts"]] : []).concat([["pdf", "Upload a PDF"], ["type", "Add a name and number"], ["paste", "Paste from Excel"], ["file", "Upload a CSV"]]);
     const m = modes.some((x) => x[0] === S.mode) ? S.mode : "type";
     const chips = modes.map(([k, l]) => `<button type="button" class="zc-chip${m === k ? " on" : ""}" data-mode="${k}" aria-pressed="${m === k}">${l}</button>`).join("");
-    const vm = vmode(), idPh = vm === "mobile" ? "" : "Employee ID";
-    const tplCols = vm === "mobile" ? "Name, Mobile" : vm === "id" ? "Name, Mobile (optional), Employee ID" : "Name, Mobile, Employee ID";
+    const vm = vmode(), idPh = vm === "mobile" ? "" : IDN();
+    const tplCols = vm === "mobile" ? "Name, Mobile" : vm === "id" ? "Name, Mobile (optional), " + IDN() : "Name, Mobile, Employee ID";
     const pdfForm = `<ol class="zc-small zc-steps"><li>Download the Excel sheet.</li><li>Fill it in (${tplCols}).</li><li>In Excel choose <b>File, Save as, PDF</b>.</li><li>Upload the PDF here. You will see the list before anyone is added.</li></ol><div class="zc-inline"><button type="button" class="zc-btn zc-btn-s" id="gtemplate">Download the Excel sheet</button></div>${lbl("gpdf", "Choose your PDF")}<input id="gpdf" class="zc-in" type="file" accept=".pdf,application/pdf" ${tbDis("ppl" + eid)}><p class="zc-small" id="pdfnote" role="status">${esc(S.pdfNote || "")}</p>${S.pdfRows ? `<div class="zc-box" id="pdfprev"><b class="zc-bt">${S.pdfRows.length} ${S.pdfRows.length === 1 ? "person" : "people"} found in your PDF</b>${S.pdfRows.slice(0, 5).map((r) => `<div class="zc-small zc-nomargin">${esc(r.name || "No name")} &middot; ${esc(r.phone ? "******" + String(r.phone).replace(/\D/g, "").slice(-4) : "")} ${esc(r.empId || "")}</div>`).join("")}${S.pdfRows.length > 5 ? `<div class="zc-small zc-nomargin">and ${S.pdfRows.length - 5} more</div>` : ""}<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s" id="pdfgo">Add them</button><button type="button" class="zc-mini" id="pdfno">Not these</button></div></div>` : ""}`;
     const form = m === "pdf" ? pdfForm : m === "contacts" ? `<div class="zc-inline"><button type="button" class="zc-btn zc-btn-s" id="gcontacts" ${tbDis("ppl" + eid)}>Pick from my contacts</button></div>`
-      : m === "type" ? `<div class="zc-inline"><label class="zc-sr" for="gname">Name</label><input id="gname" class="zc-in" placeholder="Name" autocomplete="off"><label class="zc-sr" for="gphone">Mobile number</label><input id="gphone" class="zc-in" inputmode="tel" placeholder="${vm === "id" ? "Mobile (optional)" : "415 555 0132"}" autocomplete="off">${idPh ? `<label class="zc-sr" for="gemp">Employee ID</label><input id="gemp" class="zc-in" placeholder="${idPh}" autocomplete="off"><span id="gemphint" class="zc-small" aria-live="polite"></span>` : ""}<button type="button" class="zc-btn zc-btn-s" id="gadd" ${tbDis("ppl" + eid)}>Add</button></div>`
-      : m === "paste" ? `${lbl("rosterTxt", vm === "mobile" ? "Paste one person per line: name, mobile number" : vm === "id" ? "Paste one person per line: name, employee ID (and a mobile number if you have it)" : "Paste one person per line: name, mobile number, employee ID")}<textarea id="rosterTxt" class="zc-in zc-ta" rows="5" placeholder="Asha, 415 555 0132" autocomplete="off"></textarea><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="rosterGo" ${tbDis("ppl" + eid)}>Add them</button></div>`
+      : m === "type" ? `<div class="zc-inline"><label class="zc-sr" for="gname">Name</label><input id="gname" class="zc-in" placeholder="Name" autocomplete="off"><label class="zc-sr" for="gphone">Mobile number</label><input id="gphone" class="zc-in" inputmode="tel" placeholder="${vm === "id" ? "Mobile (optional)" : "415 555 0132"}" autocomplete="off">${idPh ? `<label class="zc-sr" for="gemp">${IDN()}</label><input id="gemp" class="zc-in" placeholder="${idPh}" autocomplete="off"><span id="gemphint" class="zc-small" aria-live="polite"></span>` : ""}<button type="button" class="zc-btn zc-btn-s" id="gadd" ${tbDis("ppl" + eid)}>Add</button></div>`
+      : m === "paste" ? `${lbl("rosterTxt", vm === "mobile" ? "Paste one person per line: name, mobile number" : vm === "id" ? "Paste one person per line: name, " + (emKind() ? "Email ID" : "employee ID") + " (and a mobile number if you have it)" : "Paste one person per line: name, mobile number, employee ID")}<textarea id="rosterTxt" class="zc-in zc-ta" rows="5" placeholder="Asha, 415 555 0132" autocomplete="off"></textarea><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="rosterGo" ${tbDis("ppl" + eid)}>Add them</button></div>`
       : `${lbl("gfile", vm === "mobile" ? "Choose a CSV file: name, then mobile number" : "Choose a CSV file: name, mobile number, employee ID")}<input id="gfile" class="zc-in" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain" ${tbDis("ppl" + eid)}>${small("In Excel, choose Save as CSV first.")}`;
     const ccRow = `<span class="zc-lbl">Numbers typed without a country code are from</span><div class="zc-chips" role="group" aria-label="Country of numbers typed without a country code">${[["91", "India (+91)"], ["1", "United States (+1)"]].map(([v, l]) => `<button type="button" class="zc-chip${CC.v === v ? " on" : ""}" data-cc="${v}" aria-pressed="${CC.v === v}">${l}</button>`).join("")}</div>`;
     return `<div class="zc-chips" role="group" aria-label="How to add people">${chips}</div>${ccRow}${tbSlot("ppl" + eid, "K6", "gadd,rosterGo,gcontacts,gfile,gpdf")}${form}${small("Invite only people who would like to play. Guests who join the common link with just a name do not need to be listed.")}`;
@@ -611,7 +614,7 @@
     h += guestTools();
     return h + `</div>`;
   }
-  const localCsv = () => [vmode() === "mobile" ? "Name,Mobile,Personal link,WhatsApp link,Status" : "Name,Mobile,Employee ID,Personal link,WhatsApp link,Status"].concat((S.pp.list || []).map((p) => [p.name, p.maskedPhone].concat(vmode() === "mobile" ? [] : [p.empId || ""]).concat([p.link, waHref(p), stLabel(p.status)]).map((x) => '"' + String(x == null ? "" : x).replace(/"/g, '""') + '"').join(","))).join("\n");
+  const localCsv = () => [vmode() === "mobile" ? "Name,Mobile,Personal link,WhatsApp link,Status" : "Name,Mobile," + IDN() + ",Personal link,WhatsApp link,Status"].concat((S.pp.list || []).map((p) => [p.name, p.maskedPhone].concat(vmode() === "mobile" ? [] : [p.empId || ""]).concat([p.link, waHref(p), stLabel(p.status)]).map((x) => '"' + String(x == null ? "" : x).replace(/"/g, '""') + '"').join(","))).join("\n");
   /** Organizer and Host play through their own personal link too: their seat is marked for them (POST /people/me), made when they ask. */
   function playBlock() {
     if (S.shield || !canRun()) return "";
@@ -1279,7 +1282,7 @@
       const f = S.f;
       if (role() === "cohost") { markDone(n); return advance(n); }
       if (n === 1) { const name = f.occ === "Other" ? (f.oname || "").trim() : f.occ, ms = startOf(f); if (!(ms > Date.now())) throw new Error(MSG_PAST); if (ms > Date.now() + 30 * 86400000) throw new Error("A game can start at most 30 days from today. Please pick a closer date."); await call("PATCH", `/api/z/${eid}/settings`, { name, startRound: ZG.roundAt(ms), tz: TZ }); }
-      else if (n === 2) { { const c = Number(f.cap); if (!Number.isInteger(c) || c < 1) throw new Error("Please give the number of players, for example 180."); if (c > 10000) throw new Error("For more than 10,000 players, please write to us and we will arrange it."); } if (f.inv && !f.emp && !f.cats.length) throw new Error("Pick at least one kind of guest."); await call("PATCH", `/api/z/${eid}/settings`, { cap: Number(f.cap), callSeconds: Number(f.spd), tickets: Number(f.tix), mark: f.mk === "tap" ? "tap" : "auto", join: "name", rounds: Number(f.rnd), whoCanJoin: f.emp || f.who !== "anyone" ? "list" : "anyone", verify: f.idq ? (f.ver === "both" ? "both" : "id") : "mobile", employeesOnly: !!f.emp, invites: { on: !f.emp && !!f.inv, per: Number(f.per) || 4, cats: f.cats } }); }
+      else if (n === 2) { { const c = Number(f.cap); if (!Number.isInteger(c) || c < 1) throw new Error("Please give the number of players, for example 180."); if (c > 10000) throw new Error("For more than 10,000 players, please write to us and we will arrange it."); } if (f.inv && !f.emp && !f.cats.length) throw new Error("Pick at least one kind of guest."); await call("PATCH", `/api/z/${eid}/settings`, { cap: Number(f.cap), callSeconds: Number(f.spd), tickets: Number(f.tix), mark: f.mk === "tap" ? "tap" : "auto", join: "name", rounds: Number(f.rnd), whoCanJoin: f.emp || f.who !== "anyone" ? "list" : "anyone", verify: f.idq ? (f.ver === "both" ? "both" : f.ver === "email" ? "email" : "id") : "mobile", employeesOnly: !!f.emp, invites: { on: !f.emp && !!f.inv, per: Number(f.per) || 4, cats: f.cats } }); }
       else if (n === 3) { const rewards = rewardsOut(f); if (!rewards.length) throw new Error("Tick at least one prize."); await call("PATCH", `/api/z/${eid}/settings`, { tickets: Number(f.tix), rewards }); }
       else if (n === 4) {
         const bn = (f.brand.name || "").trim(), bc = f.brand.color || "", bl = f.brand.logo || "", brandChanged = JSON.stringify(f.brand) !== JSON.stringify((S.fBase || {}).brand);
@@ -1337,9 +1340,9 @@
   const parseList = (text) => {
     const lines = String(text).split(/\r?\n/).map((l) => l.replace(/"/g, "").trim()).filter(Boolean);
     let map = null;
-    if (lines.length && /name|mobile|phone|employee|emp/i.test(lines[0]) && !/\d{8,}/.test(lines[0])) { // a header row says which column is which
+    if (lines.length && /name|mobile|phone|employee|emp|mail/i.test(lines[0]) && !/\d{8,}/.test(lines[0])) { // a header row says which column is which
       const h = lines.shift().split(/[,;\t]/).map((c) => c.trim().toLowerCase());
-      map = { n: h.findIndex((c) => /name/.test(c) && !/employee|emp/.test(c)), p: h.findIndex((c) => /mobile|phone|number/.test(c) && !/employee|emp/.test(c)), e: h.findIndex((c) => /employee|emp|staff|\bid\b/.test(c)) };
+      map = { n: h.findIndex((c) => /name/.test(c) && !/employee|emp/.test(c)), p: h.findIndex((c) => /mobile|phone|number/.test(c) && !/employee|emp/.test(c)), e: h.findIndex((c) => /employee|emp|staff|\bid\b|mail/.test(c)) };
     }
     return lines.map((l) => {
       const c = l.split(/[,;\t]/).map((x) => x.trim());
@@ -1347,7 +1350,7 @@
       if (c.length >= 3) return looksPhone(c[1]) || !looksPhone(c[2]) ? { name: c[0], phone: c[1], empId: c[2] } : { name: c[0], phone: c[2], empId: c[1] };
       if (c.length === 2) return looksPhone(c[1]) ? { name: c[0], phone: c[1] } : vmode() !== "mobile" ? { name: c[0], phone: "", empId: c[1] } : { name: c[0], phone: c[1] };
       const m = l.match(/^(.*?)[,;\t ]+([+()\d][\d ()+-]{4,})$/) || l.match(/^()([+()\d][\d ()+-]{8,})$/);
-      return m ? { name: m[1].trim(), phone: m[2].trim() } : vmode() !== "mobile" && (empNew() ? /^[^\s,;]{1,60}$/.test(l) && /\d/.test(l) : /^[A-Za-z0-9][A-Za-z0-9._\-\/]{0,29}$/.test(l)) ? { name: "", phone: "", empId: l } : { name: l, phone: "" };
+      return m ? { name: m[1].trim(), phone: m[2].trim() } : vmode() !== "mobile" && (emKind() ? /^[^\s,;]{3,254}$/.test(l) && l.indexOf("@") > 0 : empNew() ? /^[^\s,;]{1,60}$/.test(l) && /\d/.test(l) : /^[A-Za-z0-9][A-Za-z0-9._\-\/]{0,29}$/.test(l)) ? { name: "", phone: "", empId: l } : { name: l, phone: "" };
     });
   };
   function applyBundle(b) { applyBundleTo(S.f, b); }
@@ -1501,9 +1504,9 @@
     all("[data-cc]", (b) => (b.onclick = () => { CC.v = b.dataset.cc; ls.set("cbz-cc", CC.v); redraw(); }));
     if ($("copy")) $("copy").onclick = async () => { const ok = await copyText(role() === "cohost" ? cohInvite() : guestLink()); $("copy").textContent = ok ? "Copied" : "Select and copy it"; };
     if ($("copybig")) $("copybig").onclick = async () => { const ok = await copyText(bigLink()); $("copybig").textContent = ok ? "Copied" : "Select and copy it"; };
-    if ($("gemp")) $("gemp").oninput = () => { const h = $("gemphint"); if (h) h.textContent = IDCLEAN.empHint($("gemp").value, empNew()); };
+    if ($("gemp")) $("gemp").oninput = () => { const h = $("gemphint"); if (h) h.textContent = emKind() ? IDCLEAN.emailHint($("gemp").value) : IDCLEAN.empHint($("gemp").value, empNew()); };
     if ($("gadd")) $("gadd").onclick = () => { const n = $("gname").value.trim(), p = $("gphone").value.trim(), e = ($("gemp") || {}).value || ""; addPeople(p || n || e.trim() ? [{ name: n, phone: p, empId: e }] : []); };
-    if ($("gtemplate")) $("gtemplate").onclick = () => { const vm = vmode(), head = vm === "mobile" ? "Name,Mobile" : vm === "id" ? "Name,Mobile (optional),Employee ID" : "Name,Mobile,Employee ID", ex = vm === "mobile" ? ["Asha Rao,98765 43210", "Ravi Shah,98765 43211"] : vm === "id" ? ["Asha Rao,,E101", "Ravi Shah,98765 43211,E102"] : ["Asha Rao,98765 43210,E101", "Ravi Shah,98765 43211,E102"]; const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + [head].concat(ex).join("\r\n") + "\r\n"], { type: "text/csv" })); a.download = "people-sheet.csv"; document.body.appendChild(a); a.click(); a.remove(); };
+    if ($("gtemplate")) $("gtemplate").onclick = () => { const vm = vmode(), head = vm === "mobile" ? "Name,Mobile" : vm === "id" ? "Name,Mobile (optional)," + IDN() : "Name,Mobile,Employee ID", ex = vm === "mobile" ? ["Asha Rao,98765 43210", "Ravi Shah,98765 43211"] : vm === "id" ? (emKind() ? ["Asha Rao,,asha@demo.com", "Ravi Shah,98765 43211,ravi@demo.com"] : ["Asha Rao,,E101", "Ravi Shah,98765 43211,E102"]) : ["Asha Rao,98765 43210,E101", "Ravi Shah,98765 43211,E102"]; const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + [head].concat(ex).join("\r\n") + "\r\n"], { type: "text/csv" })); a.download = "people-sheet.csv"; document.body.appendChild(a); a.click(); a.remove(); };
     if ($("gpdf")) $("gpdf").onchange = async () => { const f = $("gpdf").files && $("gpdf").files[0]; if (!f) return; S.pdfRows = null; S.pdfNote = "Reading your PDF\u2026"; redraw(); try { const rows = parseList(await pdfText(f)); S.pdfRows = rows.filter((r) => r.phone || r.empId); S.pdfNote = S.pdfRows.length ? "" : "We could not find any names and numbers in this PDF. Please save it from Excel (File, Save as, PDF), not as a photo or a scan."; } catch (e) { S.pdfNote = (e && e.message) || "We could not read this PDF. Please save it again from Excel, or paste the list instead."; } redraw(); };
     if ($("pdfno")) $("pdfno").onclick = () => { S.pdfRows = null; S.pdfNote = ""; redraw(); };
     if ($("pdfgo")) $("pdfgo").onclick = () => { const r = S.pdfRows || []; S.pdfRows = null; S.pdfNote = ""; addPeople(r); };

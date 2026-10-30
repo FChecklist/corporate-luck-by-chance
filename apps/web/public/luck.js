@@ -29,20 +29,20 @@
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
   let tb = null, NICK = "", EMP = "", PHONE = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
   const joinView = () => {
-    const vm = (INFO && INFO.verify) || "mobile", needId = vm !== "mobile", needPhone = vm === "both" || vm === "id" || !!(INFO && INFO.joinPhone); // the organizer chose what a person gives to get in
+    const isEmail = !!(INFO && INFO.verify === "email"), vm = isEmail ? "id" : (INFO && INFO.verify) || "mobile", needId = vm !== "mobile", needPhone = vm === "both" || vm === "id" || !!(INFO && INFO.joinPhone); // the organizer chose what a person gives to get in
     set(`${brand()}${head()}<div class="zcard zform"><h2>Join the game</h2>
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
-      ${needId ? `<label for="emp">Your employee ID</label><input id="emp" autocomplete="off" autocapitalize="characters" maxlength="60" disabled><div id="emphint" class="zsmall" aria-live="polite"></div>` : ""}
-      ${needPhone ? `<label for="ph">${needId && INFO.verify === "id" ? "Your mobile number (only if you have no employee ID)" : "Your mobile number"}</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" disabled>` : ""}
+      ${needId ? `${isEmail ? `<label for="emp">Your Email ID</label><input id="emp" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" disabled>` : `<label for="emp">Your employee ID</label><input id="emp" autocomplete="off" autocapitalize="characters" maxlength="60" disabled>`}<div id="emphint" class="zsmall" aria-live="polite"></div>` : ""}
+      ${needPhone ? `<label for="ph">${needId && vm === "id" ? (isEmail ? "Your mobile number (only if you have no Email ID)" : "Your mobile number (only if you have no employee ID)") : "Your mobile number"}</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" disabled>` : ""}
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
     const nm = document.getElementById("nm"), go = document.getElementById("go");
     const emp = document.getElementById("emp"), ph = document.getElementById("ph");
-    const hintEmp = () => { const h = document.getElementById("emphint"); if (h && emp && window.IDCLEAN) h.textContent = IDCLEAN.empHint(emp.value, !!(INFO && INFO.empClean)); }; if (emp) emp.addEventListener("input", hintEmp);
+    const hintEmp = () => { const h = document.getElementById("emphint"); if (h && emp && window.IDCLEAN) h.textContent = isEmail ? IDCLEAN.emailHint(emp.value) : IDCLEAN.empHint(emp.value, !!(INFO && INFO.empClean)); }; if (emp) emp.addEventListener("input", hintEmp);
     if (emp) emp.value = EMP; hintEmp(); if (emp) emp.value = EMP; if (ph) ph.value = PHONE;
     const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (ph) ph.disabled = !ok; const idOk = !emp || vm === "id" ? true : emp.value.trim().length > 0, phOk = !ph || (vm === "id" ? true : vm === "both" || !!(INFO && INFO.joinPhone) ? ph.value.replace(/\D/g, "").length >= 10 : true), anyOk = vm !== "id" || (emp.value.trim() || ph.value.trim()); go.disabled = !ok || nm.value.trim().length < 2 || !idOk || !phOk || !anyOk; go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
@@ -60,7 +60,7 @@
   };
   async function doJoin() {
     try {
-      const r = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+      const r = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { [INFO && INFO.verify === "email" ? "email" : "empId"]: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
       clearTimeout(busyTimer); busyTries = 0;
       pid = r.pid; ls.set(pidKey(), pid);
       start();
@@ -82,7 +82,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}) }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { [INFO && INFO.verify === "email" ? "email" : "empId"]: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}) }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);

@@ -94,8 +94,8 @@ export const MAX_INVITES_PER_PERSON = 10;
 export const defaultInvites = (): InviteCfg => ({ on: false, per: 4, cats: ["family", "colleagues"] });
 /** A game for up to this many people costs Rs 0: a real game in every way, it publishes without payment. */
 export const DEMO_CAP = 10;
-export type VerifyMode = "mobile" | "id" | "either" | "both";
-export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both"];
+export type VerifyMode = "mobile" | "id" | "either" | "both" | "email";
+export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both", "email"];
 export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
 /**
  * Who decides the winners: the software, never a person. Every phone works out the winners from the public numbers and reports them; our store accepts a result
@@ -224,7 +224,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
   }
   if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is \"auto\" or \"tap\"." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
   if (input.verify !== undefined) {
-    if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, or both." };
+    if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, Email ID, or both mobile number and employee ID." };
     if (input.verify === "mobile") delete cfg.verify; else cfg.verify = input.verify as VerifyMode;
   }
   if (input.employeesOnly !== undefined) {

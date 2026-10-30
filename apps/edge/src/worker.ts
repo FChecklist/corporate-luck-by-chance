@@ -34,8 +34,8 @@ import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
-import { normEmpFor, emailId, badEmpWhy, EMP_CLEAN_FROM_MS } from "./idclean";
-import { empHashOf, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
+import { emailId, EMP_CLEAN_FROM_MS } from "./idclean";
+import { idHashOf, listIdFor, badIdWhy, idWord, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
 import { googleClientId, verifyGoogleCredential } from "./google";
@@ -329,7 +329,7 @@ async function useHeldPass(env: Env, org: string, eh: string, now: number): Prom
 async function ownerTestGrant(env: Env, org: string, cap: number, now: number): Promise<boolean> {
   for (const t of OWNER_TEST_FREE) {
     if (now > t.until || cap > t.maxCap) continue;
-    const eh = await sha("email|" + t.email.trim().toLowerCase());
+    const eh = await sha("email|" + emailId(t.email));
     if (!(await env.DB.prepare("SELECT 1 AS x FROM organizer_email WHERE email_hash=? AND org=?").bind(eh, org).first())) continue;
     const open = (await env.DB.prepare("SELECT COUNT(*) AS c FROM entitlement WHERE org=? AND payment_id='owner-test' AND eid IS NULL").bind(org).first<{ c: number }>())?.c ?? 0;
     if (open >= 3) return true; // enough unused free packs already
@@ -607,7 +607,7 @@ const waLinkFor = (digits: string, name: string, link: string): string => `https
 /** A brand-new organizer account for a work e-mail (used by the first-time start and by Google sign-up): the console key, the lasting AI key (shown only in the console), and the 24-hour AI-link mail. */
 /* AI_LINK_MAIL_AT_SIGNUP="0" (a Pages variable, set on the live site): the AI work link is not offered in the organizer console, so the welcome e-mail that carried it is not sent either. A new organizer then gets only the sign-in e-mail (the 6-digit code as option 1, the sign-in link as option 2). Any other value sends it as before. */
 async function createOrganizer(env: Env, req: Request, email: string, now: number, via: "start" | "signin-google" | "host-to-organizer", ticked = false): Promise<{ ok: true; org: string; token: string; aiKey: string; aiMessage: string } | { error: string; status: number }> {
-  const eh = await sha("email|" + email);
+  const eh = await sha("email|" + emailId(email));
     const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
     const used = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(ipk).first<{ v: string }>())?.v ?? 0);
     if (used >= STARTS_PER_DAY) return { error: "Too many new games from this network today. Please try again tomorrow.", status: 429 };
@@ -852,7 +852,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const b = await body(req);
     const email = typeof b?.email === "string" ? emailId(b.email) : "";
     if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
-    const eh = await sha("email|" + email);
+    const eh = await sha("email|" + emailId(email));
     if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) { await holdPassForSignIn(env, eh, b?.pass, now); return json({ ok: true, exists: true }); }
     if (await hostForEmail(env.DB, eh)) { await holdPassForSignIn(env, eh, b?.pass, now); return json({ ok: true, exists: true }); } // a Host who confirmed this address signs in with a code, like an Organizer: the sign-in door must not offer them a new Organizer account
     { const cm = consentRequired(b, "K2"); if (cm) return cm; } // K2: a new account needs the Terms box ticked (checked on the server, not only on the page)
@@ -869,7 +869,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const b = await body(req);
     const email = typeof b?.email === "string" ? emailId(b.email) : "";
     if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
-    const eh = await sha("email|" + email);
+    const eh = await sha("email|" + emailId(email));
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
     const ticked = consentRequired(b, "K2") === null; // K2 is recorded when the Terms box was ticked; an existing account asks for a code without it (the box is for a new account)
     const hostAcct = await hostForEmail(env.DB, eh); // a Host who confirmed this address signs in the same way; a person who is both gets both roles
@@ -904,7 +904,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const bad = async (msg: string, code?: string) => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(fk, String(fails + 1), String(fails + 1)).run(); return json({ error: msg, ...(code ? { code } : {}) }, 400); };
     const g = await verifyGoogleCredential(env, b.credential, now);
     if (!g.ok) return bad("That Google sign-in could not be checked. Please try again, or use an e-mail code.", "google-failed");
-    const email = g.email, eh = await sha("email|" + email);
+    const email = emailId(g.email), eh = await sha("email|" + email);
     await recordConsent(env.DB, { subject: eh.slice(0, 16), kind: intent === "host" ? "K5" : "K2", ref: "google", now });
     if (intent === "host") { // a Host finishing the first open: Google confirms the e-mail the Organizer added them with
       const hk = typeof b.hostKey === "string" ? b.hostKey : "";
@@ -965,7 +965,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const email = typeof b?.email === "string" ? emailId(b.email) : "";
     const code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
     if (!email || code.length !== 6) return json({ error: "Enter the 6-digit code." }, 400);
-    const eh = await sha("email|" + email);
+    const eh = await sha("email|" + emailId(email));
     if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE) {
       { // a per-network daily limit and the write budget apply, like every other public write
         const tk = `tlg/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local") + "|" + email)).slice(0, 16)}`; // per network and per account: one account cannot lock out another
@@ -1400,7 +1400,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const codes = [...new Set(text.match(/\b\d{6}\b/g) ?? [])].slice(0, 5);
     for (const tok of [...new Set(text.match(/[A-Za-z0-9_-]{4,40}/g) ?? [])].slice(0, 80)) {
       const c = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`contact/${tok}`).first<{ v: string }>();
-      if (!c || String(JSON.parse(c.v).email ?? "").toLowerCase() !== from) continue;
+      if (!c || emailId(JSON.parse(c.v).email) !== from) continue;
       const registered = String(JSON.parse(c.v).email);
       const pend = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`delreq/${tok}`).first<{ v: string }>();
       const pv = pend ? JSON.parse(pend.v) : null;
@@ -1533,17 +1533,17 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   const locked = unpaid && !isDraft && !cancelled && !didNotStart && roundMs(e.start_round) - LOCK_LEAD_MS <= now; // published but not paid by its start time: it does not begin
   if (isDraft && (((action === "join" || action === "who") && req.method === "POST") || (action === "info" && !can(a, e)))) return json({ error: "This game is not open yet." }, 403);
   if (action === "who" && req.method === "POST") { // "Is this you?": once the employee ID is typed and both boxes are ticked, the first name and the first letter of the last name the organizer gave, so the person sees the name that will be used. Nothing is kept; a wrong ID counts like a wrong ID at the door.
-    const b = await body(req), vf = verifyOf(e), id = normEmpFor(b?.empId, e.created_ms);
+    const b = await body(req), vf = verifyOf(e), id = listIdFor(vf, vf.kind === "email" ? b?.email : b?.empId, e.created_ms);
     if (vf.mode === "mobile" || !id) return json({ known: false });
     const ck = consentRequired(b, "K4"); if (ck) return ck;
-    const eh = await empHashOf(env, id);
+    const eh = await idHashOf(env, vf, id);
     let hit = await personByPhone(env, eid!, eh);
     if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid!, al.v); }
     if (!hit || hit.status === "removed") {
       try {
         const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
         const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-        if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
+        if (n >= ID_MISS_PER_10MIN) return json({ error: vf.kind === "email" ? "Too many tries with an Email ID that is not on the list. Please ask your organizer for help." : "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
         await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
       } catch { /* a counter never blocks */ }
       return json({ known: false });
@@ -1571,14 +1571,14 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (typedDigits) typedDigits = keptPhone(b?.phone); // kept with its country: 91 + 10 digits for India, +<code><number> for any other country
     if (typedGiven && !typedPh) return json({ error: "Enter a valid mobile number." }, 400);
     // What the organizer asked people to give: a mobile number (default), an employee ID, or both. An outsider (a vendor, a customer, a family member) has no ID and gives a mobile number.
-    const vf = verifyOf(e), empNorm = normEmpFor(b?.empId, e.created_ms);
-    if (empNorm === null) return json({ error: badEmpWhy(e.created_ms), code: "bad-id" }, 400);
+    const vf = verifyOf(e), empNorm = listIdFor(vf, vf.kind === "email" ? b?.email : b?.empId, e.created_ms), W = idWord(vf); // the criterion decides: an Email ID game reads b.email with the e-mail cleaner, every other game reads b.empId as before
+    if (empNorm === null) return json({ error: badIdWhy(vf, e.created_ms), code: "bad-id" }, 400);
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
-    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !empNorm && !tok) return json({ error: vf.mode === "id" ? "Enter your employee ID." : "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
+    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !empNorm && !tok) return json({ error: vf.mode === "id" ? `Enter your ${W}.` : "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
     if (vf.employeesOnly && vf.mode === "either" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your mobile number or your employee ID.", code: "need-id" }, 400);
     let extraDigits: string | null = null, idHit = false; // a mobile number given together with an employee ID that is on the list: kept as the person's contact, never a reason to refuse
     if ((vf.mode === "either" || vf.mode === "id") && empNorm && !tok) { // "mobile number or employee ID" (and ID alone): an ID on the list is as good as the listed mobile number (the person is then known by their listed number)
-      const eh = await empHashOf(env, empNorm);
+      const eh = await idHashOf(env, vf, empNorm);
       let hit = await personByPhone(env, eid!, eh);
       if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid!, al.v); }
       if (hit) { tok = hit; tokPii = await openPii(env, hit.pii); extraDigits = typedDigits; idHit = true; typedPh = null; typedDigits = null; }
@@ -1586,16 +1586,16 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const idOnly = (vf.mode === "id" || vf.mode === "either") && !!empNorm && !typedGiven && !tok; // known by employee ID alone
     let digits = typedDigits ?? tokPii?.phone ?? (idOnly ? "" : null);
     if (vf.mode === "both" && empNorm && !tok && !typedGiven) return json({ error: "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
-    if (vf.mode === "id" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400); // the organizer asked for an ID: a nickname alone is no way in
+    if (vf.mode === "id" && !empNorm && !typedGiven && !tok) return json({ error: `Enter your ${W}.`, code: "need-id" }, 400); // the organizer asked for an ID: a nickname alone is no way in
     let nameOnly = false;
-    let ph = idOnly ? await empHashOf(env, empNorm) : typedPh ?? tok?.ph ?? null;
+    let ph = idOnly ? await idHashOf(env, vf, empNorm) : typedPh ?? tok?.ph ?? null;
     if (!ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && vf.mode !== "both" && cfgOf(e).join !== "phone") { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
       const typedName = cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "";
       if (typedName.length < 2) return json({ error: "Please type your name." }, 400);
       if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
       ph = await sha(`nm|${eid}|${dev}`); digits = ""; nameOnly = true;
     }
-    if (!ph || (!digits && !idOnly && !nameOnly && !((vf.mode === "id" || vf.mode === "either") && tokPii))) return json({ error: vf.mode === "id" ? "Enter your employee ID, or your mobile number if you have no employee ID." : vf.mode === "either" ? "Enter your mobile number or your employee ID." : "Enter a valid mobile number." }, 400);
+    if (!ph || (!digits && !idOnly && !nameOnly && !((vf.mode === "id" || vf.mode === "either") && tokPii))) return json({ error: vf.mode === "id" ? `Enter your ${W}, or your mobile number if you have no ${W}.` : vf.mode === "either" ? "Enter your mobile number or your employee ID." : "Enter a valid mobile number." }, 400);
     const ck = consentRequired(b, "K4"); // K4: both boxes, checked on the server before any name or number is kept
     const k4 = (subject: string) => recordConsent(env.DB, { subject, kind: "K4", ref: eid!, now });
     const otherNumber = !!(tok && typedPh && typedPh !== tok.ph); // somebody else opened this person's link
@@ -1608,7 +1608,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const hadK4 = !!(await env.DB.prepare("SELECT 1 AS x FROM consent_log WHERE kind='K4' AND ref=? AND subject IN (?,?)").bind(eid, have.pid, await pidOf(ph)).first()); // already ticked when this person first came in
       if (!hadK4 && ck) return ck;
       if (have.seat && have.dev && have.dev !== dev) {
-        if (idHit) return json({ error: "This employee ID already has a ticket on another phone. A ticket plays on one phone only. If it is you on a new phone, ask your organizer to move your ticket to this phone.", code: "id-used" }, 423);
+        if (idHit) return json({ error: `This ${W} already has a ticket on another phone. A ticket plays on one phone only. If it is you on a new phone, ask your organizer to move your ticket to this phone.`, code: "id-used" }, 423);
         if (tok && !typedPh) return json({ error: "This link was already opened on another phone. If you are someone else, type your own mobile number to ask to join. If it is you on a new phone, ask whoever invited you to send the link again.", code: "link-used", needPhone: true }, 423);
         return json({ error: "This place is already on another phone. A place plays on one device only. Ask your organizer if you need to move it.", code: "other-phone" }, 423);
       }
@@ -1636,7 +1636,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
         try {
           const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
           const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-          if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
+          if (n >= ID_MISS_PER_10MIN) return json({ error: vf.kind === "email" ? "Too many tries with an Email ID that is not on the list. Please ask your organizer for help." : "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
           await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
         } catch { /* a counter never blocks a join */ }
       }
@@ -1644,7 +1644,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (pr?.status === "removed") return removedReply();
     const tickedBefore = !!(await env.DB.prepare("SELECT 1 AS x FROM consent_log WHERE kind='K4' AND ref=? AND subject=?").bind(eid, await pidOf(ph)).first()); // ticked when they asked to come in; the page does not keep it across a reload
     if (ck && !tickedBefore) return ck;
-    if (needIdAfterConsent) return json({ error: "Enter your employee ID.", code: "need-id" }, 400);
+    if (needIdAfterConsent) return json({ error: `Enter your ${W}.`, code: "need-id" }, 400);
     if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
     if (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first()) return json({ error: "This phone already holds a place in this game. One phone, one place. Others can join from their own phones, using your invitation link if the organizer allowed it.", code: "device-used" }, 409);
     if (await gameStarted(env, eid!)) return json({ error: "The game has started and the list is closed. You can still watch it.", code: "closed", spectator: true }, 409);

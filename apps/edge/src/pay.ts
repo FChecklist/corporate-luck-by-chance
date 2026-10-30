@@ -6,6 +6,7 @@
 // An entitlement is what lets an organizer create one engagement of up to `pack` participants; without one, creating is refused.
 // Needs the `nodejs_compat` flag (billing uses node:crypto HMAC). Test mode (env.TEST_MODE = "1", never in production) fulfils without Razorpay.
 import { consentRequired, recordConsent } from "./consent";
+import { emailId } from "./idclean";
 import { recordFunnelForOrg } from "./visits";
 import { BRAND, plainToHtml, taggedSubject, withFooter } from "./brand";
 import {
@@ -202,7 +203,7 @@ async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (
   if (!(await spend(6))) return { error: "Busy day. Your payment is safe; this will complete shortly.", status: 503 };
   const meta = JSON.parse(p.meta);
   if (meta.paytest) return fulfilPaytest(env, p, meta, now);
-  const eh = await sha("email|" + p.email.toLowerCase());
+  const eh = await sha("email|" + emailId(p.email));
   let org: string | null = meta.orgId ?? (await db.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>())?.org ?? null;
   let organizerKey: string | null = null;
   const test = p.is_test ? 1 : 0; // a payment made in TEST mode (mode.ts): everything it creates is flagged too
@@ -268,10 +269,10 @@ async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (
   ];
   await sendMail(env, db, p.email, `${brand.name}: payment received, invoice ${number}`, lines.join("\n\n"), now);
   // the same invoice goes to the organizer's own e-mail when someone else paid (a Co-host or a pay link) or the organizer's e-mail differs from the payer's
-  const orgMail = typeof organizer.email === "string" ? organizer.email.trim().toLowerCase() : "";
+  const orgMail = typeof organizer.email === "string" ? emailId(organizer.email) : "";
   const teamTo = await teamEmails(env, org, eidForInvoice || meta.eid || null).catch(() => null), invSeen = new Set<string>([p.email.trim().toLowerCase()]), invTo: string[] = []; // the organizer and every Host get the invoice once; the payer already has the receipt
-  for (const t0 of [orgMail, teamTo?.organizer ?? "", ...(teamTo?.hosts ?? [])]) { const t = (t0 ?? "").trim().toLowerCase(); if (t && EMAIL.test(t) && !invSeen.has(t)) { invSeen.add(t); invTo.push(t); } }
-  const ownerSet = new Set([orgMail, (teamTo?.organizer ?? "").trim().toLowerCase()]); // the organizer gets the whole invoice; a Host only hears that the game is paid (a Host may be outside the paying company, so no buyer details and no invoice link)
+  for (const t0 of [orgMail, teamTo?.organizer ?? "", ...(teamTo?.hosts ?? [])]) { const t = emailId(t0); if (t && EMAIL.test(t) && !invSeen.has(t)) { invSeen.add(t); invTo.push(t); } }
+  const ownerSet = new Set([orgMail, emailId(teamTo?.organizer)]); // the organizer gets the whole invoice; a Host only hears that the game is paid (a Host may be outside the paying company, so no buyer details and no invoice link)
   for (const to of invTo) await sendMail(env, db, to, `${brand.name}: ${ownerSet.has(to) ? `invoice ${number} for your game` : `your game ${eidForInvoice ?? ""} is paid`}`, ownerSet.has(to)
     ? `An invoice for your game${eidForInvoice ? ` ${eidForInvoice}` : ""} was issued by ${brand.name}.
 
@@ -547,7 +548,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       return new Response(pdf.build() as unknown as BodyInit, { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="invoice-${r.number.replace(/[^A-Za-z0-9._-]/g, "_")}.pdf"`, "cache-control": "no-store", "x-robots-tag": "noindex" } });
     }
     if (req.method === "POST" && ix[2] === "/email") {
-      const b = await body(req); const to = b && typeof b.to === "string" ? b.to.trim().toLowerCase() : "";
+      const b = await body(req); const to = b && typeof b.to === "string" ? emailId(b.to) : "";
       if (!EMAIL.test(to)) return json({ error: "Enter a valid e-mail address." }, 400);
       const k = `invmail/${ix[1]}`, used = Number((await db.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
       if (used >= 5) return json({ error: "This invoice has already been e-mailed 5 times." }, 429);
