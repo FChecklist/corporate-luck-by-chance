@@ -46,6 +46,7 @@ import { factsText } from "./ai-facts";
 import { mapJson, mapText } from "./ai-functions";
 import { goScreen, screenJson, screenText } from "./ai-go";
 import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold, toCsv, verifyChain, closeAuditFor, sweepAudit, type AuditEnv } from "./audit";
+import { FUNNEL_ENDPOINT, funnelCsv, funnelRange, funnelReport, funnelRoute, recordFunnel } from "./funnel";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
 import { LUCK_SCHEMA, LUCK_PRESS_SCHEMA, luckRoute, ensureL, gameStarted, luckTick } from "./luck";
 import { CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentRequired, hasConsented, recordConsent, textFor, type Kind } from "./consent";
@@ -63,7 +64,7 @@ export interface Env {
   /** The secret that seals names and mobile numbers at rest (AES-256-GCM). Never stored in the database. */
   DATA_KEY?: string;
   /** Optional: the key that hashes network addresses for the public-page visit tracking (visits.ts); when absent it is derived from DATA_KEY. VISIT_DAILY_WRITES caps that tracking's share of the daily write allowance (default 20,000). */
-  VISIT_KEY?: string; VISIT_DAILY_WRITES?: string;
+  VISIT_KEY?: string; VISIT_DAILY_WRITES?: string; FUNNEL_EVENTS?: string;
   /** Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion). */
   INBOUND_SECRET?: string;
   /** The scheduled job's own key (it can call only the lifecycle tick, nothing else). */
@@ -784,7 +785,15 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   { const bm = req.method === "GET" ? p.match(/^\/api\/beacon\/([0-9a-f]{64})\/public\/(latest|\d{1,10})$/) : null; if (bm) return beaconRelay(req, bm[1]!, bm[2]!); }
   { const mr = await modeRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => purgeTestData(env, n)); if (mr) return mr; } // TEST/LIVE switch, allow-list, purge (mode.ts): owner only, except the public read of the word TEST or LIVE
   { const ar = await adminRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => spend(env, now, n)); if (ar) return ar; } // the owner's desk (admin.ts): site switch, organizer lookup, data requests, mail events, error counts; the health read; the mail webhook
+  if (p === FUNNEL_ENDPOINT) return funnelRoute(req, env as any, now); // first-party sales funnel, page steps (funnel.ts); stores nothing while FUNNEL_EVENTS is not "on"
   if (p === "/api/v/b") return beaconRoute(req, env as VisitEnv, now, (n) => spend(env, now, n)); // public-page visit tracking (visits.ts); never the live game
+  if (p === "/api/owner/funnel") { // OWNER ONLY (platform key, never through an AI work link): the sales funnel by day, week and total, JSON or ?format=csv. Every read is written to the access log; anybody else gets the same 404 as an unknown address.
+    const ownerOk = a.plat && req.headers.get("x-cb-link") !== "1";
+    if (!ownerOk || req.method !== "GET") { await logAccess(env.DB, now, "denied:funnel", null, null, 0, false, a.kind ?? "anonymous"); return json({ error: "Not found" }, 404); }
+    const rep = await funnelReport(env as any, ...Object.values(funnelRange(url.searchParams, now)) as [string, string]);
+    await logAccess(env.DB, now, "funnel", null, null, rep.total.reduce((n, r) => n + r.count, 0), true);
+    return url.searchParams.get("format") === "csv" ? new Response(funnelCsv(rep), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": "attachment; filename=\"sales-funnel.csv\"", "cache-control": "no-store" } }) : json(rep);
+  }
   if (p === "/api/owner/game-records") { // OWNER ONLY (platform key, never through an AI work link): the permanent settings record of every game (no personal data of any player in it). Anybody else gets the same 404 as an unknown address.
     if (!(a.plat && req.headers.get("x-cb-link") !== "1") || req.method !== "GET") { await logAccess(env.DB, now, "denied:game-records", null, null, 0, false, a.kind ?? "anonymous"); return json({ error: "Not found" }, 404); }
     const recs = await readGameRecords(env.DB, url.searchParams.get("eid"), Number(url.searchParams.get("limit") ?? 200));
@@ -1384,6 +1393,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (ent) await env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(b.id, ent.id).run();
     if (a.kind === "ai" && a.org) await noteHelperGame(env.DB, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), a.org, b.id, now); // a game made with a Help Desk helper's key is recorded as theirs
     if (a.org) await recordTerms(env, a.org, now, "engagement");
+    await recordFunnel(env as any, "game_created", b.id, now, { org: a.org }); // sales funnel (funnel.ts)
     return json({ ok: true, draft, openUrl: `${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${b.id}` });
   }
   if (req.method === "GET" && p === "/api/history") {
@@ -1862,6 +1872,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     ]);
     const paid = !!(ent || free), startMs = roundMs(e.start_round);
     await recordFunnelForOrg(env as VisitEnv, e.org, "published", now);
+    await recordFunnel(env as any, "game_published", eid, now, { org: e.org }); // sales funnel (funnel.ts)
     await sendMail(env as PayEnv, env.DB, cEmail, paid ? (e.cap <= DEMO_CAP && !ent ? `Your game ${eid} is published (Rs 0)` : `Your game ${eid} is published and paid`) : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
       `Your game ${eid} is live.\n\nShare this link: ${shareUrl}\n\n${paid ? "" : `Payment pending: the game does not begin until it is paid for. You can pay at any time until the guest data is deleted; if you pay late, the game opens 2 minutes after the payment is confirmed (about 2 minutes to pay): ${payUrl}\n\n`}Big screen for the room: ${origin}/big.html?e=${eid}`, now);
     return json({ ok: true, published: true, paid, startMs, payUrl, shareUrl, confirmed: { email: cEmail, phone: cPhone.slice(-10) } });
