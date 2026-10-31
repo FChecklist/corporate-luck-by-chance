@@ -18,7 +18,7 @@ const lists = (() => {
   return out;
 })();
 const always = lists.asked_from_player ?? [], sometimes = lists.asked_if_organizer_switches_on ?? [];
-const FIELDS: [string, RegExp][] = [["name", /\bname\b/i], ["mobile number", /mobile number|phone number|\bphone\b/i], ["e-mail", /e-?mail/i], ["address", /\baddress\b/i], ["photo", /\bphoto\b|\bpicture\b/i]];
+const FIELDS: [string, RegExp][] = [["name", /\bname\b/i], ["mobile number", /mobile number|phone number|\bphone\b/i], ["e-mail", /e-?mail/i], ["address", /(?<!e-?mail )\baddress\b/i], ["photo", /\bphoto\b|\bpicture\b/i]];
 
 describe("D1: the data map", () => {
   test("it exists, with the player notice block, and says why, where and who for every field", () => {
@@ -58,7 +58,7 @@ describe("D2: the notice and the data map agree", () => {
     const asksNumber = /id="ph"|type="tel"|name="phone"|id="phone"/.test(code);
     expect(asksNumber).toBe(always.includes("mobile number") || sometimes.includes("mobile number"));
     expect(/id="nm"|id="name"|name="name"/.test(code)).toBe(always.includes("name"));
-    expect(/type="email"|id="email"|name="email"/.test(code)).toBe(false);
+    expect(/type="email"|id="email"|name="email"/.test(code)).toBe(always.includes("e-mail") || sometimes.includes("e-mail")); // an Email ID game asks for one
   });
   test("the box wording the server sends is the one the page script carries (no second wording)", () => {
     if (notice && existsSync(join(ROOT, "apps/web/public/consent.js")) && /\bK4:\s*\{/.test(pub("consent.js"))) { expect(pub("consent.js").includes(notice)).toBe(true); } // a game whose page fetches the wording from the server has no second copy

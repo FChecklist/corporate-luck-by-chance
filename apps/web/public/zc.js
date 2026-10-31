@@ -338,7 +338,7 @@
     const b = S.f.brand;
     return `<div class="zc-block" id="brandbox"><h3>Your brand on the page</h3>${small("Shown at the top of every player's page. All of it is optional.")}${lbl("f-brand-name", "Company name")}${inp("brand.name", { max: 40, ph: "Company name" })}
       <span class="zc-lbl" id="gl-brandcolor">Accent colour</span><div class="zc-chips" role="group" aria-labelledby="gl-brandcolor">${BRAND_COLORS.map(([v, l]) => `<button type="button" class="zc-chip${b.color === v ? " on" : ""}" data-ck="brand.color" data-v="${v}" aria-pressed="${b.color === v}"><span class="zc-sw" style="background:${v}" aria-hidden="true"></span>${l}</button>`).join("")}</div>
-      ${lbl("brandlogo", "Small logo (optional)")}<input id="brandlogo" class="zc-in" type="file" accept="image/png,image/jpeg,image/webp">${small(LOGO_RULES)}${b.logo ? `<div class="zc-logo"><img src="${esc(b.logo)}" alt="Your logo" width="48" height="48"><button type="button" class="zc-mini zc-danger" id="logorm">Remove logo</button></div>` : ""}${S.logoNote ? `<p class="zc-small zc-warnt" id="logonote" role="status">${esc(S.logoNote)}</p>` : small("We make it small for you, under 30 KB.")}
+      ${lbl("brandlogo", "Small logo (optional)")}<input id="brandlogo" class="zc-in" type="file" accept="image/png,image/jpeg,image/webp">${small(LOGO_RULES)}${b.logo ? `<div class="zc-logo"><img src="${esc(b.logo)}" alt="Your logo" width="48" height="48"><button type="button" class="zc-mini zc-danger" id="logorm">Remove logo</button></div>` : ""}${S.logoNote ? `<p class="zc-small zc-warnt" id="logonote" role="status">${esc(S.logoNote)}</p>` : small("The picture is made small automatically, under 30 KB.")}
       ${previewButton()}</div>`;
   }
   // The logo rules (the same numbers as packages/beacon/src/config.ts, which the server enforces)
@@ -785,7 +785,7 @@
     const L = (S.cfg && S.cfg.breaks || []).filter((b) => b.kind === "lucky");
     if (!L.length) return "";
     return `<div class="zc-block"><h3>Lucky draws</h3>${L.map((b, i) => { const d = S.lucky && S.lucky[i]; const done = (S.published || []).some((r) => r.pattern === "lucky" && r.ordinal === i + 1); return rowl(`${esc(b.title)} · ${b.winners || 3} ${(b.winners || 3) === 1 ? "person" : "people"}`, done ? `<b>Decided</b>` : d ? `<b>Being confirmed by the phones</b>` : `<span class="zc-small zc-nomargin">after the break ends</span>`); }).join("")}
-      ${small("The software picks the winners from everyone who joined, using public random numbers. You and we cannot choose them. A winner is confirmed when several phones agree.")}</div>`;
+      ${small("The software picks the winners from everyone who joined, using public random numbers. Nobody can choose them. A winner is confirmed when several phones agree.")}</div>`;
   }
   function rewardsBlock() {
     const bad = S.checked ? S.checked.bad.length : 0;
@@ -816,7 +816,7 @@
     const rpt = !S.shield && S.life && S.life.reportSent && !S.life.purged ? `<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s" id="rptopen">Open the report now</button><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="rptnew">New report link</button></div>` : "";
     return small("Within 24 hours of the game ending the report is sent to you, then every participant's name and number is deleted. Your details as Organizer and Host, and the winners record, are kept for 365 days. Co-host details are deleted with the guests.") + when2 + rpt
       + `<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s zc-btn-bad" id="erase">Delete all participant data now</button></div>`
-      + small("You tap once to confirm. You can also e-mail us from your registered address, or ask your AI assistant to request the deletion and then confirm it here. The report is e-mailed first when the game has already ended.")
+      + small("You tap once to confirm. You can also e-mail the support address from your registered address, or ask your AI assistant to request the deletion and then confirm it here. The report is e-mailed first when the game has already ended.")
       + afterClone() + cont(10, "All done");
   }
 
@@ -1502,7 +1502,7 @@
     if ($("gemp")) $("gemp").oninput = () => { const h = $("gemphint"); if (h) h.textContent = emKind() ? IDCLEAN.emailHint($("gemp").value) : IDCLEAN.empHint($("gemp").value, empNew()); };
     if ($("gadd")) $("gadd").onclick = () => { const n = $("gname").value.trim(), p = $("gphone").value.trim(), e = ($("gemp") || {}).value || ""; addPeople(p || n || e.trim() ? [{ name: n, phone: p, empId: e }] : []); };
     if ($("gtemplate")) $("gtemplate").onclick = () => { const vm = vmode(), head = vm === "mobile" ? "Name,Mobile" : vm === "id" ? "Name,Mobile (optional)," + IDN() : "Name,Mobile,Employee ID", ex = vm === "mobile" ? ["Asha Rao,98765 43210", "Ravi Shah,98765 43211"] : vm === "id" ? (emKind() ? ["Asha Rao,,asha@demo.com", "Ravi Shah,98765 43211,ravi@demo.com"] : ["Asha Rao,,E101", "Ravi Shah,98765 43211,E102"]) : ["Asha Rao,98765 43210,E101", "Ravi Shah,98765 43211,E102"]; const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + [head].concat(ex).join("\r\n") + "\r\n"], { type: "text/csv" })); a.download = "people-sheet.csv"; document.body.appendChild(a); a.click(); a.remove(); };
-    if ($("gpdf")) $("gpdf").onchange = async () => { const f = $("gpdf").files && $("gpdf").files[0]; if (!f) return; S.pdfRows = null; S.pdfNote = "Reading your PDF\u2026"; redraw(); try { const rows = parseList(await pdfText(f)); S.pdfRows = rows.filter((r) => r.phone || r.empId); S.pdfNote = S.pdfRows.length ? "" : "We could not find any names and numbers in this PDF. Please save it from Excel (File, Save as, PDF), not as a photo or a scan."; } catch (e) { S.pdfNote = (e && e.message) || "We could not read this PDF. Please save it again from Excel, or paste the list instead."; } redraw(); };
+    if ($("gpdf")) $("gpdf").onchange = async () => { const f = $("gpdf").files && $("gpdf").files[0]; if (!f) return; S.pdfRows = null; S.pdfNote = "Reading your PDF\u2026"; redraw(); try { const rows = parseList(await pdfText(f)); S.pdfRows = rows.filter((r) => r.phone || r.empId); S.pdfNote = S.pdfRows.length ? "" : "No names and numbers could be found in this PDF. Please save it from Excel (File, Save as, PDF), not as a photo or a scan."; } catch (e) { S.pdfNote = (e && e.message) || "This PDF could not be read. Please save it again from Excel, or paste the list instead."; } redraw(); };
     if ($("pdfno")) $("pdfno").onclick = () => { S.pdfRows = null; S.pdfNote = ""; redraw(); };
     if ($("pdfgo")) $("pdfgo").onclick = () => { const r = S.pdfRows || []; S.pdfRows = null; S.pdfNote = ""; addPeople(r); };
     if ($("rosterGo")) $("rosterGo").onclick = () => addPeople(parseList($("rosterTxt").value));
@@ -1530,7 +1530,7 @@
       const f = $("brandlogo").files && $("brandlogo").files[0]; if (!f) return;
       if (!/^image\/(png|jpeg|webp)$/.test(f.type || "")) { S.logoNote = "Please choose a PNG, JPEG or WebP picture."; return redraw(); }
       if (f.size > 5 * 1024 * 1024) { S.logoNote = "That picture is bigger than 5 MB. Please choose a smaller one."; return redraw(); }
-      try { S.f.brand.logo = await fitLogo(f); S.logoNote = ""; } catch (e) { S.logoNote = e && e.message === "small" ? "That picture is too small. It must be at least 64 x 64 pixels." : e && e.message === "thin" ? "That picture is too long and thin. It may be at most 4 times wider than tall." : "We could not use that picture. Try a smaller or simpler one."; }
+      try { S.f.brand.logo = await fitLogo(f); S.logoNote = ""; } catch (e) { S.logoNote = e && e.message === "small" ? "That picture is too small. It must be at least 64 x 64 pixels." : e && e.message === "thin" ? "That picture is too long and thin. It may be at most 4 times wider than tall." : "That picture could not be used. Try a smaller or simpler one."; }
       redraw();
     };
     if ($("logorm")) $("logorm").onclick = () => { S.f.brand.logo = ""; S.logoNote = ""; redraw(); };
