@@ -102,7 +102,7 @@ export class LuckGame {
   }
 
   /** Plays dice round g. They must come in order: dice round g needs both A_g and B_g, and B_g only exists after the press window closed. */
-  async addDiceRound(g: number, beaconA: string, beaconB: string): Promise<DiceRoundResult> {
+  async addDiceRound(g: number, beaconA: string, beaconB: string, pressed?: ReadonlySet<number> | null): Promise<DiceRoundResult> {
     if (g !== this.next) throw new Error(`dice round ${g} is out of order (expected ${this.next})`);
     if (!beaconA || !beaconB) throw new Error("both beacon values are needed");
     const s = this.cfg, r = roundOf(s, g);
@@ -111,7 +111,7 @@ export class LuckGame {
     const rt = this.roundTallies[r - 1]!;
     for (let seat = 0; seat < this.seats; seat++) {
       const d = await diceOf(this.gameId, seat, g, beaconB); dice[seat] = d;
-      if (s.newFlow) { const pt = nfPoints(target, d); points[seat] = pt; addNf(this.total[seat]!, g, pt); addNf(rt[seat]!, g, pt); } else if (d === target) { points[seat] = target; addHit(this.total[seat]!, g, target); addHit(rt[seat]!, g, target); }
+      if (s.newFlow) { const pt = pressed && !pressed.has(seat) ? 0 : nfPoints(target, d); /* new flow: a seat that did not press in time scores 0 */ points[seat] = pt; addNf(this.total[seat]!, g, pt); addNf(rt[seat]!, g, pt); } else if (d === target) { points[seat] = target; addHit(this.total[seat]!, g, target); addHit(rt[seat]!, g, target); }
     }
     if (isLastOfRound(s, g)) this.lastBeacon[r - 1] = beaconB;
     this.next++; this.latestB = beaconB;

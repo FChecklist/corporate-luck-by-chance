@@ -147,6 +147,7 @@
               if (pressed[gi]) return; pressed[gi] = true; LD.vibrate(40);
               pb.disabled = true; pb.textContent = "Rolling..."; pb.classList.add("tap");
               ctl.roll();
+              if (s.newFlow && pid) { fetch("/api/z/" + EID + "/luck/press", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid, device, g: gi }) }).catch(() => {}); }
               const vd = document.getElementById("lt-verdict"); if (vd) vd.textContent = "Pressed. Your dice lands when the timer ends.";
               const st = document.getElementById("lt-stage"); if (st && usedKeys) st.focus({ preventScroll: true }); // the button is now off: keep the keyboard place on the dice
               LD.announce("Rolling. Your dice lands when the timer ends.");

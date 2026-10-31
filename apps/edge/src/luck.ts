@@ -13,13 +13,14 @@
 // Targets, dice, scores, rankings and prizes are NOT imported here: the phones compute them (apps/edge/test/server-computes-nothing.test.ts keeps it that way).
 import { sha256Hex } from "../../../packages/luck/src/random";
 import { parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/settings";
-import { beaconDueMs, gameEndMs, phaseAt, roundOf, totalDiceRounds } from "../../../packages/luck/src/timeline";
+import { beaconDueMs, diceOpenMs, windowCloseMs, gameEndMs, phaseAt, roundOf, totalDiceRounds } from "../../../packages/luck/src/timeline";
 import type { Env } from "./worker";
 
 export const LUCK_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS luck_t (eid TEXT PRIMARY KEY, commit_hash TEXT NOT NULL, secret TEXT, state TEXT NOT NULL DEFAULT 'open', opts TEXT, seed TEXT, players INTEGER, start_ms INTEGER, end_ms INTEGER, result TEXT, ended_ms INTEGER)`,
   `CREATE TABLE IF NOT EXISTS luck_p (eid TEXT NOT NULL, pid TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL, PRIMARY KEY (eid, pid))`,
   `CREATE INDEX IF NOT EXISTS luck_p_seat ON luck_p (eid, seat)`,
+  `CREATE TABLE IF NOT EXISTS luck_press (eid TEXT NOT NULL, pid TEXT NOT NULL, g INTEGER NOT NULL, at_ms INTEGER NOT NULL, PRIMARY KEY (eid, pid, g))`,
   `CREATE TABLE IF NOT EXISTS luck_v (eid TEXT NOT NULL, pid TEXT NOT NULL, digest TEXT NOT NULL, payload TEXT NOT NULL, at_ms INTEGER NOT NULL, PRIMARY KEY (eid, pid))`,
 ];
 
@@ -187,6 +188,26 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
     return json({ serverNow: now, from, values, next: from + values.length, total: max });
   }
 
+  if (sub === "press" && method === "POST") { // new-flow games: a press is recorded while the window is open; a seat with no press in time scores 0
+    const b = await c.body(req, 1024); if (!b) return json({ error: "Bad press." }, 400);
+    const who = await playerOf(c, b.pid, b.device); if (who instanceof Response) return who;
+    if (t.state !== "running") return json({ error: "The game is not running.", code: t.state }, 409);
+    const s = settingsOf(t); if (!s.newFlow) return json({ ok: true, ignored: true });
+    const g = Number(b.g); if (!Number.isInteger(g) || g < 0 || g >= totalDiceRounds(s)) return json({ error: "That round does not exist." }, 400);
+    if (now < diceOpenMs(s, t.start_ms!, g) || now > windowCloseMs(s, t.start_ms!, g) + 1000) return json({ error: "The time to press is over.", code: "late" }, 409); // one second of network grace
+    if (!(await c.spend(env, now, 2))) return c.BUSY();
+    await env.DB.prepare("INSERT OR IGNORE INTO luck_press(eid,pid,g,at_ms) VALUES(?,?,?,?)").bind(eid, who.pid, g, now).run();
+    return json({ ok: true });
+  }
+  if (sub === "presses" && method === "GET") { // who pressed in round g (shown only after its window closed, when the dice are public anyway)
+    if (t.state === "open") return json({ error: "The game has not started.", code: "open" }, 409);
+    const s = settingsOf(t), g = Number(c.url.searchParams.get("g"));
+    if (!s.newFlow) return json({ newFlow: false });
+    if (!Number.isInteger(g) || g < 0 || g >= totalDiceRounds(s)) return json({ error: "That round does not exist." }, 400);
+    if (now < windowCloseMs(s, t.start_ms!, g) + 1000) return json({ error: "The press window is still open.", code: "open-window" }, 409);
+    const r = await env.DB.prepare("SELECT p.seat AS seat FROM luck_press x JOIN luck_p p ON p.eid=x.eid AND p.pid=x.pid WHERE x.eid=? AND x.g=? ORDER BY p.seat").bind(eid, g).all<{ seat: number }>();
+    return json({ g, seats: (r.results ?? []).map((x) => x.seat) });
+  }
   if (sub === "seats" && method === "GET") {
     if (t.state === "open") return json({ error: "The list of players is not closed yet.", code: "open" }, 409);
     const r = await env.DB.prepare("SELECT seat, name FROM luck_p WHERE eid=? ORDER BY seat").bind(eid).all<{ seat: number; name: string }>();
