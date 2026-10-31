@@ -13,21 +13,26 @@ export const scoreOf = (target: number, dice: number): number => (dice === targe
 /** Fate number of a seat for one ranking (a round or the overall result). The lower hex string wins. Anyone can re-compute it. */
 export const fateOf = (gameId: string, seat: number, label: string, beacon: string): Promise<string> => sha256Hex(`LBC-FATE|${gameId}|${label}|${seat}|${beacon}`);
 
-export interface Tally { seat: number; points: number; hits: number; best: number; reachedAt: number /* dice round (from 0) of the last hit, -1 if none */ }
-export const emptyTally = (seat: number): Tally => ({ seat, points: 0, hits: 0, best: 0, reachedAt: -1 });
+export interface Tally { seat: number; points: number; hits: number; best: number; reachedAt: number /* dice round (from 0) of the last hit, -1 if none */; nf?: boolean /* new-flow scoring: hits = exact hits, fives = 5-point hits */; fives?: number }
+export const emptyTally = (seat: number, nf = false): Tally => (nf ? { seat, points: 0, hits: 0, best: 0, reachedAt: -1, nf: true, fives: 0 } : { seat, points: 0, hits: 0, best: 0, reachedAt: -1 });
+/** New-flow points for a dice: exact 10, 1 away 5, 2 away 3, 3 or more away 1 (a dice always counts: the press happened). */
+export const nfPoints = (target: number, dice: number): number => { const d = Math.abs(target - dice); return d === 0 ? 10 : d === 1 ? 5 : d === 2 ? 3 : 1; };
+export function addNf(t: Tally, g: number, pts: number): void { t.points += pts; if (pts === 10) t.hits++; if (pts === 5) t.fives = (t.fives ?? 0) + 1; t.reachedAt = g; }
 export function addHit(t: Tally, g: number, target: number): void { t.points += target; t.hits++; if (target > t.best) t.best = target; t.reachedAt = g; }
 
-export type Measure = "points" | "best" | "hits" | "earliest" | "fate";
+export type Measure = "points" | "best" | "hits" | "earliest" | "fate" | "exact" | "fives";
 export interface Ranked { place: number; seat: number; points: number; hits: number; best: number; reachedAt: number; decidedBy: Measure | null; line: string }
 
-const MEASURE_WORDS: Record<Measure, string> = { points: "points", best: "the highest single hit", hits: "the most hits", earliest: "who reached the score first", fate: "fate (a number from the public beacon)" };
+const MEASURE_WORDS: Record<Measure, string> = { points: "points", best: "the highest single hit", hits: "the most hits", earliest: "who reached the score first", fate: "fate (a number from the public beacon)", exact: "the most exact hits", fives: "the most 5-point hits" };
 
 /** The numeric part of the chain: most points, highest single hit, most hits, earliest to reach the score. Returns <0 when a is ahead, 0 when equal on all four. */
 export function cmpNumeric(a: Tally, b: Tally): number {
+  if (a.nf) return b.points - a.points || b.hits - a.hits || (b.fives ?? 0) - (a.fives ?? 0) || a.reachedAt - b.reachedAt;
   return b.points - a.points || b.best - a.best || b.hits - a.hits || a.reachedAt - b.reachedAt;
 }
 /** The first measure in the chain on which two tallies differ (fate if none of the four numbers differ). */
 export function measureBetween(a: Tally, b: Tally): Measure {
+  if (a.nf) return a.points !== b.points ? "points" : a.hits !== b.hits ? "exact" : (a.fives ?? 0) !== (b.fives ?? 0) ? "fives" : a.reachedAt !== b.reachedAt ? "earliest" : "fate";
   return a.points !== b.points ? "points" : a.best !== b.best ? "best" : a.hits !== b.hits ? "hits" : a.reachedAt !== b.reachedAt ? "earliest" : "fate";
 }
 
@@ -83,8 +88,8 @@ export class LuckGame {
   private cfg: LuckSettings;
   constructor(readonly gameId: string, settings: LuckSettings, readonly seats: number) {
     this.cfg = settings;
-    this.total = Array.from({ length: seats }, (_, i) => emptyTally(i));
-    for (let r = 0; r < settings.rounds; r++) this.roundTallies.push(Array.from({ length: seats }, (_, i) => emptyTally(i)));
+    this.total = Array.from({ length: seats }, (_, i) => emptyTally(i, settings.newFlow === true));
+    for (let r = 0; r < settings.rounds; r++) this.roundTallies.push(Array.from({ length: seats }, (_, i) => emptyTally(i, settings.newFlow === true)));
   }
   /** The settings as they are now. They change in one way only: the organizer ended the game after a round (endAfterRound), so the game has fewer rounds. */
   get settings(): LuckSettings { return this.cfg; }
@@ -106,7 +111,7 @@ export class LuckGame {
     const rt = this.roundTallies[r - 1]!;
     for (let seat = 0; seat < this.seats; seat++) {
       const d = await diceOf(this.gameId, seat, g, beaconB); dice[seat] = d;
-      if (d === target) { points[seat] = target; addHit(this.total[seat]!, g, target); addHit(rt[seat]!, g, target); }
+      if (s.newFlow) { const pt = nfPoints(target, d); points[seat] = pt; addNf(this.total[seat]!, g, pt); addNf(rt[seat]!, g, pt); } else if (d === target) { points[seat] = target; addHit(this.total[seat]!, g, target); addHit(rt[seat]!, g, target); }
     }
     if (isLastOfRound(s, g)) this.lastBeacon[r - 1] = beaconB;
     this.next++; this.latestB = beaconB;

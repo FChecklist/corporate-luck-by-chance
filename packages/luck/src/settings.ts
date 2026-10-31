@@ -10,8 +10,8 @@ export interface PrizePlan { overall: string[]; rounds: string[][] /* index = ro
 export interface LuckSettings {
   rounds: number; windowSecs: number; prizeMode: PrizeMode; oneWinPerPlayer: boolean; prizes: PrizePlan;
   diceRounds: number; revealSecs: number; breakSecs: number;
-  /** New-flow games only (engine port). All four keep the live behaviour when absent: nobody is cut, no late join, start by the schedule, no 2000 cap. */
-  newFlow?: boolean; survivors?: number; lateJoinSecs?: number; startMode?: "auto" | "manual";
+  /** New-flow games only (owner rules 31 Oct): fixed 10 rounds of one dice round, 10 s window, 3 s reveal inside a 10 s gap, scored 10/5/3/1, nobody out. Absent = live behaviour. */
+  newFlow?: boolean; startMode?: "auto" | "manual";
 }
 export const NEW_FLOW_CAP = 2000;
 
@@ -34,15 +34,10 @@ export function checkPrizeText(s: unknown): Checked<string> {
 export function parseSettings(input: unknown): Checked<LuckSettings> {
   const b = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const s = defaultSettings();
-  if (b.rounds !== undefined) { const r = Number(b.rounds); if (!Number.isInteger(r) || r < 1 || r > MAX_ROUNDS) return { ok: false, error: `A game has 1 to ${MAX_ROUNDS} rounds.` }; s.rounds = r; }
-  if (b.windowSecs !== undefined) { const w = Number(b.windowSecs); if (!(WINDOWS as readonly number[]).includes(w)) return { ok: false, error: "The press window is 6, 10 or 15 seconds." }; s.windowSecs = w; }
+  if (b.newFlow === true) { Object.assign(s, { newFlow: true, prizeMode: "overall", rounds: 10, windowSecs: 10, diceRounds: 1, revealSecs: 3, breakSecs: 7 }); if (b.startMode !== undefined) { if (b.startMode !== "auto" && b.startMode !== "manual") return { ok: false, error: "The game starts by itself at the set time (auto) or when you press start (manual)." }; s.startMode = b.startMode; } }
+  if (b.rounds !== undefined && !s.newFlow) { const r = Number(b.rounds); if (!Number.isInteger(r) || r < 1 || r > MAX_ROUNDS) return { ok: false, error: `A game has 1 to ${MAX_ROUNDS} rounds.` }; s.rounds = r; }
+  if (b.windowSecs !== undefined && !s.newFlow) { const w = Number(b.windowSecs); if (!(WINDOWS as readonly number[]).includes(w)) return { ok: false, error: "The press window is 6, 10 or 15 seconds." }; s.windowSecs = w; }
   if (b.prizeMode !== undefined) { if (b.prizeMode !== "both" && b.prizeMode !== "overall" && b.prizeMode !== "rounds") return { ok: false, error: "Prizes are for each round, for the overall result, or both." }; s.prizeMode = b.prizeMode; }
-  if (b.newFlow === true) {
-    s.newFlow = true;
-    if (b.survivors !== undefined) { const v = Number(b.survivors); if (!Number.isInteger(v) || v < 0 || v > NEW_FLOW_CAP) return { ok: false, error: "Players who stay in after each round: a whole number, 0 or more (0 = everybody plays on)." }; if (v > 0) s.survivors = v; }
-    if (b.lateJoinSecs !== undefined) { const v = Number(b.lateJoinSecs); if (!Number.isInteger(v) || v < 0 || v > 3600) return { ok: false, error: "The late-join window is 0 to 3600 seconds (0 = nobody joins after the game starts)." }; if (v > 0) s.lateJoinSecs = v; }
-    if (b.startMode !== undefined) { if (b.startMode !== "auto" && b.startMode !== "manual") return { ok: false, error: "The game starts by itself at the set time (auto) or when you press start (manual)." }; s.startMode = b.startMode; }
-  }
   if (b.oneWinPerPlayer !== undefined) s.oneWinPerPlayer = b.oneWinPerPlayer === true;
   const pz = (b.prizes ?? {}) as { overall?: unknown; rounds?: unknown };
   const list = (v: unknown, what: string): Checked<string[]> => {
