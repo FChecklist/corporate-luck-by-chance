@@ -144,7 +144,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
     if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
     const b = (await c.body(req, 4096)) ?? {};
     const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
-    const delay = b.delaySecs === undefined ? 20 : Number(b.delaySecs);
+    const delay = parsed.value.newFlow ? 120 : b.delaySecs === undefined ? 20 : Number(b.delaySecs); // new flow: a fixed 120 s waiting room (the people who joined before the press are the players)
     if (!Number.isInteger(delay) || delay < 5 || delay > 3600) return json({ error: "The game starts 5 seconds to 1 hour after you press start." }, 400);
     const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? ORDER BY p.pid").bind(eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
     const players: { pid: string; name: string }[] = [];
