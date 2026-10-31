@@ -20,3 +20,10 @@ Cap 2000; 1-20 rounds, 6/10/15 s window (default 10 / 10); survivors + re-throw 
 ## Steps
 - Step 2 (done): zc-flow-bridge.js (maps ctz-org/ctz-email to cbz-org/cbz-email; pack untouched). zc-mode.js: new screens are OPT-IN only (?flow=new), default stays the previous console; games that are live (15 min before start to 4 h after) or opened by key/demo/pass/cap links always open the previous console. zsw cache luck-game-v9.
 - Next: new-game fields (rounds, window, survivors, late window, start mode, cap 2000) validated server-side only when the new flag is on; luckRules in the dice runner; pause/resume with Host key; six-step prizes via planPrizes.
+
+## Step 3 (done): vendor refreshed to game-core main f186c46 (26da1ff plus test-only commits); settings fields for new-flow games
+- parseSettings (packages/luck/src/settings.ts): only when `newFlow: true` are survivors, lateJoinSecs and startMode read; absent = live behaviour. NEW_FLOW_CAP 2000: POST create with newFlow:true and cap > 2000 is refused (code new-flow-cap). Flag-off path byte-identical in behaviour.
+- Already in live Luck (no port needed): signed pause/resume (Organizer key; Host can read), manual start (luck start route), clone (clone.ts).
+- NOT done: survivors cut and re-throw at runtime (a re-throw is an extra dice round, so the shared phone/server schedule must grow; needs a design decision), late-join window enforcement, Host-registered pause key, "You won" auto-claim check, six-step prizes via planPrizes, persisting newFlow on the game.
+## Who the 2000 cap would hurt
+Only organizers who want more than 2000 people AND choose the new screens; the previous screens and the 100,000 packs stay reachable (flag off, default). No paying customer loses the old path. Packs above 2000 people (see PACKS in worker.ts) would show "make with previous screens" if the new flow becomes default: at that point they would need the old path kept.

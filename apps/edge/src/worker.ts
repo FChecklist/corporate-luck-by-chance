@@ -1358,6 +1358,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!Number.isInteger(b.startRound)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(b.callSeconds) || b.callSeconds % 3 || b.callSeconds < 6) return json({ error: GAP_MSG }, 400);
     if (!Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000) return json({ error: "The number of people must be a whole number from 1 up. Please check it." }, 400);
+    if (b.newFlow === true && b.cap > 2000) return json({ error: "A game made with the new screens takes up to 2000 people. For more people, make the game with the previous screens.", code: "new-flow-cap" }, 400);
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     if (roundMs(b.startRound) > now + MAX_AHEAD_MS) return json({ error: TOO_FAR, code: "too-far" }, 400);
     { const nm = noMoments(b); if (nm) return nm; }
