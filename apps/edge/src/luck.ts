@@ -16,11 +16,15 @@ import { parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/lu
 import { beaconDueMs, diceOpenMs, windowCloseMs, gameEndMs, phaseAt, roundOf, totalDiceRounds } from "../../../packages/luck/src/timeline";
 import type { Env } from "./worker";
 
+/** The press record of a new-flow game (0029_luck_press.sql). */
+export const LUCK_PRESS_SCHEMA: string[] = [
+  `CREATE TABLE IF NOT EXISTS luck_press (eid TEXT NOT NULL, pid TEXT NOT NULL, g INTEGER NOT NULL, at_ms INTEGER NOT NULL, PRIMARY KEY (eid, pid, g))`,
+];
+
 export const LUCK_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS luck_t (eid TEXT PRIMARY KEY, commit_hash TEXT NOT NULL, secret TEXT, state TEXT NOT NULL DEFAULT 'open', opts TEXT, seed TEXT, players INTEGER, start_ms INTEGER, end_ms INTEGER, result TEXT, ended_ms INTEGER)`,
   `CREATE TABLE IF NOT EXISTS luck_p (eid TEXT NOT NULL, pid TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL, PRIMARY KEY (eid, pid))`,
   `CREATE INDEX IF NOT EXISTS luck_p_seat ON luck_p (eid, seat)`,
-  `CREATE TABLE IF NOT EXISTS luck_press (eid TEXT NOT NULL, pid TEXT NOT NULL, g INTEGER NOT NULL, at_ms INTEGER NOT NULL, PRIMARY KEY (eid, pid, g))`,
   `CREATE TABLE IF NOT EXISTS luck_v (eid TEXT NOT NULL, pid TEXT NOT NULL, digest TEXT NOT NULL, payload TEXT NOT NULL, at_ms INTEGER NOT NULL, PRIMARY KEY (eid, pid))`,
 ];
 

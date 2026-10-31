@@ -738,7 +738,7 @@ el("span", { class: "zf-pillstatus " + S.tone, id: "zf-status", "data-status": s
   function readyCard(st) {
     const items = readyItems({ shared: isShared(), status: st, prizesOk: prizesNamed(state.raw && state.raw.rewards), rehearsals: G.rehearsal ? (dash.reh && dash.reh.cards) || [] : null });
     const ok = readyAll(items);
-    const card = el("section", { class: "zf-ready " + (ok ? "ok" : "todo"), id: "zf-ready", "aria-labelledby": "zf-rdh" }, el("h3", { id: "zf-rdh", text: ok ? "Ready: everything is in place." : "Ready check" }));
+    const card = el("section", { class: "zf-ready " + (ok ? "ok" : "notyet"), id: "zf-ready", "aria-labelledby": "zf-rdh" }, el("h3", { id: "zf-rdh", text: ok ? "Ready: everything is in place." : "Ready check" }));
     const ul = el("ul", { class: "zf-readylist" });
     for (const i of items) {
       const li = el("li", { "data-ready": i.id, class: i.done ? "done" : "" });

@@ -47,7 +47,7 @@ import { mapJson, mapText } from "./ai-functions";
 import { goScreen, screenJson, screenText } from "./ai-go";
 import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold, toCsv, verifyChain, closeAuditFor, sweepAudit, type AuditEnv } from "./audit";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
-import { LUCK_SCHEMA, luckRoute, ensureL, gameStarted, luckTick } from "./luck";
+import { LUCK_SCHEMA, LUCK_PRESS_SCHEMA, luckRoute, ensureL, gameStarted, luckTick } from "./luck";
 import { CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentRequired, hasConsented, recordConsent, textFor, type Kind } from "./consent";
 import { knownDial } from "./phonekit";
 import { WINNERS_SCHEMA, acceptVotes, auditAi, confirmPrize, listAiAudit, listPrizes, markGiven, myPrizes } from "./winners";
@@ -189,6 +189,8 @@ export const SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS partner_key (key_hash TEXT PRIMARY KEY, code TEXT NOT NULL, created_ms INTEGER NOT NULL)`, // Refer & earn: one key per phone or laptop that signed in by e-mail
   // the permanent settings record of every game, no personal data in it (0028_game_record.sql)
   ...GAME_RECORD_SCHEMA,
+  // the press record of a new-flow Luck game (0029_luck_press.sql)
+  ...LUCK_PRESS_SCHEMA,
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim

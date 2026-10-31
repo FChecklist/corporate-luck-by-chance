@@ -151,6 +151,14 @@
       "keys": [
         "ctz-return"
       ]
+    },
+    {
+      "id": "console-look",
+      "store": "localStorage",
+      "say": "In an organizer's browser: which console look (the old or the new screens) was chosen for the next visit.",
+      "keys": [
+        "cbz-zcflow"
+      ]
     }
   ],
   "cookies": [

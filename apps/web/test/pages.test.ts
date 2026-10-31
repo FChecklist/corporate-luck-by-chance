@@ -34,7 +34,7 @@ const consolePage = (o: O, eid: string, key = o.token, session: Record<string, s
   page(o, `/zc?e=${eid}`, "zc.html", ZC_SCRIPTS, { "cbz-org": key, "cbz-aimsg": o.aiMessage, "cbz-email": "boss@acme.com", ...session }, extra);
 
 // --- the single-page console: small helpers ---
-const ZC_SCRIPTS = "zgame.js control.js termsbox.js zc.js".split(" ");
+const ZC_SCRIPTS = "zgame.js control.js termsbox.js idclean.js zc.js".split(" ");
 /** Opens step n by its jump button (the numbered dot in the progress bar). */
 const openStep = (p: Page, n: number) => p.click(`.zc-dot[data-open="${n}"]`);
 const setField = (p: Page, sel: string, v: string) => { const el = p.$(sel) as any; el.value = v; el.dispatchEvent(new p.win.Event("input", { bubbles: true })); };
@@ -882,7 +882,7 @@ describe("console phase 3: brand on the page, See what players see, payment link
     const p = await open4(o, "UI-BRAND2", w);
     setField(p, "#f-brand-name", "Acme"); p.click('[data-save="4"]'); await p.waitFor((x) => /Pick an accent colour/.test(x)); expect(w.st.patches.length).toBe(0);
     setField(p, "#f-brand-name", ""); p.click('[data-ck="brand.color"][data-v="#AD1457"]'); p.click('[data-save="4"]'); await p.waitFor((x) => /Add your company name/.test(x)); expect(w.st.patches.length).toBe(0);
-    chooseFile(p, "#brandlogo", aFile(p, "logo.png", "image/png")); await p.waitFor((x) => /could not use that picture/.test(x)); expect(p.$(".zc-logo")).toBeNull();
+    chooseFile(p, "#brandlogo", aFile(p, "logo.png", "image/png")); await p.waitFor((x) => /could not be used/.test(x)); expect(p.$(".zc-logo")).toBeNull();
     chooseFile(p, "#brandlogo", aFile(p, "x.gif", "image/gif")); await p.waitFor((x) => /PNG, JPEG or WebP picture/.test(x));
     chooseFile(p, "#brandlogo", aFile(p, "huge.png", "image/png", 5 * 1024 * 1024 + 1)); await p.waitFor((x) => /bigger than 5 MB/.test(x));
     (p.win as any).__w = 40; (p.win as any).__h = 40; chooseFile(p, "#brandlogo", aFile(p, "tiny.png", "image/png")); await p.waitFor((x) => /too small.*64 x 64/.test(x));
