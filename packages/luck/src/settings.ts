@@ -34,7 +34,7 @@ export function checkPrizeText(s: unknown): Checked<string> {
 export function parseSettings(input: unknown): Checked<LuckSettings> {
   const b = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const s = defaultSettings();
-  if (b.newFlow === true) { Object.assign(s, { newFlow: true, prizeMode: "overall", rounds: 10, windowSecs: 10, diceRounds: 1, revealSecs: 3, breakSecs: 7 }); if (b.startMode !== undefined) { if (b.startMode !== "auto" && b.startMode !== "manual") return { ok: false, error: "The game starts by itself at the set time (auto) or when you press start (manual)." }; s.startMode = b.startMode; } }
+  if (b.newFlow === true) { Object.assign(s, { newFlow: true, prizeMode: "overall", rounds: 22, windowSecs: 10, diceRounds: 1, revealSecs: 3, breakSecs: 7 }); if (b.startMode !== undefined) { if (b.startMode !== "auto" && b.startMode !== "manual") return { ok: false, error: "The game starts by itself at the set time (auto) or when you press start (manual)." }; s.startMode = b.startMode; } }
   if (b.rounds !== undefined && !s.newFlow) { const r = Number(b.rounds); if (!Number.isInteger(r) || r < 1 || r > MAX_ROUNDS) return { ok: false, error: `A game has 1 to ${MAX_ROUNDS} rounds.` }; s.rounds = r; }
   if (b.windowSecs !== undefined && !s.newFlow) { const w = Number(b.windowSecs); if (!(WINDOWS as readonly number[]).includes(w)) return { ok: false, error: "The press window is 6, 10 or 15 seconds." }; s.windowSecs = w; }
   if (b.prizeMode !== undefined) { if (b.prizeMode !== "both" && b.prizeMode !== "overall" && b.prizeMode !== "rounds") return { ok: false, error: "Prizes are for each round, for the overall result, or both." }; s.prizeMode = b.prizeMode; }
