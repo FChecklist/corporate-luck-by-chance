@@ -437,7 +437,7 @@
     if (S.passMsg) h += `<div class="zc-toast" role="status" id="passmsg">${esc(S.passMsg)}</div>`; // from a demo pass link
     if (!T && S.teamErr) h += `<p class="zc-small zc-warnt" role="status">${esc(S.teamErr)}</p>`;
     h += `<span class="zc-lbl zc-sec">Your Hosts: ${hosts.length} of ${max}</span>` + hosts.map((p) => teamRow(p, "host")).join("");
-    if (isOrg()) h += `<div class="zc-inline"><label class="zc-sr" for="hostlabel">Name of the new Host</label><input id="hostlabel" value="${esc((S.tv || {}).hostlabel || "")}" class="zc-in" maxlength="40" placeholder="Name" autocomplete="off" required><label class="zc-sr" for="hostphone">Mobile number of the new Host</label><input id="hostphone" value="${esc((S.tv || {}).hostphone || "")}" class="zc-in" inputmode="tel" placeholder="Mobile number, 415 555 0132" autocomplete="off"><label class="zc-sr" for="hostemail">E-mail of the new Host</label><input id="hostemail" value="${esc((S.tv || {}).hostemail || "")}" class="zc-in" type="email" maxlength="120" placeholder="E-mail (their link is sent here)" autocomplete="off"><button type="button" class="zc-btn zc-btn-s" id="hostadd"${hosts.length >= max ? " disabled" : ""}>Add a Host</button></div>${hosts.length >= max ? small(`You have the most Hosts allowed (${max}). Remove one to add another.`) : small("A Host needs a name and a mobile number or an e-mail, or both. With an e-mail we send their private link there. With only a mobile number, you send it on WhatsApp.")}`;
+    if (isOrg()) h += `<div class="zc-inline"><label class="zc-sr" for="hostlabel">Name of the new Host</label><input id="hostlabel" value="${esc((S.tv || {}).hostlabel || "")}" class="zc-in" maxlength="40" placeholder="Name" autocomplete="off" required><label class="zc-sr" for="hostphone">Mobile number of the new Host</label><input id="hostphone" value="${esc((S.tv || {}).hostphone || "")}" class="zc-in" inputmode="tel" placeholder="Mobile number, 415 555 0132" autocomplete="off"><label class="zc-sr" for="hostemail">E-mail of the new Host</label><input id="hostemail" value="${esc((S.tv || {}).hostemail || "")}" class="zc-in" type="email" maxlength="120" placeholder="E-mail (their link is sent here)" autocomplete="off"><button type="button" class="zc-btn zc-btn-s" id="hostadd"${hosts.length >= max ? " disabled" : ""}>Add a Host</button></div>${hosts.length >= max ? small(`You have the most Hosts allowed (${max}). Remove one to add another.`) : small("A Host needs a name and a mobile number or an e-mail, or both. With an e-mail, their own link is sent there. With only a mobile number, you send it on WhatsApp.")}`;
     else h += small("Only the Organizer adds Hosts.");
     h += `<span class="zc-lbl zc-sec">Your Co-hosts: ${co.length} (no limit)</span>` + co.map((p) => teamRow(p, "cohost")).join("");
     h += `<div class="zc-inline"><label class="zc-sr" for="cohostlabel">Name of the new Co-host</label><input id="cohostlabel" value="${esc((S.tv || {}).cohostlabel || "")}" class="zc-in" maxlength="40" placeholder="Name" autocomplete="off" required><label class="zc-sr" for="cohostphone">Mobile number of the new Co-host</label><input id="cohostphone" value="${esc((S.tv || {}).cohostphone || "")}" class="zc-in" inputmode="tel" placeholder="Mobile number, 415 555 0132" autocomplete="off" required><button type="button" class="zc-btn zc-btn-s" id="cohostadd">Add a Co-host</button></div>`;
@@ -597,7 +597,7 @@
     const ccRow = `<span class="zc-lbl">Numbers typed without a country code are from</span><div class="zc-chips" role="group" aria-label="Country of numbers typed without a country code">${[["91", "India (+91)"], ["1", "United States (+1)"]].map(([v, l]) => `<button type="button" class="zc-chip${CC.v === v ? " on" : ""}" data-cc="${v}" aria-pressed="${CC.v === v}">${l}</button>`).join("")}</div>`;
     return `<div class="zc-chips" role="group" aria-label="How to add people">${chips}</div>${ccRow}${tbSlot("ppl" + eid, "K6", "gadd,rosterGo,gcontacts,gfile,gpdf")}${form}${small("Invite only people who would like to play. Guests who join the common link with just a name do not need to be listed.")}`;
   }
-  const guestTools = () => (!canRun() ? "" : `<h4>A guest's own data</h4>${small("A player asks to see or delete their data? Enter their mobile number, or their seat number if they joined with a name. Only you can do this.")}<div class="zc-inline"><label class="zc-sr" for="pdph">Their mobile number or seat number</label><input id="pdph" class="zc-in" inputmode="tel" autocomplete="off" placeholder="415 555 0132"><button type="button" class="zc-mini" id="pdsee">Show what we hold</button><button type="button" class="zc-mini zc-danger" id="pddel">Delete their data</button></div>
+  const guestTools = () => (!canRun() ? "" : `<h4>A guest's own data</h4>${small("A player asks to see or delete their data? Enter their mobile number, or their seat number if they joined with a name. Only you can do this.")}<div class="zc-inline"><label class="zc-sr" for="pdph">Their mobile number or seat number</label><input id="pdph" class="zc-in" inputmode="tel" autocomplete="off" placeholder="415 555 0132"><button type="button" class="zc-mini" id="pdsee">Show what is held</button><button type="button" class="zc-mini zc-danger" id="pddel">Delete their data</button></div>
       <h4>Change of phone</h4>${small("A seat plays on one phone only. If someone lost or changed their phone, enter their mobile number (or their seat number): the next phone they join with keeps their seat.")}<div class="zc-inline"><label class="zc-sr" for="ubph">Their mobile number or seat number</label><input id="ubph" class="zc-in" inputmode="tel" autocomplete="off" placeholder="415 555 0132"><button type="button" class="zc-mini" id="unbind">Let them move to a new phone</button></div>`);
   function peopleBlock() {
     if (S.shield) return `<div class="zc-block" id="shieldnote"><h3>Guest names and numbers are hidden</h3>${small("AI helper mode is on, so this page does not show or take any guest's name or mobile number: the people list, looking up a guest, moving a seat to a new phone and the report. Switch off \"My AI works in my web browser\" (in the AI Assistant box) to use them yourself.")}</div>`;
@@ -779,7 +779,7 @@
     const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div class="zc-rowl"><span>${esc(label(k))}</span><b>${n}</b></div>`).join("");
     return `<div class="zc-block"><h3>The game has begun</h3><div class="zc-stats"><div><div class="zc-stat">${ps.length}</div><div class="zc-small zc-nomargin">people in the game</div></div><div><div class="zc-stat">${late}</div><div class="zc-small zc-nomargin">joined after the start</div></div><div><div class="zc-stat">${viaInv}</div><div class="zc-small zc-nomargin">came through an invitation</div></div><div><div class="zc-stat">${S.settledPreview.length}</div><div class="zc-small zc-nomargin">prizes won so far</div></div></div>
       ${cats ? `<h4>Invitations by kind of guest</h4>${cats}` : ""}${roles ? small(roles + " Organizer / Host / Co-host " + (roles === 1 ? "seat" : "seats") + " playing along.") : ""}
-      ${small("When the game ends we e-mail you the complete report as a PDF: when it started, how many people at each stage, every prize and winner, who invited whom, all statistics, and every name and mobile number.")}</div>`;
+      ${small("When the game ends, the complete report is e-mailed to you as a PDF: when it started, how many people at each stage, every prize and winner, who invited whom, all statistics, and every name and mobile number.")}</div>`;
   }
   function luckyBlock() {
     const L = (S.cfg && S.cfg.breaks || []).filter((b) => b.kind === "lucky");
@@ -814,7 +814,7 @@
       ${rowl("Your details as Organizer and Host, and the winners record", `<b>kept until ${esc(dayIst(l.fullDeleteAtMs))}</b>`)}
 ` : "";
     const rpt = !S.shield && S.life && S.life.reportSent && !S.life.purged ? `<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s" id="rptopen">Open the report now</button><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="rptnew">New report link</button></div>` : "";
-    return small("Within 24 hours of the game ending we send you the report, then delete every participant's name and number. Your details as Organizer and Host, and the winners record, are kept for 365 days. Co-host details are deleted with the guests.") + when2 + rpt
+    return small("Within 24 hours of the game ending the report is sent to you, then every participant's name and number is deleted. Your details as Organizer and Host, and the winners record, are kept for 365 days. Co-host details are deleted with the guests.") + when2 + rpt
       + `<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s zc-btn-bad" id="erase">Delete all participant data now</button></div>`
       + small("You tap once to confirm. You can also e-mail us from your registered address, or ask your AI assistant to request the deletion and then confirm it here. The report is e-mailed first when the game has already ended.")
       + afterClone() + cont(10, "All done");
@@ -912,7 +912,7 @@
     7: ["Look through your game and change what you need.", "Publishing is free. Guests can join after you publish.", "You can cancel before the start time. We do not give refunds: a paid game becomes credit for your next game for 365 days. Or change the date instead.", "Press \"See what players see\" to look at a sample play screen."],
     8: ["Pay once, before the start time. You see the price here.", "The Organizer, a Host or a Co-host can pay.", "Paid late? The game opens 2 minutes after your payment is confirmed.", "A paid game cannot be cancelled after the start time. Before it, your payment stays as credit for 365 days.", "\"Copy payment link\" makes a link anyone can open to pay for this game."],
     9: ["Open the game page, choose the prizes, and press Start.", "Starting closes the list of players.", "Only the Organizer and Host can start the game or remove a person."],
-    10: ["A few minutes after the game, a report link is e-mailed to the Organizer.", "Guest names and numbers are deleted within 24 hours.", "We keep the winners and the Organizer's and Hosts' details for 365 days.", "You can erase guest data earlier."],
+    10: ["A few minutes after the game, a report link is e-mailed to the Organizer.", "Guest names and numbers are deleted within 24 hours.", "The winners and the Organizer's and Hosts' details are kept for 365 days.", "You can erase guest data earlier."],
   };
   const ABOUT_COH = { 1: ["You can see the game and what you may do."], 2: ["Add your people. Each gets their own WhatsApp link. You can bring up to your limit."], 3: ["One payment is enough. If someone has paid, you will see Paid.", "\"Copy payment link\" makes a link anyone can open to pay for this game."] };
   const aboutBox = (n) => { const L = (role() === "cohost" ? ABOUT_COH : ABOUT)[n]; return L ? `<div class="zc-about" id="about${n}"><b>About this step</b>${L.map((x) => `<span>${esc(x)}</span>`).join("")}</div>` : ""; };
@@ -957,7 +957,7 @@
     const sugs = (S.sugs || []).length ? `<div class="zc-block"><h3>Ideas to improve Corporate Luck by Chance</h3>${small("Suggested by organizers' AI assistants. We review them all.")}${S.sugs.map((x) => rowl(esc(x.title) + (x.yours ? " · yours" : ""), `<i>${x.votes} · ${esc(x.status.replace("_", " "))}</i>`)).join("")}</div>` : "";
     const T = S.aiTrail;
     const audit = `<div class="zc-block"><h3>What your AI assistant did</h3>${T ? (T.length ? T.slice(0, 40).map((t) => `<div class="zc-rowl"><span>${esc(dmy(t.at_ms))}<br><small class="zc-small zc-nomargin">${esc(t.method)} ${esc(t.path)} → ${esc(String(t.status))} · from ${esc(t.ip || "?")} ${esc(t.country || "")} · ${esc((t.ua || "").slice(0, 60))} · key ${esc(t.key_id || "")}</small></span></div>`).join("") : small("Your AI assistant has not made any call yet.")) : `<button type="button" class="zc-mini" id="aiaudit">Show the AI activity log</button>`}${small("Every call your AI assistant makes is recorded with the time, the key used and where it came from. It is kept for 365 days.")}</div>`;
-    const close = `<div class="zc-block"><h3>Close my account</h3>${small("This deletes your account and all your games. We keep billing data for audit and tax reasons. It cannot be undone.")}<button type="button" class="zc-mini zc-danger" id="closeacct">Close my account</button></div>`;
+    const close = `<div class="zc-block"><h3>Close my account</h3>${small("This deletes your account and all your games. Billing data is kept for audit and tax reasons. It cannot be undone.")}<button type="button" class="zc-mini zc-danger" id="closeacct">Close my account</button></div>`;
     return `<section class="zc-card zc-acct" id="acct"><button type="button" class="zc-sech" data-acct="1" aria-expanded="${open}" style="background:var(--surface-1)"><span class="zc-num zc-num-dark">A</span><span class="zc-syntx"><b>Your account</b><br><span class="zc-hint">These are for the Organizer only: your AI link, sign-in keys and records. Closing your account deletes your games.</span></span><span class="zc-st">${open ? "&#9650;" : "&#9660;"}</span></button>${open ? `<div class="zc-secb">${aiBlock()}${credits}${keys}${sugs}${audit}${close}</div>` : ""}</section>`;
   }
   // ---------- notes above the steps ----------
@@ -1064,15 +1064,6 @@
 
   // ---------- Phase 4: "Continue with Google" and the Host's Finish setup (docs/ROLES_AND_CONSOLE_SPEC_4.md, C) ----------
   async function loadAuthConfig() { return; /* e-mail is the only way in */ try { const r = await fetch(BASE + "/api/auth/config").then((x) => (x.ok ? x.json() : null)); S.gcid = (r && (r.google || r.clientId)) || ""; } catch { S.gcid = ""; } if (S.gcid) redraw(); }
-  /** Draws Google's own button into #gbtn. The Google script is loaded only on a screen that shows the button. */
-  function mountGoogle(intent) {
-    const holder = document.getElementById("gbtn"); if (!holder || !S.gcid || holder.dataset.done === S.gcid + intent) return;
-    holder.dataset.done = S.gcid + intent;
-    const draw2 = () => { try { window.google.accounts.id.initialize({ client_id: S.gcid, callback: (resp) => googleDone(resp, intent) }); window.google.accounts.id.renderButton(holder, { theme: "outline", size: "large", text: "continue_with", shape: "rectangular" }); } catch { holder.innerHTML = `<p class="zc-small">Open this page in your browser, or use an e-mail code.</p>`; } };
-    if (window.google && window.google.accounts) return draw2();
-    const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.async = true; sc.onload = draw2; sc.onerror = () => { holder.innerHTML = `<p class="zc-small">Open this page in your browser, or use an e-mail code.</p>`; };
-    document.head.appendChild(sc);
-  }
   async function googleDone(resp, intent) {
     try {
       const terms = tbTerms(intent === "host" ? "setup" : "login"); // K5 for a Host, K2 for sign-in
@@ -1085,11 +1076,11 @@
   const googleBlock = () => ""; // one way in: the e-mail (Option 1 code, Option 2 tap). No Google button, no pasted key.
   function setupView() {
     const T = S.setup || {}, m = S.setupMsg;
-    const email = T.needEmail ? `<h4>1. Your e-mail</h4>${small(T.emailMasked ? "Use the e-mail your Organizer gave us: " + esc(T.emailMasked) + "." : "Type your e-mail.")}${tbSlot("setup", "K5", "setupsend")}${googleBlock()}
-        ${S.setupSent ? `${lbl("setupcode", "The 6-digit code we sent you")}<input id="setupcode" class="zc-in" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" value="${esc((S.sv || {}).setupcode || "")}"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupverify">Check the code</button></div>`
+    const email = T.needEmail ? `<h4>1. Your e-mail</h4>${small(T.emailMasked ? "Use the e-mail your Organizer gave: " + esc(T.emailMasked) + "." : "Type your e-mail.")}${tbSlot("setup", "K5", "setupsend")}${googleBlock()}
+        ${S.setupSent ? `${lbl("setupcode", "The 6-digit code that was sent to you")}<input id="setupcode" class="zc-in" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" value="${esc((S.sv || {}).setupcode || "")}"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupverify">Check the code</button></div>`
           : `${lbl("setupemail", "Your e-mail")}<input id="setupemail" class="zc-in" type="email" autocomplete="email" placeholder="your e-mail" value="${esc((S.sv || {}).setupemail || "")}"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupsend" ${tbDis("setup")}>Send me a code</button></div>`}`
       : `<p class="zc-small">Your e-mail is checked${T.emailMasked ? ": " + esc(T.emailMasked) : ""}.</p>`;
-    const mobile = T.needMobile ? `<h4>${T.needEmail ? "2" : "1"}. Your mobile number</h4>${small("Typed once. We do not send a code to it.")}${lbl("setupmobile", "Your mobile number")}<input id="setupmobile" class="zc-in" inputmode="tel" autocomplete="tel" placeholder="415 555 0132"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupmobilego">Save my number</button></div>` : "";
+    const mobile = T.needMobile ? `<h4>${T.needEmail ? "2" : "1"}. Your mobile number</h4>${small("Typed once. No code is sent to it.")}${lbl("setupmobile", "Your mobile number")}<input id="setupmobile" class="zc-in" inputmode="tel" autocomplete="tel" placeholder="415 555 0132"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupmobilego">Save my number</button></div>` : "";
     return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Luck by Chance</b></span><span class="zc-pill zc-pill-role">Host</span></header><div class="zc-main"><div class="zc-block" id="finishsetup"><h3>Finish setup</h3>${small("Two quick things, then your game opens. This link works once.")}${m ? `<div class="zc-toast" role="status">${esc(m)}</div>` : ""}${email}${mobile}</div></div></div>`;
   }
   async function setupStep(path, body, okSent) {
@@ -1365,7 +1356,6 @@
     if (/^hs\.[a-z0-9]+\.(pd|per\.\d+\.pd)$/.test(path)) S.f.hs[path.split(".")[1]].dirty = true;
     const lk = document.querySelector(`[data-lk="${path.replace(/\.(v|t|s)$/, "")}"]`);
     if (lk && /\.v$/.test(path)) lk.innerHTML = noteHtml(path.replace(/\.v$/, ""));
-    const bm = document.getElementById("bmcount"); if (bm && S.f) bm.textContent = `${usedMoments()} of ${5 * (Number(S.f.tix) || 1)}`;
     if (document.getElementById("qk-summary")) quickSummary();
   }
   function chipClick(b) {
@@ -1582,7 +1572,7 @@
       catch (e) { mineErr(e); }
       redraw();
     };
-    if ($("pdsee")) $("pdsee").onclick = async () => { try { const r = await call("POST", `/api/z/${eid}/person`, whoBody($("pdph").value)); S.note = `Seat ${r.seat}${r.name ? ", " + r.name : ""}${r.role ? ", " + r.role : ""}. We hold only their name and number.`; } catch (e) { S.note = e.message; } refreshEng(); };
+    if ($("pdsee")) $("pdsee").onclick = async () => { try { const r = await call("POST", `/api/z/${eid}/person`, whoBody($("pdph").value)); S.note = `Seat ${r.seat}${r.name ? ", " + r.name : ""}${r.role ? ", " + r.role : ""}. Only their name and number are held.`; } catch (e) { S.note = e.message; } refreshEng(); };
     if ($("pddel")) $("pddel").onclick = async () => { if (!confirm("Delete this player's name and number now? This cannot be undone.")) return; try { await call("POST", `/api/z/${eid}/forget`, { phone: $("pdph").value }); S.note = "Done. Their data is deleted."; } catch (e) { S.note = e.message; } refreshEng(); };
     if ($("unbind")) $("unbind").onclick = async () => { try { await call("POST", `/api/z/${eid}/unbind`, whoBody($("ubph").value)); S.note = "Done. The next phone they join with keeps their seat."; } catch (e) { S.note = e.message; } refreshEng(); };
     // game day
@@ -1667,12 +1657,12 @@
     };
     const newLink = async (path, ask) => {
       if (ask && !confirm(ask)) return;
-      try { const r = await call("POST", path, {}); S.aiMsg = r.aiMessage; ss.set("cbz-aimsg", r.aiMessage); S.note = r.mailed ? "Your new AI work link is ready. The old links have stopped. A fresh 24-hour link is on its way to your e-mail." : "Your new AI work link is ready and the old one has stopped. Copy it from the box in your account (we have no e-mail address on file to send it to)."; } catch (e) { S.note = e.message; }
+      try { const r = await call("POST", path, {}); S.aiMsg = r.aiMessage; ss.set("cbz-aimsg", r.aiMessage); S.note = r.mailed ? "Your new AI work link is ready. The old links have stopped. A fresh 24-hour link is on its way to your e-mail." : "Your new AI work link is ready and the old one has stopped. Copy it from the box in your account (there is no e-mail address on file to send it to)."; } catch (e) { S.note = e.message; }
       S.acctOpen = true; redraw();
     };
     if ($("aimake")) $("aimake").onclick = () => newLink("/api/org/ai/replace");
     if ($("aistripmake")) $("aistripmake").onclick = () => newLink("/api/org/ai/replace");
-    if ($("aifresh")) $("aifresh").onclick = async () => { try { const r = await call("POST", "/api/org/ai/fresh", {}); S.note = r.mailed ? "A fresh 24-hour AI link is on its way to your e-mail. Never forward that e-mail." : "We have no e-mail address to send it to. Use the link in the box in your account."; } catch (e) { S.note = e.message; } redraw(); };
+    if ($("aifresh")) $("aifresh").onclick = async () => { try { const r = await call("POST", "/api/org/ai/fresh", {}); S.note = r.mailed ? "A fresh 24-hour AI link is on its way to your e-mail. Never forward that e-mail." : "There is no e-mail address to send it to. Use the link in the box in your account."; } catch (e) { S.note = e.message; } redraw(); };
     if ($("aireplace")) $("aireplace").onclick = () => newLink("/api/org/ai/replace", "Replace your AI work link? The old link stops working at once, even if an AI is using it right now.");
     if (S.aiMsg) wireAiOptions(document, S.aiMsg);
     if ($("aicopy")) $("aicopy").onclick = async () => { if (await copyText(S.aiMsg)) $("aicopy").textContent = "Copied. Now paste it into your AI chat"; };
@@ -1683,7 +1673,6 @@
     for (const fid of ["setupemail", "setupcode", "setupmobile"]) { const el = $(fid); if (el) el.oninput = () => { (S.sv = S.sv || {})[fid] = el.value; }; } // what a Host has typed survives any redraw of the page
     if ($("setupverify")) $("setupverify").onclick = () => { const v = $("setupcode").value.trim(); if (!/^\d{6}$/.test(v)) { S.setupMsg = "The code has 6 digits."; return redraw(); } setupStep("/api/host/setup/email/verify", { code: v }); };
     if ($("setupmobilego")) $("setupmobilego").onclick = () => { const v = $("setupmobile").value.trim(); if (!cleanPhone(v)) { S.setupMsg = "Please check your mobile number."; return redraw(); } setupStep("/api/host/setup/mobile", { mobile: v }); };
-    if ($("gbtn")) mountGoogle(secret ? "host" : "signin");
   }
 
   // TEST mode (owner-controlled, see docs/TEST_AND_LIVE_MODE.md): a calm notice in the organizer console ONLY. Public pages, participant phones and e-mails never carry it.

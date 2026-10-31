@@ -211,7 +211,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
   }
 
   if (sub === "press" && method === "POST") { // new-flow games: a press is recorded while the window is open; a seat with no press in time scores 0
-    const b = await c.body(req, 1024); if (!b) return json({ error: "Bad press." }, 400);
+    const b = await c.body(req, 1024); if (!b) return json({ error: "That press could not be read." }, 400);
     const who = await playerOf(c, b.pid, b.device); if (who instanceof Response) return who;
     if (t.state !== "running") return json({ error: "The game is not running.", code: t.state }, 409);
     const s = settingsOf(t); if (!s.newFlow) return json({ ok: true, ignored: true });

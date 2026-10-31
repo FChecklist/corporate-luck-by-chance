@@ -22,7 +22,8 @@ function serverMessages() {
     readFileSync(join(EDGE, f), "utf8").split("\n").forEach((l, i) => {
       for (const m of l.matchAll(/error:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/g)) {
         const st = /\}\s*,\s*(\d{3})\s*\)/.exec(l.slice(m.index! + m[0].length)) ?? /status:\s*(\d{3})/.exec(l);
-        out.push({ file: f, line: i + 1, status: st ? Number(st[1]) : 400, msg: m[1]!.slice(1, -1) });
+        const text = m[1]!.slice(1, -1), status = st ? Number(st[1]) : 400;
+        for (const t of text.includes("${W}") ? ["employee ID", "Email ID"].map((w) => text.replace("${W}", w)) : [text]) out.push({ file: f, line: i + 1, status, msg: t }); // ${W} is idWord(): the two real words a person can see
       }
     });
   }

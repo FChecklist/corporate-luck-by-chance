@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const pub = (f: string) => readFileSync(join(import.meta.dir, "../public", f), "utf8");
 const BUNDLES = new Set(["luck-engine.js", "zgame.js", "control.js", "reportgen.js"]); // minified builds are not read
-// Lookups that are guarded in the script (the code checks for null) and whose element is rendered nowhere today: the Google sign-in button holder and the moments counter. Listed exactly, so a rename, a fix or a new gap is noticed.
-const GUARDED_UNRENDERED = ["zc.js: #bmcount", "zc.js: #gbtn"];
+// Guarded lookups whose element is rendered nowhere would be listed here, exactly. Empty today.
+const GUARDED_UNRENDERED: string[] = [];
 const PAGES = ["z.html", "host.html", "big.html", "zc.html"];
 const scriptsOf = (html: string): string[] => [...html.matchAll(/<script[^>]*\ssrc="\/([^"?]+\.js)(?:\?[^"]*)?"/g)].map((m) => m[1]!).filter((f) => !BUNDLES.has(f));
 const looked = (js: string): string[] => {
