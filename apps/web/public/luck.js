@@ -104,6 +104,8 @@
   const prizeFor = (settings, which, place) => { const t = which === "overall" ? settings.prizes.overall : settings.prizes.rounds[which - 1]; return (t && t[place - 1]) || ""; };
   document.addEventListener("keydown", (e) => { if (e.key === "Tab" || e.key === "Enter" || e.key === " ") usedKeys = true; });
   document.addEventListener("pointerdown", () => { usedKeys = false; });
+  /* Reaction pack hook: only for new-flow games, only when the shared reaction script is on the page; the ids are in game-core LUCK_REACTIONS. */
+  const react = (id) => { try { if (window.ctzReact) window.ctzReact(id); } catch (e) { /* a reaction never stops the game */ } };
   const keyOf = (v) => { const p = RUN.phase(), gi = p.g !== undefined ? p.g : -1; return [p.kind, gi, p.afterRound || 0, gi >= 0 && pressed[gi] ? 1 : 0, RUN.game ? RUN.game.done : 0, RUN.game ? RUN.game.finished : 0, RUN.targets[gi] || 0, RUN.error ? 1 : 0, v.agreed ? 1 : 0].join("|"); };
   // the dice rounds of the round that dice round gi belongs to, as small chips; only those BEFORE index `upTo` (the one that is landing now is added when it has landed)
   const chipsOf = (g, s, seat, gi, upTo) => { const first = (LE.roundOf(s, gi) - 1) * s.diceRounds, out = []; for (let i = first; i < upTo; i++) { const r = g.results[i]; if (!r) continue; const d = r.dice[seat]; out.push({ no: LE.diceNoOf(s, i), t: r.target, d, hit: d === r.target, pts: r.points[seat] || 0 }); } return out; };
@@ -157,7 +159,7 @@
         } else if (!r || dv < 1) { ctl.roll(); }
         else {
           const chip = { no: LE.diceNoOf(s, gi), t: r.target, d: dv, hit: dv === r.target, pts: gain };
-          const fill = (fresh) => { if (RUN.phase().g !== gi) return; LD.showResult({ target: r.target, dice: dv, total: me ? me.points : 0, seg: LE.diceNoOf(s, gi) - 1, chip, fresh }); const pb2 = document.getElementById("press"); if (pb2) pb2.textContent = "Next dice round soon"; const t10 = document.getElementById("lt-top10"); if (t10) t10.hidden = false; };
+          const fill = (fresh) => { if (RUN.phase().g !== gi) return; if (fresh && s.newFlow && pressed[gi]) { const dd = Math.abs(r.target - dv); react(dd === 0 ? "boom" : dd === 1 ? "nice" : "oops"); } LD.showResult({ target: r.target, dice: dv, total: me ? me.points : 0, seg: LE.diceNoOf(s, gi) - 1, chip, fresh }); const pb2 = document.getElementById("press"); if (pb2) pb2.textContent = "Next dice round soon"; const t10 = document.getElementById("lt-top10"); if (t10) t10.hidden = false; };
           if (landedAlready) { ctl.show(dv); fill(false); }
           else {
             const sinceReveal = RUN.now() - (p.endsMs - s.revealSecs * 1000);
@@ -177,7 +179,8 @@
         const top5 = fr.overall.slice(0, 5).map((x) => { const pz = s.prizeMode !== "rounds" ? prizeFor(s, "overall", x.place) : ""; return `<li${x.seat === seat ? ' class="me"' : ""}><b>${ord(x.place)}: ${esc(RUN.nameOf(x.seat))}</b> <span class="lt-pts">${x.points} pts</span>${pz ? `<span class="lt-prize">${esc(pz)}</span>` : ""}${x.line ? `<small>How this was decided: ${esc(x.line)}</small>` : ""}</li>`; }).join("");
         const rest = fr.overall.slice(5);
         const rounds = s.prizeMode !== "overall" ? fr.rounds.map((l, i) => `<details><summary>Round ${i + 1} winners</summary>${l.slice(0, 5).map((x) => `<p class="zsmall"><b>${ord(x.place)}</b> ${esc(RUN.nameOf(x.seat))} (${x.points} pts)${prizeFor(s, i + 1, x.place) ? " - " + esc(prizeFor(s, i + 1, x.place)) : ""}${x.line ? "<br>" + esc(x.line) : ""}</p>`).join("")}</details>`).join("") : "";
-        body = `<div class="zcard" role="status"><h2>The game is over</h2>${me ? `<p class="lt-fin">You scored <b>${me.points}</b> points. ${standing(seat)}</p>` : ""}<ol class="trank lt-list lt-final">${top5}</ol>${rest.length ? `<h3>Places 6 to 10</h3>${listHtml(rest, seat)}` : ""}</div>${rounds ? `<div class="zcard">${rounds}</div>` : ""}
+        const won = s.newFlow ? fr.overall.slice(0, 5).find((x) => x.seat === seat) : null; if (won) react("ta_da");
+        body = `<div class="zcard" role="status"><h2>The game is over</h2>${won ? `<p class="lt-fin"><b>You won</b> ${ord(won.place)} place.</p>` : ""}${me ? `<p class="lt-fin">You scored <b>${me.points}</b> points. ${standing(seat)}</p>` : ""}<ol class="trank lt-list lt-final">${top5}</ol>${rest.length ? `<h3>Places 6 to 10</h3>${listHtml(rest, seat)}` : ""}</div>${rounds ? `<div class="zcard">${rounds}</div>` : ""}
           <p class="zsmall tcen">Every phone worked this out from the same public numbers. The result is published when enough phones agree.</p>`;
       }
     }

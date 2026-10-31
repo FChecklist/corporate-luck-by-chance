@@ -11,3 +11,7 @@ Still to do:
 1. "No press in time = 0": the live engine derives a dice for every seat; a press record per round is needed so a player who did not press scores 0.
 2. Reaction pack hooks on the pages (ids in game-core LUCK_REACTIONS: exact boom, near nice, miss oops, round_start, countdown, final ta_da).
 3. Host-registered pause key; persist newFlow on the game; six-step prizes via planPrizes; "You won" screen check.
+
+## Status after core 0.9.8 (vendored, f27e267)
+Done behind `newFlow`: press record (POST luck/press, GET luck/presses, table luck_press; no press in time = 0; engine takes the pressed set; luck-run.js fetches it before each dice round; the phone posts the press), "You won" line on the results screen for the top five, reaction hooks (window.ctzReact, guarded; ids boom / nice / oops / ta_da).
+Not done: the 120 s waiting room; wording sweep (no "erase", no "we/our", calm text): zc.js has about 80 hits, plus the legal and info pages, and tests pin some of that text, so it needs its own pass with the tests; phone bundles (luck-engine.js, zgame.js) must be rebuilt from packages/luck, and window.ctzReact must be supplied by the shared reaction script once it is added to z.html; the new reaction ids must exist in the core reaction list.
