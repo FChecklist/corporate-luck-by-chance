@@ -130,7 +130,7 @@ describe("cancel: what guests and everybody see afterwards", () => {
     await call("GET", "/api/z/CAN-1/info", undefined, undefined, T + 4 * H);
     expect(outbox("%could not begin%")).toHaveLength(0);
   });
-  test("guests' names and numbers are erased 23 hours after the CANCEL time (not the start time), and the Organizer and Host are told", async () => {
+  test("guests' names and numbers are auto-deleted 23 hours after the CANCEL time (not the start time), and the Organizer and Host are told", async () => {
     const t = await team(); await paidGame(t);
     await join("9876543210", "Asha"); await join("9876543211", "Ben");
     const at = T + 30 * 60_000;
@@ -318,7 +318,7 @@ describe("Co-host: name + mobile (no e-mail), bound to one game", () => {
     expect(raw.prepare("SELECT src FROM seat WHERE eid='CAN-1'").get()).toMatchObject({ src: expect.stringMatching(/^co:/) });
     expect((raw.prepare("SELECT src FROM seat WHERE eid='CAN-2'").get() as any).src).toBe("link"); // not credited to a Co-host of another game
   });
-  test("name and mobile are erased (key retired) when the game's participant data is erased", async () => {
+  test("name and mobile are erased (key retired) when the game's participant data is deleted", async () => {
     const t = await team(); await paidGame(t); await join("9876543210");
     expect((await call("POST", "/api/z/CAN-1/erase", {}, t.master)).status).toBe(200);
     expect((await call("GET", "/api/whoami", undefined, t.cohost)).status).toBe(403);

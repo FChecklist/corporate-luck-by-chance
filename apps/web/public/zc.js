@@ -117,7 +117,7 @@
   const loadDone = () => { try { S.done = JSON.parse(ls.get(doneKey()) || "{}") || {}; } catch { S.done = {}; } };
   const saveDone = () => ls.set(doneKey(), JSON.stringify(S.done));
   const markDone = (n) => { S.done[n] = 1; saveDone(); };
-  /** The game is over, as the game itself says it (the shared view /luck/view says "done": the rounds are played), or the report already went out / the data is erased. The hint must not send the organizer back to step 1. */
+  /** The game is over, as the game itself says it (the shared view /luck/view says "done": the rounds are played), or the report already went out / the data is deleted. The hint must not send the organizer back to step 1. */
   const gameEnded = () => !!(S.life && (S.life.purged || S.life.reportSent)) || !!(S.luck && S.luck.state === "done");
   /** The game has started: the start time has passed (S.started), or the Host already pressed Start on the game page (the shared view says running or done). */
   const gameStarted = () => !S.draft && (!!S.started || !!(S.luck && (S.luck.state === "running" || S.luck.state === "done")));
@@ -899,7 +899,7 @@
     const c = S.cfg, inf = S.info; if (!c || !inf) return "";
     const T = S.team;
     return [`${c.name || "Your game"}, ${when(inf.startMs)}`, `Up to ${inf.cap} players`, `${(c.rewards || []).length} prizes`, brandNow(),
-      T ? `${pl((T.hosts || []).length, "Host", "Hosts")}, ${pl((T.cohosts || []).length, "Co-host", "Co-hosts")}` : "", S.draft ? "Guest link ready after publishing" : "Guest link ready", S.draft ? "Not published yet" : "Published", S.draft ? "Publish first" : isCancelled() ? "Cancelled" : payState().paid ? "Paid. The game is on" : payState().confirming ? "Confirming your payment..." : "Payment pending", gameEnded() ? "The game is over" : S.luck && S.luck.state && S.luck.state !== "open" ? "The game is on" : "Opens when you press Start", S.life && S.life.purged ? "Report sent, data deleted" : S.life && S.life.reportSent ? "Report sent. Data is erased 24 h after the end" : "Your report, then erasing data"][n - 1] || "";
+      T ? `${pl((T.hosts || []).length, "Host", "Hosts")}, ${pl((T.cohosts || []).length, "Co-host", "Co-hosts")}` : "", S.draft ? "Guest link ready after publishing" : "Guest link ready", S.draft ? "Not published yet" : "Published", S.draft ? "Publish first" : isCancelled() ? "Cancelled" : payState().paid ? "Paid. The game is on" : payState().confirming ? "Confirming your payment..." : "Payment pending", gameEnded() ? "The game is over" : S.luck && S.luck.state && S.luck.state !== "open" ? "The game is on" : "Opens when you press Start", S.life && S.life.purged ? "Report sent, data deleted" : S.life && S.life.reportSent ? "Report sent. Data is auto-deleted 24 h after the end" : "Your report, then deleting data"][n - 1] || "";
   }
   // "About this step": a short, always-visible write-up under each talking line (docs/ROLES_AND_CONSOLE_SPEC_4.md, A). At most 5 short lines each.
   const ABOUT = {
@@ -912,7 +912,7 @@
     7: ["Look through your game and change what you need.", "Publishing is free. Guests can join after you publish.", "You can cancel before the start time. We do not give refunds: a paid game becomes credit for your next game for 365 days. Or change the date instead.", "Press \"See what players see\" to look at a sample play screen."],
     8: ["Pay once, before the start time. You see the price here.", "The Organizer, a Host or a Co-host can pay.", "Paid late? The game opens 2 minutes after your payment is confirmed.", "A paid game cannot be cancelled after the start time. Before it, your payment stays as credit for 365 days.", "\"Copy payment link\" makes a link anyone can open to pay for this game."],
     9: ["Open the game page, choose the prizes, and press Start.", "Starting closes the list of players.", "Only the Organizer and Host can start the game or remove a person."],
-    10: ["A few minutes after the game, a report link is e-mailed to the Organizer.", "Guest names and numbers are deleted within 24 hours.", "The winners and the Organizer's and Hosts' details are kept for 365 days.", "You can erase guest data earlier."],
+    10: ["A few minutes after the game, a report link is e-mailed to the Organizer.", "Guest names and numbers are deleted within 24 hours.", "The winners and the Organizer's and Hosts' details are kept for 365 days.", "You can delete guest data earlier."],
   };
   const ABOUT_COH = { 1: ["You can see the game and what you may do."], 2: ["Add your people. Each gets their own WhatsApp link. You can bring up to your limit."], 3: ["One payment is enough. If someone has paid, you will see Paid.", "\"Copy payment link\" makes a link anyone can open to pay for this game."] };
   const aboutBox = (n) => { const L = (role() === "cohost" ? ABOUT_COH : ABOUT)[n]; return L ? `<div class="zc-about" id="about${n}"><b>About this step</b>${L.map((x) => `<span>${esc(x)}</span>`).join("")}</div>` : ""; };
@@ -961,7 +961,7 @@
     return `<section class="zc-card zc-acct" id="acct"><button type="button" class="zc-sech" data-acct="1" aria-expanded="${open}" style="background:var(--surface-1)"><span class="zc-num zc-num-dark">A</span><span class="zc-syntx"><b>Your account</b><br><span class="zc-hint">These are for the Organizer only: your AI link, sign-in keys and records. Closing your account deletes your games.</span></span><span class="zc-st">${open ? "&#9650;" : "&#9660;"}</span></button>${open ? `<div class="zc-secb">${aiBlock()}${credits}${keys}${sugs}${audit}${close}</div>` : ""}</section>`;
   }
   // ---------- notes above the steps ----------
-  const ACTTEXT = { publish: "Publishing is free. Check your e-mail and mobile number, then press \"Confirm and publish\" yourself.", erase: "Press \"Delete all participant data now\" only if you want every guest's name and number erased. It cannot be undone.", end: "To end a running game, open the game page below and press the End button there. The round being played is finished and counted first." };
+  const ACTTEXT = { publish: "Publishing is free. Check your e-mail and mobile number, then press \"Confirm and publish\" yourself.", erase: "Press \"Delete all participant data now\" only if you want every guest's name and number deleted. It cannot be undone.", end: "To end a running game, open the game page below and press the End button there. The round being played is finished and counted first." };
   const actBanner = () => (ACT && ACTTEXT[ACT] && eid && canRun() ? `<div class="zc-toast" role="status" id="actbanner"><b>Your AI assistant brought you here.</b> ${ACTTEXT[ACT]} Nobody but you can press it.</div>` : "");
   const ACTSTEP = { publish: 7, erase: 10, end: 9 };
   /** The AI helper switch: one small line inside the AI Assistant box (Organizer only). Off by default. The shield behaviour itself is unchanged. */
@@ -1599,12 +1599,12 @@
     // after the game
     if ($("rptnew")) $("rptnew").onclick = async () => { if (!confirm("Make a new report link? The old link, including the one in your e-mail, stops working at once.")) return; try { const r = await call("POST", `/api/z/${eid}/reportlink`, {}); if (r.url) window.open(r.url, "_blank", "noopener"); S.note = "New report link made. The old one has stopped."; } catch (e) { S.note = e.message; } refreshEng(); };
     if ($("rptopen")) $("rptopen").onclick = async () => { try { const r = await call("GET", `/api/z/${eid}/reportlink`); if (r.url) window.open(r.url, "_blank", "noopener"); else S.note = "The report is not ready yet."; } catch (e) { S.note = e.message; } redraw(); };
-    if ($("erase")) $("erase").onclick = async () => { if (!confirm("Delete every participant's name and mobile number now? This cannot be undone. The winners record stays.")) return; try { const r = await call("POST", `/api/z/${eid}/erase`, {}); S.note = r.erased + " participants erased."; } catch (e) { S.note = e.message; } refreshEng(); };
+    if ($("erase")) $("erase").onclick = async () => { if (!confirm("Delete every participant's name and mobile number now? This cannot be undone. The winners record stays.")) return; try { const r = await call("POST", `/api/z/${eid}/erase`, {}); S.note = r.erased + " participants deleted."; } catch (e) { S.note = e.message; } refreshEng(); };
     if ($("reqok")) $("reqok").onclick = async () => {
       const r = S.reqs[0];
       if (r.action === "erase") { // your confirmation is what deletes, not the AI's request
         if (!confirm("Delete every participant's name and mobile number now? This cannot be undone. The winners record stays.")) return;
-        try { const x = await call("POST", `/api/z/${eid}/erase`, {}); S.note = x.erased + " participants erased."; await call("POST", `/api/z/${eid}/control/request/clear`, {}); } catch (e) { S.note = e.message; }
+        try { const x = await call("POST", `/api/z/${eid}/erase`, {}); S.note = x.erased + " participants deleted."; await call("POST", `/api/z/${eid}/control/request/clear`, {}); } catch (e) { S.note = e.message; }
         return refreshEng();
       }
       if (r.action === "end") { // your press is what ends the game, not the AI's request: the round being played is finished and counted, then the game is over

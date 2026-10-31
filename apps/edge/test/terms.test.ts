@@ -22,7 +22,7 @@ const OTHER_DOCS = ["/subprocessors.html", "/partner-terms.html"]; // linked fro
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We erase Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL"],
+    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We delete Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL"],
     "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube"],
     "partner-terms.html": ["independent partner", "No spam", "Tax may be deducted at source", "You are responsible for your own taxes", "No payment from the buyer, no commission"],

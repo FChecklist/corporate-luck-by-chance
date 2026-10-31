@@ -1,8 +1,3 @@
 # Tests that do not pass, and why
 
-No test has been weakened or removed for Luck so far. Two pages.test.ts tests fail on the base commit 752ff60 as well (before any Luck-by-Chance work); they are not stale, their cause is still open:
-
-1. "Create a new game like this one: on the game page and in the games list ..." (times out waiting for the new game to open on step 1).
-2. "Rescheduling: a date more than 30 days ahead is refused politely ..." (the first refusal shows, the second save with a near date never shows the server's own message).
-
-Both time out at the 6 s wait of the test page; whether the console itself is at fault has not been checked by hand. See docs/TEST_HANDOFF.md, known items.
+None. No test has been weakened or removed for Luck. The two pages.test.ts tests that failed on the base commit (the "Create a new game like this one" and "Rescheduling" ones) used the real clock for dates while the console page runs on the test world's frozen clock (T, 1 Oct 2026); they now compute their dates from T, so they no longer depend on the day they run.

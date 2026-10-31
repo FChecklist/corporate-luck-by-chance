@@ -5,7 +5,7 @@
 // The date and time are NEVER copied. Without `startRound` the draft is parked 30 days ahead and marked "start pending" (kv startpending/<id>): it cannot be published or paid
 // until the Organizer picks a time (the console opens on step 1 with the date empty). With `startRound` it is validated like any other time (future, at most 30 days ahead).
 // `withPeople: true` brings the old game's people list (names and numbers stay sealed; each person gets a NEW personal link, the old links stay with the old game). It works only while the
-// old list still exists (before its erasure); otherwise `peopleCopied` is 0 and `peopleNote` says so calmly. The old game's own copy is erased on its own clock as always.
+// old list still exists (before its erasure); otherwise `peopleCopied` is 0 and `peopleNote` says so calmly. The old game's own copy is auto-deleted on its own clock as always.
 import { sealText } from "./pii";
 import { newToken, tokenHash, randHex } from "./people";
 import { MAX_AHEAD_MS } from "./lifecycle";
