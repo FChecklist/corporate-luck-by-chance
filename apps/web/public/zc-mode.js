@@ -5,8 +5,7 @@
    It runs first and only puts flow=new or flow=old into the address, so zc.js (previous screens) and pack/zc-flow.js (new screens) are not touched. */
 (function () {
   var DEFAULT_NEW = false;
-  // 1.4.1: the new screens cannot sign in here without the bridge (zc-flow-bridge.js maps ctz-org to cbz-org), so they are HIDDEN for this release:
-  // ?flow=new and a remembered "new" both open the previous screens. Set NEW_SCREENS_ENABLED = true only after the pack reads this game's key.
+  // The new screens sign in through zc-flow-bridge.js (it maps the pack's storage names to this game's). Set NEW_SCREENS_ENABLED = false to hide them again: ?flow=new then opens the previous screens.
   var NEW_SCREENS_ENABLED = true; /* opt-in only: DEFAULT_NEW stays false, so nobody sees them unless ?flow=new */
   if (!NEW_SCREENS_ENABLED) {
     try { var q0 = new URLSearchParams(location.search); if (q0.get("flow") === "new") { q0.set("flow", "old"); history.replaceState(null, "", location.pathname + "?" + q0.toString() + location.hash); } } catch (e) { /* the page opens as before */ }
