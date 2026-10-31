@@ -114,6 +114,23 @@ export async function luckTick(env: Env, now: number): Promise<number> {
   return n;
 }
 
+/** Reads the people who are in now, seats them and starts the clock at startMs. Used by the start press (live) and, for the new flow, when its 120 s waiting room is over. */
+async function beginGame(c: LuckCtx, t: TRow, s: LuckSettings, startMs: number): Promise<Response> {
+  const { env, now, eid } = c;
+  const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? ORDER BY p.pid").bind(eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
+  const players: { pid: string; name: string }[] = [];
+  for (const r of rows.results ?? []) { if (r.blocked) continue; players.push({ pid: r.pid, name: cleanName(await c.openName(r.pii)) }); }
+  if (players.length < 2) return json({ error: `A game needs at least 2 players. ${players.length} joined.`, code: "too-few", joined: players.length }, 409);
+  if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
+  const endMs = gameEndMs(s, startMs);
+  const seed = await seedOf(t.secret!, c.eid, players.map((p) => p.pid));
+  const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, eid)];
+  players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) VALUES(?,?,?,?)").bind(eid, p.pid, i, p.name)));
+  for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+  return json({ ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s), commit: t.commit_hash, secretShownAt: "reveal" });
+}
+const WAITING_ROOM_MS = 120_000;
+
 // ---------------------------------------------------------------------------------------------------------------- routes
 export interface LuckCtx {
   env: Env; req: Request; now: number; eid: string; e: any; sub: string; url: URL;
@@ -136,27 +153,32 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
   const method = req.method;
   let t = await ensureL(env, eid);
   t = await settleVotes(env, t, now);
+  if (t.state === "open") { // new flow: the waiting room is over, so the list of players is read now
+    const { pendingStartMs, ...o } = JSON.parse(t.opts ?? "{}") as { pendingStartMs?: number } & Record<string, unknown>;
+    if (pendingStartMs && now >= pendingStartMs) {
+      const r = await beginGame(c, t, o as unknown as LuckSettings, pendingStartMs);
+      if (r.status === 409) await env.DB.prepare("UPDATE luck_t SET opts=? WHERE eid=? AND state='open'").bind(JSON.stringify(o), eid).run(); // too few people: back to waiting, the organizer presses start again
+      t = await ensureL(env, eid);
+    }
+  }
 
   if (sub === "tick" && method === "POST") { if (!c.allowed) return json({ error: "Not allowed." }, 403); return json({ ok: true, closed: await luckTick(env, now) }); }
 
   if (sub === "start" && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can start the game." }, 403);
     if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
+    const pend = (JSON.parse(t.opts ?? "{}") as { pendingStartMs?: number }).pendingStartMs;
+    if (pend) return json({ ok: true, pending: true, startMs: pend });
     const b = (await c.body(req, 4096)) ?? {};
     const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
-    const delay = parsed.value.newFlow ? 120 : b.delaySecs === undefined ? 20 : Number(b.delaySecs); // new flow: a fixed 120 s waiting room (the people who joined before the press are the players)
+    if (parsed.value.newFlow) { // new flow: a 120 s waiting room. People keep joining; the list of players is read when the 120 s are over (beginGame)
+      const startMs = now + WAITING_ROOM_MS;
+      await env.DB.prepare("UPDATE luck_t SET opts=? WHERE eid=? AND state='open'").bind(JSON.stringify({ ...parsed.value, pendingStartMs: startMs }), eid).run();
+      return json({ ok: true, pending: true, startMs });
+    }
+    const delay = b.delaySecs === undefined ? 20 : Number(b.delaySecs);
     if (!Number.isInteger(delay) || delay < 5 || delay > 3600) return json({ error: "The game starts 5 seconds to 1 hour after you press start." }, 400);
-    const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? ORDER BY p.pid").bind(eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
-    const players: { pid: string; name: string }[] = [];
-    for (const r of rows.results ?? []) { if (r.blocked) continue; players.push({ pid: r.pid, name: cleanName(await c.openName(r.pii)) }); }
-    if (players.length < 2) return json({ error: `A game needs at least 2 players. ${players.length} joined.`, code: "too-few", joined: players.length }, 409);
-    if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
-    const s = parsed.value, startMs = now + delay * 1000, endMs = gameEndMs(s, startMs);
-    const seed = await seedOf(t.secret!, eid, players.map((p) => p.pid));
-    const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, eid)];
-    players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) VALUES(?,?,?,?)").bind(eid, p.pid, i, p.name)));
-    for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
-    return json({ ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s), commit: t.commit_hash, secretShownAt: "reveal" });
+    return beginGame(c, t, parsed.value, now + delay * 1000);
   }
 
   if (sub === "end" && method === "POST") { // O7: End the game. Nothing is computed here: the game just gets fewer rounds, so every phone (which reads the settings) stops after that round and the beacon feed stops with it.
