@@ -418,10 +418,9 @@ describe("paying to publish a draft", () => {
     const c = await (await pay(a, "PAYD-2")).json() as any; await complete(c.paymentId, c.razorpay.orderId, "pay_2");
     expect((await pay(a, "PAYD-2")).status).toBe(409);
   });
-  test("a draft that is too big for any pack needs a custom arrangement", async () => {
+  test("a game that is too big is refused at the start (the 2,000 cap), so no pay step is reached", async () => {
     const key = await start("big@acme.com", "3.3.3.3");
-    await call("POST", "/api/z", { id: "PAYD-3", startRound: FAR_START, callSeconds: 9, cap: 100000 }, { "x-organizer": key });
-    expect((await pay(key, "PAYD-3")).status).toBe(400);
+    expect((await call("POST", "/api/z", { id: "PAYD-3", startRound: FAR_START, callSeconds: 9, cap: 100000 }, { "x-organizer": key })).status).toBe(400);
   });
 });
 

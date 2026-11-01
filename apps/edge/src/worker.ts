@@ -95,6 +95,7 @@ export const DRAFT_DAYS = 30;
 const STARTS_PER_DAY = 10;
 /** Largest page of participants one request returns, so a 10,000-person list never costs a free Worker its ~10 ms of CPU in one go. */
 export const PAGE = 2000;
+const PEOPLE_CAP_MSG = "A game takes up to 2,000 people. Please choose 2,000 or fewer.";
 /** Claims are only a live cross-check (settlement never uses them), and 7 rows per phone would eat the free write allowance, so they are stored only for engagements this size or smaller. */
 export const CLAIM_TRACKING_MAX_CAP = 500;
 const tracks = (e: { cap: number }) => e.cap <= CLAIM_TRACKING_MAX_CAP;
@@ -1371,7 +1372,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!Number.isInteger(b.startRound)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(b.callSeconds) || b.callSeconds % 3 || b.callSeconds < 6) return json({ error: GAP_MSG }, 400);
     if (!Number.isInteger(b.cap) || b.cap < 1 || b.cap > 100000) return json({ error: "The number of people must be a whole number from 1 up. Please check it." }, 400);
-    if (b.newFlow === true && b.cap > 2000) return json({ error: "A game made with the new screens takes up to 2000 people. For more people, make the game with the previous screens.", code: "new-flow-cap" }, 400);
+    if (b.cap > 2000) return json({ error: PEOPLE_CAP_MSG, code: "new-flow-cap" }, 400);
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     if (roundMs(b.startRound) > now + MAX_AHEAD_MS) return json({ error: TOO_FAR, code: "too-far" }, 400);
     { const nm = noMoments(b); if (nm) return nm; }
@@ -2021,7 +2022,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (Number.isInteger(next.call_seconds) && !GAPS.includes(next.call_seconds)) return json({ error: GAP_MSG }, 400);
     if (!Number.isInteger(next.start_round)) return json({ error: "Pick the day and time the game starts." }, 400);
     if (!Number.isInteger(next.call_seconds) || next.call_seconds % 3 || next.call_seconds < 6) return json({ error: GAP_MSG }, 400);
-    if (!Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "The number of people must be a whole number from 1 up. Please check it." }, 400);
+    if (!Number.isInteger(next.cap) || next.cap < 1 || next.cap > 100000) return json({ error: "The number of people must be a whole number from 1 up. Please check it." }, 400); if (next.cap > 2000 && next.cap > Number(e.cap)) return json({ error: PEOPLE_CAP_MSG, code: "new-flow-cap" }, 400);
     if (roundMs(next.start_round) <= now) return json({ error: "Pick a start time in the future." }, 400);
     if (next.start_round !== e.start_round) { const last = await latestStartMs(env.DB, e, now); if (roundMs(next.start_round) > last) return json({ error: e.pack ? TOO_FAR_PAID(last) : TOO_FAR, code: "too-far", ...(e.pack ? { lastStartMs: last } : {}) }, 400); } // a draft: 30 days ahead; a paid game: any date within 365 days of the payment
     const have = await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>();
