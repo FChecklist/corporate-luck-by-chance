@@ -127,7 +127,7 @@ export const INVOICE_TERMS: string[] = [
   "Where GST applies it is shown on page 1. Where it is not charged, the invoice says so. The payer is responsible for any withholding tax, VAT or duty that applies in the payer's own country.",
   "The organizer is responsible for the rewards, the participants' consent and the conduct of the game. The service runs the game software and does not take part in the draw of rewards.",
   "Billing data is kept for audit and tax reasons. All other game data is deleted as described in the Privacy page.",
-  "Disputes are handled first by e-mail to the seller at the address on page 1. Indian law applies and the courts of the seller's place of business have jurisdiction, unless the payer's own consumer law says otherwise.",
+  "Disputes are handled first by e-mail to the seller at the address on page 1. Indian law applies and the courts in India have jurisdiction, unless the payer's own consumer law says otherwise.",
   "This is a computer generated invoice. It needs no signature.",
 ];
 const titleOf = (i: InvoiceData) => (i.kind === "credit_note" ? "CREDIT NOTE" : i.kind === "proforma" ? "PROFORMA INVOICE (NOT PAID)" : i.tax.mode === "none" ? "INVOICE" : "TAX INVOICE");
