@@ -18,6 +18,7 @@ Where things are set:
 | `CRON_KEY` | The scheduled job's own key: it can call only `/api/lifecycle/tick` | Pages secret and Cron secret (same value) | secret |
 | `INBOUND_SECRET` | Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion) | Pages secret | secret |
 | `VISIT_KEY` | Key that hashes network addresses for first-party public-page visit counts | Pages secret | secret |
+| `DEMO_GAME` | Free demo game switch (a game for up to 10 people, labelled Demo, 3 a day per account and per address): only the exact value `on` turns it on; unset means off | Optional Pages variable | setting |
 | `FUNNEL_EVENTS` | Sales-funnel counting switch: only the exact value `on` turns it on; unset means off | Optional Pages variable | setting |
 | `VISIT_DAILY_WRITES` | Most visit-count writes per day (a cap) | Optional Pages variable | setting |
 | `REPORT_KEY` | Key to read the first-party error and speed reports (`/api/telemetry`) | Pages secret | secret |

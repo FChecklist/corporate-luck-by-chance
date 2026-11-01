@@ -104,11 +104,11 @@ describe("tests 1-4 at every point", () => {
   });
   test("K3 before the Rs 1 payment test: refused without the tick (no order, no row); with it the order is made and the row names the test payment", async () => {
     const pt = { email: "boss@acme.com", name: "Asha Rao", country: "IN" };
-    const no = await call("POST", "/api/payments/paytest", pt); expect(no.status).toBe(400); expect(await j(no)).toMatchObject({ ...REFUSED, kind: "K3" });
-    const half = await call("POST", "/api/payments/paytest", { ...pt, consent: { v: CONSENT_VERSION, boxes: [] } }); expect(half.status).toBe(400);
-    const old = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3", "1999-01-01") }); expect(old.status).toBe(400);
+    const no = await call("POST", "/api/payments/paytest", pt, { "x-organizer": "plat" }); expect(no.status).toBe(400); expect(await j(no)).toMatchObject({ ...REFUSED, kind: "K3" });
+    const half = await call("POST", "/api/payments/paytest", { ...pt, consent: { v: CONSENT_VERSION, boxes: [] } }, { "x-organizer": "plat" }); expect(half.status).toBe(400);
+    const old = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3", "1999-01-01") }, { "x-organizer": "plat" }); expect(old.status).toBe(400);
     expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 0 }); expect(rows("K3").length).toBe(0);
-    const ok = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3") }, {}, T + 5); expect(ok.status).toBe(200);
+    const ok = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3") }, { "x-organizer": "plat" }, T + 5); expect(ok.status).toBe(200);
     const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: sha(wordingOf("K3")) });
     expect(r[0].ref).toBe((raw.query("SELECT id FROM payment").get() as any).id);
   });

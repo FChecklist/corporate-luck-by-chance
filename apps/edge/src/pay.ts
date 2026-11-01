@@ -394,13 +394,16 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
   }
 
   const ptm = p.match(/^\/api\/payments\/paytest\/(pay_[0-9a-f]{16})$/); // the test page asks while Razorpay is still confirming
+  const ownerOnly = (): boolean => !!env.ORGANIZER_SECRET && req.headers.get("x-organizer") === env.ORGANIZER_SECRET && req.headers.get("x-cb-link") !== "1"; // the Rs 1 payment test is the owner's tool (owner order 1 Nov 2026): anybody else gets the same 404 as an unknown address
   if (req.method === "GET" && ptm) {
+    if (!ownerOnly()) return json({ error: "Not found" }, 404);
     const row = await db.prepare("SELECT status, result, meta FROM payment WHERE id=?").bind(ptm[1]).first<any>();
     let m: any = {}; try { m = JSON.parse(row?.meta ?? "{}"); } catch { m = {}; }
     if (!row || !m.paytest) return json({ error: "Not found" }, 404);
     return row.status === "paid" ? json(JSON.parse(row.result)) : json({ confirming: true }, 202);
   }
-  if (req.method === "POST" && p === "/api/payments/paytest") { // Payment Testing: Rs 1 from India, US$ 1 from abroad; buys nothing; anyone, any number of times
+  if (req.method === "POST" && p === "/api/payments/paytest") { // Payment Testing: Rs 1 from India, US$ 1 from abroad; buys nothing; the owner only, any number of times
+    if (!ownerOnly()) return json({ error: "Not found" }, 404);
     if (!rzp || (await getMode(env)) === "TEST") return json({ error: "Online payments are not switched on." }, 503);
     const b = await body(req);
     if (!b || typeof b.email !== "string" || !EMAIL.test(b.email.trim())) return json({ error: "Enter a valid e-mail address." }, 400);

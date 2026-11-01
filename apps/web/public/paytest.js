@@ -15,6 +15,7 @@
     return `${head}<div class="zcard"><h2>Test our payment</h2>
       <p class="zsmall" style="margin-top:0">This is a real payment of <b>${esc(amt)}</b> (Rs 1 if you are in India, US$ 1 if you are abroad). It buys nothing. You get an invoice, so you can see the whole experience. Anyone can test it, any number of times.</p></div>
       <div class="zcard zform"><h2>Details</h2>
+        <label for="okey">Owner key</label><input id="okey" type="password" autocomplete="off" value="${esc(S.key || "")}" placeholder="Platform key (owner only)">
         <label for="nm">Name</label><input id="nm" autocomplete="name" value="${esc(S.name)}" placeholder="Full name">
         <label for="em">E-mail (your invoice comes here)</label><input id="em" type="email" autocomplete="email" value="${esc(S.email)}" placeholder="Email">
         <label for="ph">Mobile <span class="zsmall" style="display:inline">(optional)</span></label>
@@ -27,7 +28,7 @@
         <button class="zbtn" id="go" disabled aria-disabled="true" ${S.busy ? 'data-hold="1"' : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
         <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Your name, e-mail and payment details are kept for invoice purposes. No refunds are given for test payments.</p></div>`;
   }
-  const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
+  const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax"), key: g("okey") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
   // The K3 consent box (termsbox.js, the same as pay.js): wording from the server, never pre-ticked, the pay button stays disabled until it is ticked. The page redraws, so the tick is kept in S.k3 and put back.
   let TBK = null;
   function mountK3() {
@@ -44,7 +45,7 @@
     const t0 = Date.now();
     while (Date.now() - t0 < 300000) {
       await new Promise((ok) => setTimeout(ok, 4000));
-      try { const r = await TB.api("GET", "/api/payments/paytest/" + paymentId); if (r && !r.confirming) return r; } catch (e) { if (e.status && e.status < 500) throw e; }
+      try { const r = await TB.api("GET", "/api/payments/paytest/" + paymentId, undefined, { key: S.key }); if (r && !r.confirming) return r; } catch (e) { if (e.status && e.status < 500) throw e; }
     }
     throw new Error("Razorpay has not confirmed yet. If money was taken, your invoice will be e-mailed to you once it is.");
   }
@@ -55,6 +56,7 @@
     if ($("go")) $("go").onclick = async () => {
       keep(); S.err = "";
       const consent = TBK && TBK.ok() ? TBK.terms() : null; if (!consent) { S.err = "Please tick the box to continue."; return draw(); }
+      if (!(S.key || "").trim()) { S.err = "Enter the owner key. This test is for the owner only."; return draw(); }
       if ((S.name || "").trim().length < 2) { S.err = "Please enter your name."; return draw(); }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((S.email || "").trim())) { S.err = "Please enter a valid e-mail."; return draw(); }
       const taxId = (S.tax || "").trim().toUpperCase();
@@ -62,7 +64,7 @@
       TB.payer.save(S);
       S.busy = true; draw();
       try {
-        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode });
+        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode }, { key: (S.key || "").trim() });
         let res = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
         if (res && res.confirming) res = await waitForConfirm(r.paymentId);
         S.done = res;

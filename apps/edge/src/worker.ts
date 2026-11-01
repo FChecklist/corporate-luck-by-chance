@@ -46,6 +46,7 @@ import { factsText } from "./ai-facts";
 import { mapJson, mapText } from "./ai-functions";
 import { goScreen, screenJson, screenText } from "./ai-go";
 import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold, toCsv, verifyChain, closeAuditFor, sweepAudit, type AuditEnv } from "./audit";
+import { DEMO_LIMIT_MSG, demoAllowed, demoNote, demoOn, isDemoCap, isDemoGame } from "./demo";
 import { FUNNEL_ENDPOINT, funnelCsv, funnelRange, funnelReport, funnelRoute, recordFunnel } from "./funnel";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
 import { LUCK_SCHEMA, LUCK_PRESS_SCHEMA, luckRoute, ensureL, gameStarted, luckTick } from "./luck";
@@ -64,7 +65,7 @@ export interface Env {
   /** The secret that seals names and mobile numbers at rest (AES-256-GCM). Never stored in the database. */
   DATA_KEY?: string;
   /** Optional: the key that hashes network addresses for the public-page visit tracking (visits.ts); when absent it is derived from DATA_KEY. VISIT_DAILY_WRITES caps that tracking's share of the daily write allowance (default 20,000). */
-  VISIT_KEY?: string; VISIT_DAILY_WRITES?: string; FUNNEL_EVENTS?: string;
+  VISIT_KEY?: string; VISIT_DAILY_WRITES?: string; FUNNEL_EVENTS?: string; DEMO_GAME?: string;
   /** Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion). */
   INBOUND_SECRET?: string;
   /** The scheduled job's own key (it can call only the lifecycle tick, nothing else). */
@@ -785,6 +786,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   { const bm = req.method === "GET" ? p.match(/^\/api\/beacon\/([0-9a-f]{64})\/public\/(latest|\d{1,10})$/) : null; if (bm) return beaconRelay(req, bm[1]!, bm[2]!); }
   { const mr = await modeRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => purgeTestData(env, n)); if (mr) return mr; } // TEST/LIVE switch, allow-list, purge (mode.ts): owner only, except the public read of the word TEST or LIVE
   { const ar = await adminRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => spend(env, now, n)); if (ar) return ar; } // the owner's desk (admin.ts): site switch, organizer lookup, data requests, mail events, error counts; the health read; the mail webhook
+  if (p === "/api/demo/status" && req.method === "GET") return json({ on: demoOn(env) }, 200); // the home page shows "Try a free demo" only while DEMO_GAME is on
   if (p === FUNNEL_ENDPOINT) return funnelRoute(req, env as any, now); // first-party sales funnel, page steps (funnel.ts); stores nothing while FUNNEL_EVENTS is not "on"
   if (p === "/api/v/b") return beaconRoute(req, env as VisitEnv, now, (n) => spend(env, now, n)); // public-page visit tracking (visits.ts); never the live game
   if (p === "/api/owner/funnel") { // OWNER ONLY (platform key, never through an AI work link): the sales funnel by day, week and total, JSON or ?format=csv. Every read is written to the access log; anybody else gets the same 404 as an unknown address.
@@ -1387,12 +1389,15 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM engagement e WHERE e.org=? AND e.pack=0 AND e.cancelled_ms IS NULL AND NOT EXISTS (SELECT 1 FROM kv WHERE k='pub/' || e.id)").bind(a.org).first<{ c: number }>())?.c ?? 0; // only drafts nobody has published count: a published-but-unpaid game and a cancelled draft never block a new game
       if (n >= MAX_DRAFTS) return json({ error: `You have ${MAX_DRAFTS} unpublished drafts. Publish one, or delete one you do not need (open Your games, then press Delete next to it). An unpublished draft is also forgotten after ${DRAFT_DAYS} days.` }, 409);
     }
+    const demoMade = demoOn(env) && !a.plat && !!a.org && !ent && isDemoCap(b.cap); // a free game for up to 10 people (demo.ts): at most 3 a day per account and per address
+    if (demoMade && !(await demoAllowed(env, a.org!, req.headers.get("cf-connecting-ip") ?? "local", now))) return json({ error: DEMO_LIMIT_MSG, code: "demo-limit" }, 429);
     if (!(await spend(env, now, 2))) return BUSY();
     const isTestEng = (await testFlag(env)) === 1 || (await orgIsTest(env, a.org)) ? 1 : 0; // made in TEST mode, or by a test account
     await env.DB.prepare("INSERT OR IGNORE INTO engagement(id,start_round,call_seconds,cap,created_ms,org,closed,pack,tickets,config,is_test) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(b.id, b.startRound, b.callSeconds, b.cap, now, a.org, b.whoCanJoin === "list" || (b.whoCanJoin === undefined && b.closed) || vc.cfg.employeesOnly ? 1 : 0, draft ? 0 : ent?.pack ?? b.cap, vc.cfg.tickets, cfgJson(vc.cfg), isTestEng).run(); // the console sends whoCanJoin "list"; the API default stays "anyone"
     if (ent) await env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(b.id, ent.id).run();
     if (a.kind === "ai" && a.org) await noteHelperGame(env.DB, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), a.org, b.id, now); // a game made with a Help Desk helper's key is recorded as theirs
     if (a.org) await recordTerms(env, a.org, now, "engagement");
+    if (demoMade) await demoNote(env, b.id, a.org!, req.headers.get("cf-connecting-ip") ?? "local", now);
     await recordFunnel(env as any, "game_created", b.id, now, { org: a.org }); // sales funnel (funnel.ts)
     return json({ ok: true, draft, openUrl: `${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${b.id}` });
   }
@@ -1797,7 +1802,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     // public: counts only, no ids. The exceptions are a lucky draw and Unlucky, whose winners are shown by their opaque card ids so each phone can tell whether it won
     return json({ results: (r.results ?? []).map((x: any) => ({ pattern: x.pattern, ordinal: x.ordinal, round: x.round, idx: x.idx, count: JSON.parse(x.pids).length, ...(JSON.parse(x.pids).length ? { winners: JSON.parse(x.pids) } : {}) })) });
   }
-  if (action === "info" && req.method === "GET") return json({ ...(cancelled ? { cancelled: true, message: "This game was cancelled by the organizer.", cancelledMs: e.cancelled_ms } : {}), ...(didNotStart ? { message: DNS_MSG } : {}), ...(isDraft ? { draft: true } : {}), ...(unpaid && !isDraft ? { ...(can(a, e) ? { unpaid: true } : {}), locked } : {}),
+  if (action === "info" && req.method === "GET") return json({ ...(await isDemoGame(env, e) ? { demo: true } : {}), ...(cancelled ? { cancelled: true, message: "This game was cancelled by the organizer.", cancelledMs: e.cancelled_ms } : {}), ...(didNotStart ? { message: DNS_MSG } : {}), ...(isDraft ? { draft: true } : {}), ...(unpaid && !isDraft ? { ...(can(a, e) ? { unpaid: true } : {}), locked } : {}),
     waitingFor: locked ? "organizer" : null, didNotStart, erasureMs: await erasureOf(env, e), ...(await endedField(env, e, now, cancelled)), ...(await creditFields(env, a, e, unpaid && !cancelled && !didNotStart, now)), startMs: roundMs(e.start_round), cap: e.cap, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), controlUrl: controlUrl(env, e.id), whoCanJoin: e.closed ? "list" : "anyone", ...pub(e, true) });
 
   // everything below is for the organizer (or their AI, where allowed)
@@ -1830,7 +1835,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const cpv = cancelled ? await cancelPreview(env as PayEnv, e, now) : null; // what a cancelled game left in the account (credit, never a refund)
     const startPending = !!(await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`startpending/${e.id}`).first());
     const creditNow = mayPay(a, e) && unpaid && !cancelled && !didNotStart ? await activeCreditSummary(env.DB, e.org!, now) : null;
-    return json({ id: e.id, ...(await endedField(env, e, now, cancelled)), ...(cancelled ? { cancelled: true, cancelledMs: e.cancelled_ms, cancelledBy: e.cancelled_by, cancelCredit: cpv?.credit ?? null, ...(cpv && e.pack !== 0 ? { rescheduleUntilMs: cpv.rescheduleUntilMs, canReschedule: cpv.canReschedule } : {}) } : {}),
+    return json({ id: e.id, ...(await isDemoGame(env, e) ? { demo: true } : {}), ...(await endedField(env, e, now, cancelled)), ...(cancelled ? { cancelled: true, cancelledMs: e.cancelled_ms, cancelledBy: e.cancelled_by, cancelCredit: cpv?.credit ?? null, ...(cpv && e.pack !== 0 ? { rescheduleUntilMs: cpv.rescheduleUntilMs, canReschedule: cpv.canReschedule } : {}) } : {}),
       waitingFor: locked ? "organizer" : null, didNotStart, erasureMs: await erasureOf(env, e), ...(startPending ? { startPending: true } : {}),
       credit: creditNow ? creditNow.activeTotalInr : null, creditExpiresMs: creditNow ? creditNow.nextExpiryMs : null, creditApplied: creditNow ? await creditAppliedFor(env.DB, e.id) : null,
       status: didNotStart ? "did not start (closed)" : cancelled ? "cancelled by the organizer" : isDraft ? "draft" : unpaid ? (locked ? "published, NOT PAID, held because the start time passed" : "published, payment due before the start") : "published and paid",

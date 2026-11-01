@@ -875,6 +875,7 @@
   function barHtml() {
     const g = inGame() && role() !== "partner", p = payState();
     return `<header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Luck by Chance</b></span><span class="zc-pill zc-pill-role" id="rolepill" title="Your role">${esc(rolePill())}</span>`
+      + (S.info && S.info.demo ? `<span class="zc-pill zc-pill-demo" id="demopill" title="A free demo game">Demo</span>` : "")
       + (g ? `<span class="zc-pill ${p.paid ? "zc-pill-paid" : "zc-pill-pend"}" id="paypill" title="Payment status">${payLabel(p)}</span>` : "")
       + `<span class="zc-where">${esc(gameLabel())}</span>${isOrg() && eid ? `<button type="button" class="zc-mini" id="back">All games</button>` : ""}${roleBtns()}</header>`;
   }

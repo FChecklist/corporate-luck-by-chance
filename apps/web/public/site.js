@@ -55,6 +55,7 @@
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "pack2") { S.pack = e.target.value === DEMO ? DEMO : +e.target.value; window.CBFunnel && CBFunnel.report("size_chosen", { size: S.pack }); renderPrices(); const f = $("pack2"); if (f) f.focus(); } });
   function startDemo() { try { sessionStorage.setItem("cbz-next", "/zc.html?demo=1"); } catch {} const t = (() => { try { return CTK.get("cbz-org"); } catch { return null; } })(); if (t) location.href = "/zc.html?demo=1"; else openLogin(""); } // signed in already: straight to the draft; otherwise the same sign-in as every game
   $("payBtn").addEventListener("click", () => (isDemo() ? startDemo() : openCheckout(S.pack)));
+  if ($("demoTry")) { $("demoTry").addEventListener("click", (e) => { e.preventDefault(); startDemo(); }); TB.api("GET", "/api/demo/status").then((r) => { if (r && r.on && $("demoRow")) $("demoRow").hidden = false; }).catch(() => {}); } // "Try a free demo" is shown only while DEMO_GAME is on
   $("loginLink").addEventListener("click", (e) => { e.preventDefault(); openLogin(""); });
 
   // ---------- helpers ----------

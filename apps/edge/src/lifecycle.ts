@@ -22,6 +22,7 @@ import { eraseCohostsSql, mailDataDeleted, mailErasureHeadsUp } from "./cancel";
 import { creditTick } from "./credit";
 import { endBoundLuck } from "./luck";
 import { recordFunnel } from "./funnel";
+import { demoSweep } from "./demo";
 import type { D1, Env } from "./worker";
 
 export const GENESIS = 1692803367;
@@ -382,6 +383,7 @@ export async function unplayedPass(env: LifeEnv, now: number): Promise<number> {
 /** Runs the lifecycle for engagements that still hold personal data. Bounded: at most 25 engagements, one report step each. */
 export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checked: number; reportSteps: number; reportsDone: number; purged: number }> {
   const out = { checked: 0, reportSteps: 0, reportsDone: 0, purged: 0 };
+  try { await demoSweep(env as any, now); } catch { /* the daily demo counters are tidied next time */ }
   // paid (or cancelled) games that still hold personal data: guests, people on a list, waiting requests. A game nobody paid for is the "did not start" pass below.
   // 25 games per call, taken round and round by start time (a cursor in kv): when more than 25 games hold personal data at once, no game waits behind the same 25 for ever
   const SEL = "SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.purged_ms IS NULL AND (e.pack IS NOT 0 OR e.cancelled_ms IS NOT NULL) AND (EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) OR EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) OR EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id))";
