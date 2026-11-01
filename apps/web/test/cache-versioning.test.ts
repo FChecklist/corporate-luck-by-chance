@@ -3,7 +3,7 @@
 //   1. In every shipped HTML page, every local script and stylesheet address carries ?v=<the commit that was built> (so a release means new addresses).
 //   2. _headers keeps its "/*.js" and "/*.css" no-cache rules and stays within the 100-rule limit. (On the custom domain the zone's Browser Cache TTL replaces a no-cache header with 4 hours, which is why rule 1 is the real protection.)
 // The test builds the site itself, then reads what would be uploaded.
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -20,7 +20,13 @@ const localRefs = (html: string): { url: string; query: string }[] => {
 };
 const unversioned = (html: string, commit: string) => localRefs(html).filter((r) => !new URLSearchParams(r.query.split("#")[0]).getAll("v").includes(commit)).map((r) => r.url);
 
+let buildErr = "";
 describe("a returning visitor never runs an old script on a new page", () => {
+  // one build for the tests below; a slow machine needs more than the default 5 s, and no test depends on another one having run first
+  beforeAll(() => {
+    const b = Bun.spawnSync(["bun", "run", join(ROOT, "pages/build.mjs")], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+    buildErr = b.exitCode === 0 ? "" : "build failed: " + new TextDecoder().decode(b.stderr);
+  }, 120_000);
   test("the checker itself catches an unversioned reference (so a pass means something)", () => {
     const c = "abc123def456";
     expect(unversioned(`<script src="/site.js"></script>`, c)).toEqual(["/site.js"]);
@@ -31,8 +37,7 @@ describe("a returning visitor never runs an old script on a new page", () => {
   });
 
   test("build, then: no page references a local script or stylesheet without ?v=<this commit>", () => {
-    const b = Bun.spawnSync(["bun", "run", join(ROOT, "pages/build.mjs")], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
-    expect(b.exitCode, new TextDecoder().decode(b.stderr)).toBe(0);
+    expect(buildErr).toBe("");
     const commit = JSON.parse(readFileSync(join(OUT, "version.json"), "utf8")).commit as string;
     expect(commit).toMatch(/^[0-9a-f]{7,40}$/);
     const pages = walk(OUT).filter((f) => f.endsWith(".html"));
@@ -45,6 +50,7 @@ describe("a returning visitor never runs an old script on a new page", () => {
   });
 
   test("_headers keeps its no-cache rules for scripts and styles and stays within Cloudflare Pages' limit of 100 rules (more are silently ignored)", () => {
+    expect(buildErr).toBe("");
     const text = readFileSync(join(OUT, "_headers"), "utf8").replace(/\r/g, "");
     const rules = text.split("\n").filter((l) => l.startsWith("/"));
     expect(rules.length).toBeLessThanOrEqual(100);
