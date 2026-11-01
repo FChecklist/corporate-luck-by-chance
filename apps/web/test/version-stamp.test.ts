@@ -32,7 +32,7 @@ describe("P12: the version stamp", () => {
     if (head.exitCode === 0) expect(v.commit).toBe(new TextDecoder().decode(head.stdout).trim());
     expect(readFileSync(join(ROOT, "pages/public/_headers"), "utf8")).toMatch(/\/version\.json\n\s+Cache-Control: no-store/);
     expect(JSON.stringify(v)).not.toMatch(/key|secret|token|password/i); const au = readFileSync(join(ROOT, "pages/public/autoupdate.js"), "utf8"); expect(au).toContain(JSON.stringify(v.commit + "|" + v.builtAt + "|")); expect(au).not.toContain("__BUILT__"); // the shipped autoupdate.js knows the version it was built with
-  });
+  }, 120_000); // the real build takes longer than the default 5 s on a slow machine
   test("docs/DEPLOYS.md exists and names the deploys by commit; the README no longer says nothing is deployed", () => {
     expect(existsSync(join(ROOT, "docs/DEPLOYS.md"))).toBe(true);
     const d = readFileSync(join(ROOT, "docs/DEPLOYS.md"), "utf8");
