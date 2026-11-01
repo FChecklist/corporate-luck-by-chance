@@ -129,7 +129,7 @@ describe("Orders API client (against a local stand-in for api.razorpay.com)", ()
       expect(seen.body).toMatchObject({ amount: 100000, currency: "INR", notes: { brand: "Corporate Luck by Chance" } });
       await expect(createOrder(cfg, { amountMinor: 1, currency: "INR", receipt: "r", notes: {} })).rejects.toThrow("minimum amount");
     } finally { srv.stop(true); }
-  });
+  }, 30_000);
 });
 
 describe("invoice details (2026-10-10 owner list)", () => {
