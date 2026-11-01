@@ -40,7 +40,7 @@ rules += "/*\n  Strict-Transport-Security: max-age=31536000" + PRIVATE_ROBOTS_HE
 rules += "/version.json\n  Cache-Control: no-store\n";
 rules += "/*.js\n  Cache-Control: no-cache\n  X-Robots-Tag: noindex, noai, noimageai\n/img/*\n  Cache-Control: public, max-age=604800\n/*.css\n  Cache-Control: no-cache\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n";
 versionRefs(OUT, STAMP.commit);
-hideFromSearch(OUT); // owner order 1 Nov 2026: noindex meta on every page, robots.txt Disallow all, no sitemap
+hideFromSearch(OUT); // 1 Nov 2026: noindex meta on every page, robots.txt Disallow all, no sitemap
 writeFileSync(join(OUT, "_headers"), rules);
 writeFileSync(join(OUT, "version.json"), JSON.stringify(STAMP) + "\n"); // what is live (P12): served at /version.json
 writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/*"], exclude: ["/img/*", "/fonts/*", "/*.js", "/*.css", "/*.png", "/*.svg", "/*.webmanifest", "/*.txt", "/*.xml", "/*.pdf", "/*.mp4", "/*.ico", "/*.woff2"] }));
