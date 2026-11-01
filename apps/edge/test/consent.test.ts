@@ -40,7 +40,7 @@ const REFUSED = { error: "Please tick the box to continue.", code: "consent-requ
 describe("test 5: the wording is the contract's wording, from one place", () => {
   test("consent-text.json holds the version and the exact boxes; the version is the one constant in brand.ts", () => {
     expect((TEXT as any).version).toBe(TERMS_VERSION); expect(CONSENT_VERSION).toBe(TERMS_VERSION);
-    const strip = (o: any) => { const x = JSON.parse(JSON.stringify(o)); delete x.version; if (x.K4) { delete x.K4.A; delete x.K4.B; } return x; }; // since 2026-10-14 the join box A, and since 2026-10-15 the age box B (adults only: no parent's-device alternative), are set per game (data map, gate D2)
+    const strip = (o: any) => { const x = JSON.parse(JSON.stringify(o)); delete x.version; if (x.K4) { delete x.K4.A; delete x.K4.B; } return x; }; // since 2026-10-14 the join box A, and since 2026-11-01 the age box B (adults only: no parent's-device alternative), are set per game (data map, gate D2)
     if (existsSync(JSON_FILE)) expect(strip(JSON.parse(readFileSync(JSON_FILE, "utf8")))).toEqual(strip(TEXT));
     expect(boxesOf("K1").map((b) => b[0])).toEqual(["A", "B"]); expect(boxesOf("K4").map((b) => b[0])).toEqual(["A", "B"]); expect(boxesOf("K2").map((b) => b[0])).toEqual(["A"]);
   });
@@ -131,7 +131,7 @@ describe("tests 1-4 at every point", () => {
   test("K4 adults only: box B says only that the person is 18 or older (no parent's-device alternative); box A says what is kept; neither is ticked for the person; a join with only A is refused; the exact wording is hashed with the row", async () => {
     const [a, b] = boxesOf("K4").map((x) => x[1]); expect(b).toBe("I am 18 or older.");
     expect(wordingOf("K4")).not.toMatch(/parent|guardian|device with/i);
-    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "365 days as seat numbers, without names", "We keep billing data for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
+    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "365 days as seat numbers, without names", "Billing data is kept for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
     expect(a).not.toMatch(/forever|for ever|permanent/i);
     await published("CON-A18"); const body = { name: "Maya Lopez", device: dev(1) };
     expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: CONSENT_VERSION, boxes: ["A"] } })).status).toBe(400); // the age box is required by the server

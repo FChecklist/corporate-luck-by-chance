@@ -7,7 +7,7 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dir, "../../..");
 const SKIP = new Set(["luck-engine.js", "funnel.js", "zgame.js", "releases.json"]);
 const files = (dir: string, ext: RegExp): string[] => readdirSync(join(ROOT, dir)).filter((f) => ext.test(f) && !SKIP.has(f)).map((f) => join(ROOT, dir, f));
-const KEPT = ["We keep billing data for audit and tax reasons."]; // consent box K4
+const KEPT: string[] = []; // consent box K4
 const WORD = /\b(we|We|WE|our|Our|ours|us|Us)\b/g;
 const visible = (text: string, code: boolean): string[] => {
   const out: string[] = [];
@@ -35,7 +35,7 @@ describe("customer-visible text never says we, our or us", () => {
     expect(visible("<p>We keep your data.</p>", false).length).toBe(1);
     expect(visible("<p>Write to us.</p>", false).length).toBe(1);
     expect(visible("<p>The data is kept.</p>", false)).toEqual([]);
-    expect(visible("x We keep billing data for audit and tax reasons. y", false)).toEqual([]);
+    expect(visible("x Billing data is kept for audit and tax reasons. y", false)).toEqual([]);
     expect(visible("const a = 1; // we count here", true)).toEqual([]);
   });
 });

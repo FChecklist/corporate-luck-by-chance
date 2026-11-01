@@ -16,8 +16,8 @@ export const PRIZE_HOUSES: readonly PrizeHouse[] = [
   { id: "first", label: "1st place", how: "The most points. If points are equal: the highest single hit, then the most hits, then who reached the score first, then a public random number.", max: 1, kind: "set", dflt: true, squares: "1st" },
   { id: "second", label: "2nd place", how: "The second most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "2nd" },
   { id: "third", label: "3rd place", how: "The third most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "3rd" },
-  { id: "fourth", label: "4th place", how: "The fourth most points, by the same order.", max: 1, kind: "set", squares: "4th" },
-  { id: "fifth", label: "5th place", how: "The fifth most points, by the same order.", max: 1, kind: "set", squares: "5th" },
+  { id: "fourth", label: "4th place", how: "The fourth most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "4th" },
+  { id: "fifth", label: "5th place", how: "The fifth most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "5th" },
 ];
 /** One plain line naming every house and its maximum winners, for the AI manual and the choices list. */
 export const HOUSES_LINE: string = PRIZE_HOUSES.map((h) => `${h.id} = ${h.label} (${h.max === 1 ? "1 winner" : `up to ${h.max} winners`})`).join(", ");
@@ -116,7 +116,7 @@ export const INTERMISSION_ROUNDS = 30;
 /** Round 1 keeps the engagement's own id; later rounds use a derived id, so each round has its own numbers and its own tickets. */
 export const roundEid = (eid: string, round: number): string => (round <= 1 ? eid : `${eid}~r${round}`);
 
-/** The default prize set, in order: what a new game rewards until the organizer says otherwise (Line, Four Corners, X, Blackout). All houses, in order: HOUSE_ORDER. */
+/** The default prize set, in order: what a new game rewards until the organizer says otherwise (the top five places). All houses, in order: HOUSE_ORDER. */
 export const PATTERN_ORDER: readonly HouseId[] = PRIZE_HOUSES.filter((h) => h.dflt).map((h) => h.id);
 /** Brand moments are allowed PER TICKET each participant holds: 1 opening, 3 during the game and 1 closing for every ticket (5 with one ticket, 10 with two). */
 export const MAX_MID_PER_TICKET = 3;
