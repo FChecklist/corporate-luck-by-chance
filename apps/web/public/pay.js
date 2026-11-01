@@ -19,23 +19,23 @@
   const packFor = (cap) => { const p = TB.PACKS.find((x) => x[0] >= cap); return p ? p[0] : null; };
 
   /** calm card while a payment may be on its way: no pay form, no second payment */
-  const waitCard = () => `${head}<div class="zcard" id="paywait" role="status"><h2>We are checking your payment</h2><p class="zsmall" style="margin:0 0 10px">${S.busy ? "Please keep this page open. This can take a few minutes." : "A payment for this game is still being confirmed. If money left your account, the game starts as soon as the bank confirms. Please do not pay again."}</p>${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}<button class="zbtn" id="chkpay" type="button"${S.busy ? " disabled" : ""}>${S.busy ? "Checking…" : "Check my payment"}</button>${S.wait === "hold" && !S.busy ? `<p class="zsmall" style="margin:12px 0 0"><button type="button" class="zlink" id="payagain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer">No money was taken. Let me pay again.</button></p>` : ""}</div>`;
+  const waitCard = () => `${head}<div class="zcard" id="paywait" role="status"><h2>Your payment is being checked</h2><p class="zsmall" style="margin:0 0 10px">${S.busy ? "Please keep this page open. This can take a few minutes." : "A payment for this game is still being confirmed. If money left your account, the game starts as soon as the bank confirms. Please do not pay again."}</p>${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}<button class="zbtn" id="chkpay" type="button"${S.busy ? " disabled" : ""}>${S.busy ? "Checking…" : "Check my payment"}</button>${S.wait === "hold" && !S.busy ? `<p class="zsmall" style="margin:12px 0 0"><button type="button" class="zlink" id="payagain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer">No money was taken. Let me pay again.</button></p>` : ""}</div>`;
   /** after a payment: the game opens by itself in a few seconds unless the person taps, types or presses Stay */
   function goNoteHtml() { return autoStopped ? `<p class="zsmall" id="goNote" aria-live="polite" style="margin:6px 0 10px">You can open your game any time with the Open my game button.</p>` : `<p class="zsmall" id="goNote" aria-live="polite" style="margin:6px 0 10px">Opening your game page in a few seconds. <button type="button" class="zbtn s alt" id="goStay">Stay on this page</button></p>`; }
   function view() {
-    if (!secret) return `${head}<div class="zcard"><h2>Please sign in first</h2><p class="zsmall" style="margin-top:0">Open your console from the home page, or sign in with your e-mail: we send you a 6-digit code.</p><a class="zbtn" href="/#login" id="goLogin" style="text-decoration:none;display:inline-block">Sign in with e-mail</a></div>`;
+    if (!secret) return `${head}<div class="zcard"><h2>Please sign in first</h2><p class="zsmall" style="margin-top:0">Open your console from the home page, or sign in with your e-mail: a 6-digit code is sent to you.</p><a class="zbtn" href="/#login" id="goLogin" style="text-decoration:none;display:inline-block">Sign in with e-mail</a></div>`;
     if (S.done) {
       const d = S.done;
       return `${head}<div class="zcard" style="border:2px solid #2e7d4f"><h2>Payment received. Your game will begin on time.</h2>${goNoteHtml()}${d.paidFromCredit ? `<div class="prcpt"><b>Paid from your credit</b><p>For game ID <b class="mono">${esc(d.eid || eid)}</b>. No card payment was made.</p></div>` : TB.payReceipt ? TB.payReceipt(d, d.eid || eid) : ""}
         <p style="margin:0 0 10px">${d.paidFromCredit ? "Paid from your credit. " : ""}Thank you. Your game for up to <b>${nf(d.pack)}</b> participants is confirmed.${d.restartedAtMs ? ` It begins at <b>${esc(new Date(d.restartedAtMs).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))}</b>, for everyone already waiting.` : " Share the link with your participants from your console if you have not already."}</p>
-        ${d.invoiceUrl ? `${TB.invoiceBox ? TB.invoiceBox(d, S.email) : ""}<p class="zsmall">We also e-mailed it to you and to the organizer.</p>` : ""}
+        ${d.invoiceUrl ? `${TB.invoiceBox ? TB.invoiceBox(d, S.email) : ""}<p class="zsmall">It was also e-mailed to you and to the organizer.</p>` : ""}
         <a class="zbtn" href="/zc.html?e=${encodeURIComponent(d.eid || eid)}" style="text-decoration:none;display:inline-block">Open my game</a>
         </div>`;
     }
     if (!S.info) return `${head}<p class="zmsg">${S.err ? esc(S.err) : "Loading…"}</p>`;
     const pack = packFor(S.info.cap);
     if (!S.info.draft && !S.info.unpaid) return `${head}<div class="zcard"><h2>This game is already paid and published</h2><a class="zbtn" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none;display:inline-block">Open my game</a></div>`;
-    if (S.wait) return waitCard(); if (!pack) return `${head}<div class="zcard"><h2>A custom arrangement is needed</h2><p class="zsmall" style="margin-top:0">A game for more than 10,000 participants is arranged with us directly. Please write to us from the contact page.</p></div>`;
+    if (S.wait) return waitCard(); if (!pack) return `${head}<div class="zcard"><h2>A custom arrangement is needed</h2><p class="zsmall" style="margin-top:0">A game for more than 10,000 participants is arranged directly. Please write from the contact page.</p></div>`;
     const x = TB.price(pack, S.cur);
     const applied = S.cur === "INR" ? Math.max(Number(S.credited) || 0, Number(S.info.creditApplied) || 0) : 0; // credit already put on this game (by you, or by a Host); it comes off what you pay
     const toPay = Math.max(0, Math.round((x.total - applied) * 100) / 100);
@@ -52,7 +52,7 @@
         <p class="pstmt">Payment is for Game ID <b class="mono">${esc(eid)}</b>; Amount <b>${TB.money(applied ? toPay : x.total, S.cur)}</b>;</p>
         <div class="pgame"><div class="zrow"><span><b>GAME ID</b></span><em><b class="mono">${esc(eid)}</b></em></div>${S.info.startMs ? `<div class="zrow"><span>Starts</span><em>${esc(new Date(S.info.startMs).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}</em></div>` : ""}<div class="zrow"><span>Players</span><em>Up to ${nf(pack)}</em></div></div>
         ${sum}
-        <p class="zsmall">Every participant plays on their own phone. Participants never pay: you give the prizes. We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The credit belongs to your organizer account.</p>${S.info.startMs ? `<p class="zsmall"><b>Payment pending.</b> The game does not begin until it is paid for. Starts ${esc(new Date(S.info.startMs).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}. You can pay at any time until the guest data is deleted${S.info.erasureMs ? ` (${esc(new Date(S.info.erasureMs).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))})` : ""}.${S.info.locked ? " It is waiting for your payment now: pay and it starts 2 minutes after your payment is confirmed." : " If you pay after the start time, it starts 2 minutes after your payment is confirmed."}</p>` : ""}</div>
+        <p class="zsmall">Every participant plays on their own phone. Participants never pay: you give the prizes. A paid game cancelled before it starts stays with you as credit for your next game, valid for 365 days. Unused credit lapses at the end of day 365. The credit belongs to your organizer account.</p>${S.info.startMs ? `<p class="zsmall"><b>Payment pending.</b> The game does not begin until it is paid for. Starts ${esc(new Date(S.info.startMs).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}. You can pay at any time until the guest data is deleted${S.info.erasureMs ? ` (${esc(new Date(S.info.erasureMs).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))})` : ""}.${S.info.locked ? " It is waiting for your payment now: pay and it starts 2 minutes after your payment is confirmed." : " If you pay after the start time, it starts 2 minutes after your payment is confirmed."}</p>` : ""}</div>
       ${avail ? `<div class="zcard" style="border:2px solid #2e7d4f"><h2>Use your credit</h2><p class="zsmall" style="margin-top:0">You have credit of <b>${TB.money(avail, "INR")}</b>${until ? ` (valid until ${esc(until)})` : ""}. Use it for this game.</p>${S.err && S.creditErr ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}<button class="zbtn" id="usecredit" ${S.busy ? "disabled" : ""}>Use my credit</button></div>` : ""}
       ${TB.proformaBox ? TB.proformaBox() : ""}
       <div class="zcard zform"><h2>Details</h2>
@@ -77,7 +77,7 @@
       try { st = (await call("GET", `/api/z/${eid}/summary`)).payment; } catch { try { st = (await call("GET", `/api/z/${eid}/cohost`)).payment; } catch { /* keep asking */ } }
       if (st && st.status === "paid") return { ok: true, eid, pack: (S.info && packFor(S.info.cap)) || 0, total: 0, currency: S.cur };
     }
-    throw new Error("We are still waiting for Razorpay to confirm your payment. Nothing is lost: your game starts as soon as it is confirmed. You can close this page and open your game to see the status.");
+    throw new Error("Razorpay is still confirming your payment. Nothing is lost: your game starts as soon as it is confirmed. You can close this page and open your game to see the status.");
   }
   // The K3 consent box (termsbox.js): wording from the server, never pre-ticked, the pay button stays disabled until it is ticked. The page redraws often, so the tick is kept in S.k3 and put back.
   let TBK = null;
@@ -154,7 +154,7 @@
         if (e0.status !== 403) throw e0;
         S.info = { cap: h.cap, startMs: h.startMs, draft: !h.inviteLink, unpaid: !h.payment || h.payment.status !== "paid", credit: h.credit, creditExpiresMs: h.creditExpiresMs, creditApplied: h.creditApplied, erasureMs: h.erasureMs };
       }
-    } catch (e) { S.err = e.status === 403 || e.status === 404 ? "We could not open this game with your sign-in. Open it from your console." : e.message; }
+    } catch (e) { S.err = e.status === 403 || e.status === 404 ? "This game could not be opened with your sign-in. Open it from your console." : e.message; }
     draw();
   })();
 })();

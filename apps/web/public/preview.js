@@ -119,7 +119,7 @@
       const luckyN = lucky && lucky.winners ? lucky.winners : 3;
       $app.innerHTML = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b></div>
         <div class="zbanner info" role="note"><b>PREVIEW.</b> This is a sample of what players see, not a real game. Nothing is saved, nobody is told, and no game is running.${note ? " " + esc(note) : ""}</div>
-        ${brand ? `<div class="zbrand" id="pvbrand">${brand.logo ? `<img class="zblogo" alt="" src="${esc(brand.logo)}">` : ""}${brand.name ? `<b>${esc(brand.name)}</b>` : ""}</div><div class="zpow"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="12" height="12"></a>Powered by Corporate Luck by Chance</div>` : `<div class="zbrand" id="pvbrand0"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="18" height="18"></a>CORPORATE LUCK BY CHANCE</div><div class="zsmall" style="margin:4px 0 0">No company name or logo is set yet, so guests see our name. Set yours in the Brand step to see it here.</div>`}
+        ${brand ? `<div class="zbrand" id="pvbrand">${brand.logo ? `<img class="zblogo" alt="" src="${esc(brand.logo)}">` : ""}${brand.name ? `<b>${esc(brand.name)}</b>` : ""}</div><div class="zpow"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="12" height="12"></a>Powered by Corporate Luck by Chance</div>` : `<div class="zbrand" id="pvbrand0"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="18" height="18"></a>CORPORATE LUCK BY CHANCE</div><div class="zsmall" style="margin:4px 0 0">No company name or logo is set yet, so guests see the name Corporate Luck by Chance. Set yours in the Brand step to see it here.</div>`}
         <div class="zcard"><h2>The play screen <span class="zdemotag">PREVIEW</span></h2>${cardGrid("Sample play screen")}</div>
         <div class="zcard"><h2>What you can win</h2><ul class="zlist">${prizeLi}</ul></div>`;
       const b0 = document.getElementById("pvbrand0"); if (b0) { b0.style.background = "#0B5D5B"; b0.style.color = "#ffffff"; }
@@ -131,6 +131,6 @@
     fetch(`/api/z/${encodeURIComponent(eid)}/info`, { method: "GET", headers: key ? { "x-organizer": key } : {} })
       .then((r) => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
       .then((j) => draw({ brand: j.brand, rewards: Array.isArray(j.rewards) ? j.rewards : [], breaks: Array.isArray(j.breaks) ? j.breaks : [], lucky: "" }, ""))
-      .catch(() => draw(fromHash(), "We could not read your game just now, so this shows sample words."));
+      .catch(() => draw(fromHash(), "Your game could not be read just now, so this shows sample words."));
   }
 })();

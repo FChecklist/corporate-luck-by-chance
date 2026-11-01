@@ -145,7 +145,7 @@ export interface LuckCtx {
 async function playerOf(c: LuckCtx, pid: unknown, device: unknown): Promise<{ pid: string } | Response> {
   if (typeof pid !== "string" || typeof device !== "string" || !/^[0-9a-f]{16,64}$/.test(device)) return json({ error: "Open the game link on your own phone." }, 400);
   const seat = await c.env.DB.prepare("SELECT s.dev AS dev, s.blocked AS blocked FROM seat s WHERE s.eid=? AND s.pid=?").bind(c.eid, pid).first<{ dev: string | null; blocked: number | null }>();
-  if (!seat) return json({ error: "You are not in this game." }, 403);
+  if (!seat) return json({ error: "You do not seem to be in this game." }, 403);
   if (seat.blocked) return json({ error: "You were removed from this game by the organizer.", code: "removed" }, 403);
   if (!seat.dev || seat.dev !== (await sha(`dev|${c.eid}|${device}`)).slice(0, 32)) return json({ error: "This place is on another phone.", code: "other-phone" }, 403);
   return { pid };
@@ -166,7 +166,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
     }
   }
 
-  if (sub === "tick" && method === "POST") { if (!c.allowed) return json({ error: "Not allowed." }, 403); return json({ ok: true, closed: await luckTick(env, now) }); }
+  if (sub === "tick" && method === "POST") { if (!c.allowed) return json({ error: "That is not open to this sign-in." }, 403); return json({ ok: true, closed: await luckTick(env, now) }); }
 
   if (sub === "start" && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can start the game." }, 403);

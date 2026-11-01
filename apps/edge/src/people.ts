@@ -125,19 +125,19 @@ async function callerOf(c: Ctx, bodyMe?: unknown, bodyDevice?: unknown): Promise
   const { a, e } = c;
   if (a.kind === "ai" || c.viaLink || c.req.headers.get("x-cb-link") === "1") return { res: c.json({ error: AI_REFUSAL }, 403) };
   if (a.kind) {
-    if (!a.plat && (!a.org || a.org !== e.org)) return { res: c.json({ error: "Not allowed." }, 403) };
+    if (!a.plat && (!a.org || a.org !== e.org)) return { res: c.json({ error: "That is not open to this sign-in." }, 403) };
     if (a.plat || a.kind === "master") return { who: { id: "o", kind: "organizer", all: true, limit: null, label: "Organizer", platform: a.plat } };
     if (a.kind === "host") return { who: { id: "h:" + c.keyId7, kind: "host", all: true, limit: null, label: "Host" } };
     if (a.kind === "cohost") {
       if (a.eid && a.eid !== e.id) return { res: c.json({ error: "Your Co-host link is for a different game." }, 403) };
       return { who: { id: "c:" + c.keyId7, kind: "cohost", all: false, limit: e.cohost_limit ?? COHOST_LIMIT_DEFAULT, label: "Co-host" } };
     }
-    return { res: c.json({ error: "Not allowed." }, 403) };
+    return { res: c.json({ error: "That is not open to this sign-in." }, 403) };
   }
   const pid = c.req.headers.get("x-cb-pid") || c.url.searchParams.get("me") || (typeof bodyMe === "string" ? bodyMe : "");
   if (!pid) return { res: c.json({ error: "Please sign in, or open your personal link first." }, 403) };
   const seat = await c.env.DB.prepare("SELECT seq, role, inv, blocked FROM seat WHERE eid=? AND pid=?").bind(c.eid, pid).first<{ seq: number; role: string | null; inv: number | null; blocked: number | null }>();
-  if (!seat) return { res: c.json({ error: "Not a participant of this game." }, 403) };
+  if (!seat) return { res: c.json({ error: "This phone does not seem to be part of this game." }, 403) };
   // the ticket id is public (the seat list shows it): acting for a ticket also needs the phone's own device id, like check-in, prizes and leaving do
   if (!(await deviceMatches(c.env, c.eid, pid, c.req.headers.get("x-cb-dev") || c.url.searchParams.get("device") || (typeof bodyDevice === "string" ? bodyDevice : "")))) return { res: c.json({ error: "Open this ticket on the phone you joined with to invite people.", code: "device" }, 403) };
   if (seat.blocked) return { res: c.json({ error: "You were removed from this game.", code: "removed" }, 403) };
@@ -466,7 +466,7 @@ async function myOwnSeat(c: Ctx, who: Caller, b: any): Promise<Response> {
   }
   if (b?.phone !== undefined && b.phone !== null && String(b.phone).trim() !== "") { const cl = cleanPhone(b.phone); if (!cl.ok) return c.json({ error: cl.why }, 400); digits = cl.digits; }
   if (b?.name !== undefined) name = cleanName(b.name) || name;
-  if (!digits) return c.json({ error: "We need your mobile number to make your play link.", code: "need-phone" }, 400);
+  if (!digits) return c.json({ error: "Your mobile number is needed to make your play link.", code: "need-phone" }, 400);
   const ph = await phoneHashOf(c.env, digits);
   const label = await labelsOf(c);
   let row = await db.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND ph=?`).bind(c.eid, ph).first<PersonRow>();
@@ -586,7 +586,7 @@ async function meRoute(c: Ctx): Promise<Response> {
   const db = c.env.DB, pid = c.url.searchParams.get("pid"), wid = c.url.searchParams.get("wid");
   if (pid) {
     const s = await db.prepare("SELECT seq, role, inv, blocked FROM seat WHERE eid=? AND pid=?").bind(c.eid, pid).first<{ seq: number; role: string | null; inv: number | null; blocked: number | null }>();
-    if (!s) return c.json({ error: "Not a participant of this game." }, 404);
+    if (!s) return c.json({ error: "This phone does not seem to be part of this game." }, 404);
     const p = await db.prepare("SELECT inviter, approved_by FROM person pe JOIN seat se ON se.eid=pe.eid AND se.ph=pe.ph WHERE se.eid=? AND se.pid=?").bind(c.eid, pid).first<{ inviter: string; approved_by: string | null }>().catch(() => null);
     const ownList = s.inv === null && !s.role;
     return c.json({ state: s.blocked ? "removed" : "playing", removed: !!s.blocked, role: s.role ?? null, seat: s.seq, canInvite: !s.blocked && ownList && c.invites.on, per: c.invites.per, used: ownList ? await listCount(db, c.eid, "s:" + s.seq) : 0, whoCanJoin: c.e.closed ? "list" : "anyone", ...(p ? { listed: true } : {}) });
@@ -637,7 +637,7 @@ export type { PersonRow };
 export async function joinLinkPage(env: Env, token: string, origin: string, gameNameOf: (e: any) => string): Promise<Response> {
   const headers = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex, nofollow", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'" };
   const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
-  const gone = () => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Link not valid</title></head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>This link is not valid any more</h1><p>Please ask the person who invited you to send it again.</p></body></html>`, { status: 404, headers });
+  const gone = () => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Link not valid</title></head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>This link has expired</h1><p>Please ask the person who invited you to send it again.</p></body></html>`, { status: 404, headers });
   if (!/^[a-z0-9]{6,20}$/i.test(token)) return gone();
   const row = await env.DB.prepare("SELECT eid, pii, status FROM person WHERE tok_hash=?").bind(await tokenHash(token)).first<{ eid: string; pii: string; status: string }>();
   if (!row || row.status === "removed") return gone();

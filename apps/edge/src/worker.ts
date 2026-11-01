@@ -302,7 +302,7 @@ export const DEMO_PASS_UNTIL = Date.UTC(2026, 11, 31);
 const passShape = (x: unknown): string => (typeof x === "string" && /^[0-9a-f]{32}$/i.test(x.trim()) ? x.trim().toLowerCase() : "");
 /** Uses a demo pass for an account: ONE free pack of the pass's size, once (the first account to use a pass keeps it; the same account may open it again). */
 async function redeemDemoPass(env: Env, org: string, rawToken: string, now: number): Promise<{ status: number; body: any; busy?: boolean }> {
-  const bad = { status: 404, body: { error: "This demo link is not valid or has ended. Please ask us for a new one.", code: "pass-invalid" } };
+  const bad = { status: 404, body: { error: "This demo link is not valid or has ended. Please ask for a new one.", code: "pass-invalid" } };
   const tok = passShape(rawToken);
   if (!tok || now > DEMO_PASS_UNTIL) return bad;
   const ph = await sha("dpass|" + tok), def = DEMO_PASSES.find((x) => x.hash === ph);
@@ -313,7 +313,7 @@ async function redeemDemoPass(env: Env, org: string, rawToken: string, now: numb
     const row = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`dpass/${ph}`).first<{ v: string }>();
     let who = ""; try { who = JSON.parse(row?.v ?? "{}").org ?? ""; } catch { /* unreadable */ }
     if (who === org) return { status: 200, body: { ok: true, again: true, cap: def.cap } };
-    return { status: 409, body: { error: "This demo link has already been used. Please ask us for a new one.", code: "pass-used" } };
+    return { status: 409, body: { error: "This demo link has already been used. Please ask for a new one.", code: "pass-used" } };
   }
   await env.DB.prepare("INSERT INTO entitlement(id,org,pack,payment_id,eid,created_ms) VALUES(?,?,?,'demo-pass',NULL,?)").bind("dp_" + randHex(6), org, def.cap, now).run();
   return { status: 200, body: { ok: true, cap: def.cap } };
@@ -681,7 +681,7 @@ async function creditFields(env: Env, a: Auth, e: { id: string; org: string | nu
   const c = await activeCreditSummary(env.DB, e.org!, now);
   return { credit: c.activeTotalInr, creditExpiresMs: c.nextExpiryMs, creditApplied: await creditAppliedFor(env.DB, e.id) };
 }
-const deny = (a: Auth) => json({ error: a.kind === "ai" ? "Your AI assistant may not do this. It is for the organizer to do themselves in their console: tell them plainly what needs doing and where (your instructions say how)." : a.kind === "host" ? "Only the Organizer can do this. A Host looks after the game, not the account." : a.kind === "cohost" ? "A Co-host can invite people and pay. Ask the Organizer or a Host for anything else." : "Not allowed." }, 403);
+const deny = (a: Auth) => json({ error: a.kind === "ai" ? "Your AI assistant may not do this. It is for the organizer to do themselves in their console: tell them plainly what needs doing and where (your instructions say how)." : a.kind === "host" ? "Only the Organizer can do this. A Host looks after the game, not the account." : a.kind === "cohost" ? "A Co-host can invite people and pay. Ask the Organizer or a Host for anything else." : "That is not open to this sign-in." }, 403);
 /** What a Host may touch through an AI work link (x-cb-link): watching, and messages to everyone. Through the console a Host may do everything inside a game. */
 const HOST_ACTIONS = new Set(["participants", "summary", "results", "info", "announce", "prizes", "prizegiven", "reportlink", "life", "luck"]); // "luck": the public reads (view, seats, rank, reveal). Start, end and tick need a key that is not a Host work link (can(a, e, true)), so a Host link still cannot run the game.
 const MAX_HOSTS = 5;
@@ -731,8 +731,8 @@ export const AI_MANIFEST = {
     { do: "Create a Host key (up to 5 Hosts; through an AI link a Host may only watch, announce and tick prizes given)", call: "POST /api/org/host {label, email?, mobile?} (at least one of email or mobile) -> {hostKey, manualUrl, id, label}. The AI cannot call it (403). A Host must have an e-mail address or a mobile number (the owner gives it); their own one-time console link (7 days) is e-mailed to the Host, or sent by the owner on WhatsApp" },
     { do: "Co-hosts (unlimited; a Co-host has a name and a mobile number, no e-mail, belongs to one game, only invites people with an own link and pays) are added by the Organizer or a Host in the console, never through an AI link", call: "The people on the team: GET /api/org/team (or GET /api/org/team?e={game id}); remove one: POST /api/org/team/retire {id}" },
     { do: "Read the audit trail of AI calls, when the game ends, and whether the report is ready (the report address itself goes only to the organizer)", call: "GET /api/org/ai/audit ; GET /api/z/{id}/life ; GET /api/z/{id}/reportlink" },
-    { do: "Suggest a feature, improvement or report we should build (shared with every organizer's AI, reviewed by us)", call: "POST /api/z/suggestions {kind: feature|improvement|report|bug|other, title, body}" },
-    { do: "See everyone's suggestions and what we decided, and add your support to one", call: "GET /api/z/suggestions ; POST /api/z/suggestions/{id}/vote" },
+    { do: "Suggest a feature, improvement or report to be built (shared with every organizer's AI, reviewed by the owner)", call: "POST /api/z/suggestions {kind: feature|improvement|report|bug|other, title, body}" },
+    { do: "See everyone's suggestions and what was decided, and add your support to one", call: "GET /api/z/suggestions ; POST /api/z/suggestions/{id}/vote" },
   ],
   payment_faq: [
     "Building and publishing are free. Only the organizer publishes (they confirm their e-mail and mobile number), and only the organizer pays; you never do either.",
@@ -741,9 +741,9 @@ export const AI_MANIFEST = {
     "No payment, no game. There is no separate payment cut-off: the game can be paid at any time until the guests' data is deleted (23 hours after the game was meant to end). Until it is paid the Organizer and Hosts see \"Payment pending for this game\" and everyone else sees \"Waiting for the Organizer or Host to start the game.\" Nothing is charged and there is no penalty.",
     "If the organizer pays late, even hours later, the game opens 2 minutes after the payment is confirmed, for everyone already waiting, and they can also choose a new start time first (at most 30 days ahead). After the guest data is deleted the game is closed (\"This game did not start. Your details have been deleted.\"): nobody can join or pay, and the Organizer can create a new game like it.",
     "If they never pay, nothing is owed. They can create a new game whenever they like. The settings of a game that did not start stay for 30 days, then they are forgotten (as unpublished drafts are).",
-    "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The credit stays in the organizer's account. Unused places are not credited once the game has started. Rules and privacy are at /legal.html.",
+    "A paid game cancelled before it starts stays with you as credit for your next game, valid for 365 days. Unused credit lapses at the end of day 365. The credit stays in the organizer's account. Unused places are not credited once the game has started. Rules and privacy are at /legal.html.",
   ],
-  suggestions_rules: "Describe the need and the benefit, not code. Never include names, phone numbers, e-mail addresses or anything about specific people. Suggestions are visible to all organizers' AI assistants without saying who wrote them. We review them and mark each one new, under_review, planned, shipped or declined.",
+  suggestions_rules: "Describe the need and the benefit, not code. Never include names, phone numbers, e-mail addresses or anything about specific people. Suggestions are visible to all organizers' AI assistants without saying who wrote them. Each one is reviewed and marked new, under_review, planned, shipped or declined.",
   you_cannot: [
     "Pay. Payment is always the organizer's own act on the payment page (payUrl in the summary).",
     "Publish: the organizer confirms their own e-mail and mobile number and presses Publish. You prepare everything and hand over consoleUrl.",
@@ -961,7 +961,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const fk = `linkfail/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
     const fails = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(fk).first<{ v: string }>())?.v ?? 0);
     if (fails >= 20) return json({ error: "Too many tries from this network. Please use the 6-digit code, or try again tomorrow." }, 429);
-    const bad = async () => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(fk, String(fails + 1), String(fails + 1)).run(); return json({ error: "This sign-in link is not valid any more. Please ask for a new one from the sign-in page." }, 400); };
+    const bad = async () => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(fk, String(fails + 1), String(fails + 1)).run(); return json({ error: "This sign-in link has expired. Please ask for a new one from the sign-in page." }, 400); };
     if (!t) return bad();
     const lh = await sha("link|" + t);
     const row = await env.DB.prepare("SELECT email_hash, expires_ms FROM login_code WHERE link_hash=?").bind(lh).first<{ email_hash: string; expires_ms: number }>();
@@ -994,7 +994,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (ta) { const res = await signInResult(env, req, ta, null, now, email); await useHeldPass(env, ta.org, eh, now); await env.DB.prepare("DELETE FROM organizer_key WHERE org=? AND kind='master' AND hash NOT IN (SELECT hash FROM organizer_key WHERE org=? AND kind='master' ORDER BY created_ms DESC LIMIT 6)").bind(ta.org, ta.org).run(); return json(res); } // the keys made by earlier sign-ins are trimmed: these accounts are shared and public
     }
     const row = await env.DB.prepare("SELECT code_hash, expires_ms, attempts FROM login_code WHERE email_hash=?").bind(eh).first<{ code_hash: string; expires_ms: number; attempts: number }>();
-    const bad = () => json({ error: "That code is not right or has expired. Please ask for a new one." }, 400);
+    const bad = () => json({ error: "That code does not match, or it has expired. Please ask for a new one." }, 400);
     if (!row || row.expires_ms < now || row.attempts >= 5) return bad();
     // the try is counted BEFORE the code is compared, in one statement that only succeeds while fewer than 5 are used: guesses sent in parallel cannot all slip under the cap
     const tried = await env.DB.prepare("UPDATE login_code SET attempts=attempts+1 WHERE email_hash=? AND attempts<5").bind(eh).run();
@@ -1092,7 +1092,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (a.kind === "cohost" && a.eid && a.eid !== pe.id) return json({ error: "Your Co-host link is for a different game." }, 403);
       if (pe.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for." }, 409);
       if (pe.pack !== 0) return json({ error: "This game is already paid for.", code: "already-paid" }, 409);
-      if (!packFor(pe.cap)) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+      if (!packFor(pe.cap)) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
       if (!(await spend(env, now, 2))) return BUSY();
       const made = await createPayLink(env.DB, pe.id, a.org, a.kind, now);
       return json({ url: `${(env as PayEnv).PUBLIC_ORIGIN ?? url.origin}/paylink.html?t=${made.token}`, expiresMs: made.expiresMs });
@@ -1292,7 +1292,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (b.action === "erase") { // the AI may ASK to delete all participant data; only the organizer's own confirmation in their console does it
         await nudge(env, cid!, `delreq-${day(now)}`, now, `Your AI assistant asked to delete all participant data: game ${cid}`, `Your AI assistant asked to delete all participant data for ${cid}. Nothing is deleted yet.\n\nTo confirm, press Confirm in your console: ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${cid}\n\nNot you? Press Dismiss.`);
         await env.DB.prepare("INSERT INTO cbl_request(eid,action,note,at_ms,open) VALUES(?,?,?,?,1)").bind(cid, "erase", typeof b.note === "string" ? b.note.replace(/[<>`]/g, "").slice(0, 200) : null, now).run();
-        return json({ ok: true, message: "Nothing has been deleted yet. The organizer has been asked and must confirm in their console (we also e-mailed them). Tell them to open the console and press Confirm." });
+        return json({ ok: true, message: "Nothing has been deleted yet. The organizer has been asked and must confirm in their console (they were also e-mailed). Tell them to open the console and press Confirm." });
       }
       await env.DB.prepare("INSERT INTO cbl_request(eid,action,note,at_ms,open) VALUES(?,?,?,?,1)").bind(cid, b.action, typeof b.note === "string" ? b.note.replace(/[<>`]/g, "").slice(0, 200) : null, now).run();
       return json({ ok: true, message: "The organizer has been asked and must approve it in their console." });
@@ -1327,7 +1327,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const title = typeof b?.title === "string" ? b.title.replace(/[<>`]/g, "").trim() : "";
       const text = typeof b?.body === "string" ? b.body.replace(/[<>`]/g, "").trim() : "";
       if (!b || !KINDS.includes(b.kind) || title.length < 4 || title.length > 120 || text.length < 10 || text.length > 2000) return json({ error: "Give a kind (feature, improvement, report, bug or other), a short title (4 to 120 characters) and a description (10 to 2000 characters)." }, 400);
-      if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(title + " " + text) || /(?:\d[\s-]?){10,}/.test(title + " " + text)) return json({ error: "Please do not include e-mail addresses or phone numbers, or anything about specific people. Describe the need in general terms." }, 400);
+      if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(title + " " + text) || /(?:\d[\s-]?){10,}/.test(title + " " + text)) return json({ error: "Please leave out e-mail addresses and phone numbers, or anything about specific people. Describe the need in general terms." }, 400);
       const today = (await env.DB.prepare("SELECT COUNT(*) AS c FROM suggestion WHERE org=? AND created_ms>?").bind(a.org, now - 86_400_000).first<{ c: number }>())?.c ?? 0;
       if (today >= 20) return json({ error: "That is plenty for today. Please try again tomorrow." }, 429);
       const th = await sha("title|" + title.toLowerCase().replace(/\s+/g, " "));
@@ -1430,10 +1430,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (pv && pv.x > now && now - pv.t < 300_000) continue; // a code was sent a moment ago: do not send another
       const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0]! % 900000));
       await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`delreq/${tok}`, JSON.stringify({ c: await sha(`delcode|${tok}|${code}`), x: now + 1_800_000, t: now })).run();
-      await sendMail(env as PayEnv, env.DB, registered, `Confirm the deletion of participant data: ${tok}`, `We got a request to delete all participant data for ${tok}. Nothing is deleted yet.\n\nTo confirm, reply to the e-mail you sent with this code: ${code}\n\nIt works for 30 minutes. Not you? Ignore this e-mail.`, now);
+      await sendMail(env as PayEnv, env.DB, registered, `Confirm the deletion of participant data: ${tok}`, `A request to delete all participant data for ${tok} was received. Nothing is deleted yet.\n\nTo confirm, reply to the e-mail you sent with this code: ${code}\n\nIt works for 30 minutes. Not you? Ignore this e-mail.`, now);
       asked.push(tok);
     }
-    if (done.length) await sendMail(env as PayEnv, env.DB, from, `Deleted: participant data of ${done.join(", ")}`, `Done. We deleted all participant data for: ${done.join(", ")}.\n\nWe keep the winners record (seat, prize, round, time) and winners' prize hand-over details for up to 365 days. We also keep your organizer details.`, now);
+    if (done.length) await sendMail(env as PayEnv, env.DB, from, `Deleted: participant data of ${done.join(", ")}`, `Done. All participant data for: ${done.join(", ")} was deleted.\n\nThe winners record (seat, prize, round, time) and winners' prize hand-over details are kept for up to 365 days. Your organizer details are also kept.`, now);
     return json({ ok: true, action: done.length ? "deleted" : asked.length ? "confirm-sent" : "no-match", engagements: done });
   }
   if (req.method === "GET" && p === "/api/notices") { // our public news list: the same for everyone, nothing about the reader is stored or asked
@@ -1583,7 +1583,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     let tok: PersonRow | null = null, tokPii: { phone: string; name: string | null; empId?: string | null } | null = null;
     if (typeof b?.token === "string" && b.token) {
       tok = await personByToken(env, eid!, b.token);
-      if (!tok || tok.status === "removed") return json({ error: "This link is not valid any more. Please ask the person who invited you to send it again.", code: "link-gone" }, 404);
+      if (!tok || tok.status === "removed") return json({ error: "This link has expired. Please ask the person who invited you to send it again.", code: "link-gone" }, 404);
       tokPii = await openPii(env, tok.pii);
     }
     const typedGiven = typeof b?.phone === "string" ? b.phone.trim() !== "" : b?.phone != null;
@@ -1783,7 +1783,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const list = Array.isArray(b?.claims) ? b.claims.slice(0, 7) : null;
     if (!b || typeof b.pid !== "string" || !list) return json({ error: "Bad claim." }, 400);
     const who = await env.DB.prepare("SELECT p.pid AS pid, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? AND p.pid=?").bind(eid, b.pid).first<{ pid: string; blocked: number | null }>();
-    if (!who) return json({ error: "Not a participant of this game." }, 403);
+    if (!who) return json({ error: "This phone does not seem to be part of this game." }, 403);
     if (who.blocked) return json({ error: "You were removed from this game by the organizer.", code: "removed", removed: true }, 403); // the seat stays in the public list, the phone stops
     if (!tracks(e)) return json({ ok: true, stored: 0, tracked: false }); // large engagement: winners are worked out from the public numbers, nothing is stored per claim
     let stored = 0;
@@ -1917,7 +1917,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (action === "invites" && req.method === "GET") { // how many people this participant has invited so far (their own id is the key to ask)
     const pid = url.searchParams.get("pid") ?? "";
     const me = await env.DB.prepare("SELECT seq, role, inv, blocked FROM seat WHERE eid=? AND pid=?").bind(eid, pid).first<{ seq: number; role: string | null; inv: number | null; blocked: number | null }>();
-    if (!me) return json({ error: "Not a participant of this game." }, 403);
+    if (!me) return json({ error: "This phone does not seem to be part of this game." }, 403);
     const c = cfgOf(e).invites;
     const used = Math.max((await env.DB.prepare("SELECT COUNT(*) AS c FROM seat WHERE eid=? AND inv=?").bind(eid, me.seq).first<{ c: number }>())?.c ?? 0, await listCount(env.DB, eid!, "s:" + me.seq)); // people on their list (joined or not) or seats under them
     return json({ on: !!c?.on, per: c?.per ?? 0, used, unlimited: !!me.role, canInvite: !me.blocked && (!!me.role || me.inv === null), seat: me.seq, cats: c?.cats ?? [], removed: !!me.blocked, whoCanJoin: e.closed ? "list" : "anyone" });

@@ -31,7 +31,7 @@
   const joinView = () => {
     const isEmail = !!(INFO && INFO.idKind === "email" && INFO.verify === "id"), vm = (INFO && INFO.verify) || "mobile", needId = vm !== "mobile", needPhone = vm === "both" || vm === "id" || !!(INFO && INFO.joinPhone); // the organizer chose what a person gives to get in
     set(`${brand()}${head()}<div class="zcard zform"><h2>Join the game</h2>
-      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
+      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Only a nickname is asked for. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
@@ -55,7 +55,7 @@
   const BUSY_TRIES = 15;
   let busyTries = 0, busyTimer = 0;
   const busyView = () => {
-    set(`${brand()}${head()}<div class="zcard zwait" role="status"><h2>Many people are joining right now</h2><p class="zwait-p">Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall zwait-n">Try ${busyTries} of ${BUSY_TRIES}.</p></div><div class="zagain"><button class="zbtn s alt" id="again" type="button">Stop and try myself</button></div>`);
+    set(`${brand()}${head()}<div class="zcard zwait" role="status"><h2>Many people are joining right now</h2><p class="zwait-p">Your request is safe. It is trying again for you every few seconds. Keep this page open.</p><p class="zsmall zwait-n">Try ${busyTries} of ${BUSY_TRIES}.</p></div><div class="zagain"><button class="zbtn s alt" id="again" type="button">Stop and try myself</button></div>`);
     const a = document.getElementById("again"); if (a) a.addEventListener("click", () => { clearTimeout(busyTimer); busyTries = 0; tb = null; joinView(); });
   };
   async function doJoin() {
@@ -217,6 +217,6 @@
   cdTimer = setInterval(tickCd, 250);
   const start = () => { if (!pid) joinView(); else tick(); };
   if (!EID) { set(`${head()}<div class="zcard"><h2>Open your game link</h2><p class="zsmall">Ask your organizer for the link to this game.</p></div>`); return; }
-  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>We could not find this game</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
+  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>This game could not be found</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
   void cdTimer;
 })();

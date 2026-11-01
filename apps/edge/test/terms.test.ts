@@ -22,7 +22,7 @@ const OTHER_DOCS = ["/subprocessors.html", "/partner-terms.html"]; // linked fro
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We delete Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL"],
+    "terms.html": ["In short", "does not collect any money, deposit, contribution or other consideration from any Participant", "Participant Personal Data is deleted from the systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL"],
     "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube"],
     "partner-terms.html": ["independent partner", "No spam", "Tax may be deducted at source", "You are responsible for your own taxes", "No payment from the buyer, no commission"],
@@ -46,7 +46,7 @@ describe("the document pages", () => {
   test("the public website pages describe Bingo only: no words of the game this product was copied from, and the software-only line is on the key pages", () => {
     const files = ["index.html", "pricing.html", "about.html", "contact.html", "legal.html", "terms.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "404.html", "site.js"];
     for (const f of files) expect([f, /tambola|housie|early five|full house|top line|\bIST\b|90 numbers/i.test(noFooter(f).replace(/corporatetambola\.com/g, "")) || (f !== "terms.html" && /\bticket/i.test(noFooter(f).replace(/i-ticket|ic\("ticket"\)/g, "")))]).toEqual([f, false]);
-    for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /we never hold or pay prize money|we never hold prizes|we do not hold, pay, guarantee, transfer or deliver any prize/i.test(rd(f))]).toEqual([f, true]);
+    for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /we never hold or pay prize money|we never hold prizes|we do not hold, pay, guarantee, transfer or deliver any prize|no prize money is held or paid|prize money is never held or paid|does not hold, pay, guarantee, transfer or deliver any prize/i.test(rd(f))]).toEqual([f, true]);
   });
 });
 

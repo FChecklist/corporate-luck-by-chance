@@ -56,7 +56,7 @@ export const LOGO_MIN_SIDE = 64;
 export const LOGO_MAX_RATIO = 4;
 export const LOGO_STORED_MIN_SIDE = 48;
 export const LOGO_STORED_MAX_SIDE = 192;
-export const LOGO_RULES_TEXT = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. We shrink it to fit (30 KB, 192 pixels) and show it 30 pixels high on every page, in the browser and in the installed app.";
+export const LOGO_RULES_TEXT = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. It is made small to fit (30 KB, 192 pixels) and shown 30 pixels high on every page, in the browser and in the installed app.";
 /** Width and height of a PNG, JPEG or WebP from its first bytes (a string of raw characters), or null when they cannot be read. */
 export function logoSize(raw: string, kind: string): { w: number; h: number } | null {
   const b = (i: number) => raw.charCodeAt(i);

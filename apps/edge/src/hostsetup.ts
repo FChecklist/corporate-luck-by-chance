@@ -141,7 +141,7 @@ export async function hostSetupRoute(c: HostCtx): Promise<Response | null> {
     const code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
     if (code.length !== 6) return c.json({ error: "Enter the 6-digit code." }, 400);
     const st = await hostStateRow(db, c.hid);
-    const bad = () => c.json({ error: "That code is not right or has expired. Please ask for a new one." }, 400);
+    const bad = () => c.json({ error: "That code does not match, or it has expired. Please ask for a new one." }, 400);
     if (!st?.pend_hash || st.verified_ms) return bad();
     const eh = st.pend_hash, lc = await db.prepare("SELECT code_hash, expires_ms, attempts FROM login_code WHERE email_hash=?").bind(eh).first<{ code_hash: string; expires_ms: number; attempts: number }>();
     if (!lc || lc.expires_ms < now || lc.attempts >= 5) return bad();

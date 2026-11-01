@@ -2,7 +2,7 @@
 //   - Only the Organizer and a Host may cancel (worker.ts checks the key; a Host's cancel also tells the Organizer, who is always on the mail list). Unpaid: any time, no money is involved.
 //     Paid: only BEFORE the start time. Once the start time has passed a paid game has started, so it cannot be cancelled.
 //   - Cancelling a PAID game turns what was paid into CREDIT for the account, valid 365 days from the date of the original payment (credit.ts). Credit that had been used to pay for the game
-//     comes back to the same credit with the same expiry. There is no refund, no gateway call, no refund fee, no credit note, and the partner's commission on the sale stays as earned.
+//     comes back to the same credit with the same expiry. No money goes back through the gateway, no refund fee or credit note is made, and the partner's commission on the sale stays as earned.
 //   - The guests' names and numbers are auto-deleted 23 hours after the cancel time by the normal lifecycle tick (lifecycle.ts); a Co-host's name and number go at once.
 // Nothing here may carry an AI link (mails.ts is the only place that builds those).
 import { zoneStamp, tzOfRow } from "./tz";

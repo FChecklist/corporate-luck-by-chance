@@ -1,6 +1,6 @@
 // Credit instead of refunds (docs/ROLES_AND_CONSOLE_SPEC_6.md, product rule 2026-10-08). THERE ARE NO REFUNDS.
 //   - If the Organizer or a Host cancels a PAID game before its start time, what was paid stays with us as CREDIT for that Organizer's account. It can pay for a next game for 365 days
-//     counted from the date of the original payment, until the end of day 365 in India time. Unused credit lapses then (no refund, no credit note). Cancelling an UNPAID game moves no money.
+//     counted from the date of the original payment, until the end of day 365 in India time. Unused credit lapses then (credit is not paid out as money, and no credit note is made). Cancelling an UNPAID game moves no money.
 //   - A cancelled PAID game can be moved to a new date for 30 days after the cancel (cancel.ts reopenGame): its unused credit is then marked 'revived' (never listed, never spendable) and the game keeps its payment.
 //   - A payment that arrives after a game was cancelled (or after it closed as "did not start") is kept the same way: it becomes credit, never a refund.
 //   - Using credit: oldest-expiring first. Credit >= price pays the game with no Razorpay; credit < price is used up and the rest is paid through the normal checkout (same game);
@@ -65,7 +65,7 @@ export async function mailTeam(env: PayEnv, org: string | null, eid: string | nu
 }
 
 /** The rule in one sentence, for e-mails and pages. */
-export const NO_REFUND_LINE = "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
+export const NO_REFUND_LINE = "A paid game cancelled before it starts stays with you as credit for your next game, valid for 365 days. Unused credit lapses at the end of day 365.";
 
 // ------------------------------------------------------------------------------------------------ making credit
 /**
@@ -191,7 +191,7 @@ export async function creditTick(env: PayEnv, now: number): Promise<{ lapsed: nu
     const claim = await db.prepare(`UPDATE credit SET ${col}=? WHERE id=? AND ${col} IS NULL`).bind(now, c.id).run();
     if ((claim.meta?.changes ?? 0) === 0) continue;
     if (three && c.mail30_ms === null) await db.prepare("UPDATE credit SET mail30_ms=? WHERE id=? AND mail30_ms IS NULL").bind(now, c.id).run(); // the 3-day mail replaces the 30-day one when we are already that close
-    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it is gone: we do not give refunds.`, now); out.mailed++;
+    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it lapses, as it stays valid for 365 days only.`, now); out.mailed++;
   }
   return out;
 }
@@ -221,20 +221,20 @@ const PAYER_KINDS = new Set(["master", "host", "cohost"]);
 export async function creditRoute(req: Request, env: PayEnv, now: number, spend: (n: number) => Promise<boolean>, a: CreditAuth): Promise<Response | null> {
   const url = new URL(req.url), p = url.pathname, db = env.DB;
   if (req.method === "GET" && p === "/api/org/credit") {
-    if (!a.org || a.viaLink || (a.kind !== "master" && a.kind !== "host")) return json({ error: a.kind === "cohost" ? "Credit is shown to the Organizer and Hosts." : "Not allowed." }, 403);
+    if (!a.org || a.viaLink || (a.kind !== "master" && a.kind !== "host")) return json({ error: a.kind === "cohost" ? "Credit is shown to the Organizer and Hosts." : "That is not open to this sign-in." }, 403);
     return json(await listCredits(db, a.org, now));
   }
   const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/pay-with-credit$/);
   if (!m || req.method !== "POST") return null;
   if (a.kind === "ai") return json({ error: "Paying is for people to do themselves. Ask the owner to use their credit in the console." }, 403);
-  if (!a.org || a.viaLink || !a.kind || !PAYER_KINDS.has(a.kind)) return json({ error: "Not allowed." }, 403);
+  if (!a.org || a.viaLink || !a.kind || !PAYER_KINDS.has(a.kind)) return json({ error: "That is not open to this sign-in." }, 403);
   const e = await db.prepare("SELECT * FROM engagement WHERE id=?").bind(m[1]!).first<any>();
   if (!e || e.org !== a.org) return json({ error: "No such game." }, 404);
   if (a.kind === "cohost" && a.eid && a.eid !== e.id) return json({ error: "Your Co-host link is for a different game." }, 403);
   if (e.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for.", code: "cancelled" }, 409);
   if (e.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);
   const pack = PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null;
-  if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+  if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
   const bodyText = await req.text(); let b: any = {}; try { b = bodyText ? JSON.parse(bodyText) : {}; } catch { b = {}; }
   const cur = b?.currency === "USD" ? "USD" : "INR";
   const total = price(pack, cur).total;

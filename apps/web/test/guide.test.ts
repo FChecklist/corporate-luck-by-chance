@@ -148,7 +148,7 @@ describe("the right guide for the right message and the right person", () => {
     const full = p.win.CTG.explain({ status: 409, message: "This engagement is full." });
     expect(full.title).toBe("This game is full"); expect(full.go).toEqual({ none: true });
     expect(full.steps.join(" ")).not.toMatch(/Number of participants|Organizer, raise/i);
-    for (const msg of ["This game was cancelled.", "This link is not valid any more. Please ask the person who invited you to send it again.", "This game did not start and is closed."]) {
+    for (const msg of ["This game was cancelled.", "This link has expired. Please ask the person who invited you to send it again.", "This game did not start and is closed."]) {
       const g = p.win.CTG.explain({ status: 409, message: msg }); expect(g.go.step).toBeUndefined(); expect(String(g.go.href || "")).not.toMatch(/zc/);
     }
     const o = await page("pricing.html", "/zc.html?e=ABCD1234"); expect(o.win.CTG.role()).toBe("organizer");

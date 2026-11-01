@@ -40,7 +40,7 @@ export const HD1_TEMPLATE = [
   "{helper} may prepare games in your account: create a game and change its settings and prizes. This is what your own AI link can do.",
   "They cannot publish a game, pay, see your sign-in keys, change your e-mail or close your account. Only you publish, with one tap.",
   "After you publish a game they prepared, they become a Host of that game and can change it like any Host. They see what a Host sees, such as the guest list. They do not use one of your 5 Host places.",
-  "When a game they prepared is paid, they earn Refer & earn commission from us. You pay nothing extra.",
+  "When a game they prepared is paid, they earn Refer & earn commission from Corporate Luck by Chance. You pay nothing extra.",
   "You can stop this at any time. It ends all their access at once. Games already published stay as they are.",
 ];
 export const hd1Lines = (helper: string): string[] => HD1_TEMPLATE.map((l) => l.replace("{helper}", helper));
@@ -154,7 +154,7 @@ export async function helpdeskRoute(req: Request, env: PayEnv, now: number, spen
   if (!p.startsWith("/api/helpdesk/")) return null;
   const origin = env.PUBLIC_ORIGIN ?? url.origin;
   const busy = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
-  const notAllowed = () => json({ error: "Not allowed." }, 403);
+  const notAllowed = () => json({ error: "That is not open to this sign-in." }, 403);
   const gone = (state: string) => json({ error: state === "stopped" ? "This has been stopped." : "This link has been used or has expired.", state }, 410);
   const presentedKey = req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
 

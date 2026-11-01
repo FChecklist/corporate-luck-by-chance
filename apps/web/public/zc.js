@@ -29,7 +29,7 @@
   const call = async (method, path, body) => {
     let r;
     try { r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", "x-organizer": secret }, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch (e) { const err = Object.assign(new Error("We could not reach the service. Please check your internet and try again."), { status: 0 }); guided(err, method, path, body); throw err; }
+    catch (e) { const err = Object.assign(new Error("The service could not be reached. Please check your internet and try again."), { status: 0 }); guided(err, method, path, body); throw err; }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       if (r.status === 403 && j.code === "consent-required" && !S.k5need) { S.k5need = true; setTimeout(redraw, 0); } // 403 + consent-required is the K5 role gate (a Co-host or Host who has not yet ticked the box): the console shows that box first
@@ -95,7 +95,7 @@
   // ---------- the steps ----------
   // [number, title, colour, short hint (shown when the step is open or has nothing to summarise), what the console says when you open it]
   const FULL = [
-    [1, "Date and time of the game", "blue", "Pick the occasion, day and time.", "Hello. Let us start with the basics."],
+    [1, "Date and time of the game", "blue", "Pick the occasion, day and time.", "Hello. The basics come first."],
     [2, "Number of participants", "aqua", "How many players, and who can join.", "Good. Now, how many players, and who can join?"],
     [3, "Set Prizes", "violet", "Tick the places you give a prize for. Pick what each one is.", "Now the fun part: prizes for the top places."],
     [4, "Your brand", "magenta", "Add your company name, colour and logo.", "Want your brand on the page?"],
@@ -254,7 +254,7 @@
     const pt = getP(ptPath), p = ptOf(pt);
     let h = `<div class="zc-chips" role="group" aria-label="What is the prize?">${PT.map((x) => chip(ptPath, x[0], x[1])).join("")}</div>`;
     if (p && p[3]) h += `<div class="zc-inline">${p[2] ? `<span>${p[2]}</span>` : ""}<label class="zc-sr" for="${fid(pdPath)}">${esc(p[3])}</label>${inp(pdPath, { ph: p[3], max: 70 })}</div>`;
-    if (pt === "later") h += small("Fine. We will remind you before you publish.");
+    if (pt === "later") h += small("Fine. You will be reminded before you publish.");
     if (pt === "none") h += small("The results show \"No prize\" for this place. The winner is still announced.");
     return h;
   }
@@ -327,7 +327,7 @@
     if (lockedGame()) return lockedNote() + readBack();
     return grp("bundle", "Start from", ["Classic", "Simple", "Rich", "Choose myself"].map((b) => [b, BUNDLE_WORDS[b]]))
       + `<span class="zc-lbl">Tick the prizes. Each one says how to win.</span>` + HS.map(houseBox).join("")
-      + small("You give the prizes. We provide the software.") + save(3);
+      + small("You give the prizes. Corporate Luck by Chance provides the software.") + save(3);
   }
 
   // ---------- brand strip on the guest's card (Phase 3): company name, accent colour, a small logo ----------
@@ -342,7 +342,7 @@
       ${previewButton()}</div>`;
   }
   // The logo rules (the same numbers as packages/beacon/src/config.ts, which the server enforces)
-  const LOGO_RULES = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. We shrink it to fit (30 KB, 192 pixels) and show it 30 pixels high on every page, in the browser and in the installed app.";
+  const LOGO_RULES = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. It is made small to fit (30 KB, 192 pixels) and shown 30 pixels high on every page, in the browser and in the installed app.";
   /** Shrinks the chosen picture in the browser to a PNG or JPEG data URL of at most 30 KB. Nothing is sent anywhere else. */
   async function fitLogo(file) {
     // read as a data: URL (the page's security policy allows data: images, not blob: ones)
@@ -681,7 +681,7 @@
       const n = C.stage, head = ["", "1st confirmation", "2nd confirmation", "Final confirmation"][n];
       const warn = `<p class="zc-cw-warn"><b>You are cancelling the game.</b> You need to confirm 3 times before the game is cancelled.</p>`;
       let inner;
-      if (n === 1) inner = `<p><b>Do you want to cancel ${esc(name)}?</b></p>${C.preview && C.preview.paid ? `<p class="zc-small" id="norefund">There is no refund. Your payment stays as credit for your next game, for 365 days.</p>` : ""}<div class="zc-chips"><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="cancelback">No, keep my game</button><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="cancelresched">Change the date instead</button><button type="button" class="zc-btn zc-btn-s zc-btn-bad" id="cancel1">Yes, go to the 2nd confirmation</button></div>`;
+      if (n === 1) inner = `<p><b>Do you want to cancel ${esc(name)}?</b></p>${C.preview && C.preview.paid ? `<p class="zc-small" id="norefund">Your payment stays with you as credit for your next game, valid for 365 days.</p>` : ""}<div class="zc-chips"><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="cancelback">No, keep my game</button><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="cancelresched">Change the date instead</button><button type="button" class="zc-btn zc-btn-s zc-btn-bad" id="cancel1">Yes, go to the 2nd confirmation</button></div>`;
       else if (n === 2) inner = `<p><b>This is what happens.</b></p><p class="zc-small" id="cancelwhat">${C.preview && C.preview.credit ? esc(creditText(C.preview.credit)) + " " : ""}Guests will be told. Their names and numbers will be deleted. You cannot undo this.</p><label class="zc-check" for="cancelagree"><input type="checkbox" id="cancelagree"${C.agree ? " checked" : ""}> I understand that cancelling cannot be undone</label><div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="cancelprev">Go back</button><button type="button" class="zc-btn zc-btn-s zc-btn-bad" id="cancel2"${C.agree ? "" : " disabled"}>Submit</button></div>`;
       else inner = `<p><b>This will cancel ${esc(name)} for good.</b></p><div class="zc-chips"><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="cancelback">No, keep my game</button><button type="button" class="zc-btn zc-btn-s zc-btn-bad" id="cancel3"${C.busy ? " disabled" : ""}>Yes, ${esc(name)} is cancelled</button></div>`;
       b = `<div class="zc-cwarn" id="cancelpanel" role="alertdialog" aria-labelledby="cancelhead" aria-describedby="cancelwarn"><div class="zc-small zc-nomargin" id="cancelprog">Step ${n} of 3</div><h4 id="cancelhead">${head}</h4><div id="cancelwarn">${warn}</div>${inner}</div>`;
@@ -718,7 +718,7 @@
       const when2 = c.status === "expired" ? `lapsed on ${dayIst(c.expiresMs)}` : c.status === "used" ? `used ${(c.uses || []).map((u) => dayIst(u.atMs) + (u.game ? " for " + u.game : "")).join(", ") || ""}` : `valid until ${dayIst(c.expiresMs)}`;
       return rowl(`${esc(money(c.status === "active" ? c.remainingInr : c.amountInr))}${c.status === "active" && c.remainingInr !== c.amountInr ? ` of ${esc(money(c.amountInr))}` : ""}<br><span class="zc-small zc-nomargin">${esc(when2)}${c.sourceGame ? " · from " + esc(c.sourceGame) : ""} · made ${esc(dayIst(c.createdMs))}</span>`, `<span class="zc-stt zc-stt-${st === "Active" ? "joined" : st === "Used" ? "invited" : "removed"}">${st}</span>`);
     };
-    return `<div class="zc-block" id="creditsblock"><h3>Your credit</h3>${C.credits.length ? C.credits.map(row).join("") : small("You have no credit.")}${small("We do not give refunds. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days. Unused credit lapses at the end of day 365.")}</div>`;
+    return `<div class="zc-block" id="creditsblock"><h3>Your credit</h3>${C.credits.length ? C.credits.map(row).join("") : small("You have no credit.")}${small("A paid game cancelled before it starts stays in the Organizer's account as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.")}</div>`;
   }
   async function loadCredits() { try { S.credits = await call("GET", "/api/org/credit"); } catch { S.credits = null; } }
   // ---------- games that wait for a payment, or did not start ----------
@@ -746,7 +746,7 @@
   }
 
   // ---------- step 9: game day ----------
-  const MSGS = ["Welcome! The game starts soon.", "Please take your seats", "Dinner is served", "Rewards at the stage in 10 minutes", "We start in 5 minutes", "Thank you for joining"];
+  const MSGS = ["Welcome! The game starts soon.", "Please take your seats", "Dinner is served", "Rewards at the stage in 10 minutes", "The game starts in 5 minutes", "Thank you for joining"];
   function announceBlock() {
     const avail = !S.draft && !isCancelled() && !didNotStart(); // the message rides with the public game view every phone and the big screen already read (luck/view), so it needs no pause file
     return `<div class="zc-block" id="annblock"><h3>Message to everyone</h3>${small(avail ? "Shown at the top of every phone and of the big screen. It reaches them within a few seconds." : "Messages become available once this game is published.")}
@@ -791,7 +791,7 @@
     const bad = S.checked ? S.checked.bad.length : 0;
     return `<div class="zc-block"><h3>Rewards, from the public number log</h3>${S.settledPreview.length ? S.settledPreview.map((s) => rowl(`${esc(lineLabel(s))} · call ${s.idx + 1}`, `<b>${s.pids.length} participant${s.pids.length === 1 ? "" : "s"}${s.names ? " · " + esc(s.names) : ""}</b>`)).join("") : small("No place has been decided yet.")}
       ${small(`Claims received: ${S.claims.length}. ${bad ? `<b>${bad} not valid</b> (they do not match the public log and are ignored).` : "All claims so far match the public log."}`)}
-      ${small(`Numbers come from a public random beacon. Winners are confirmed when several phones agree. You and we cannot choose or change them in the software. Confirmed so far: ${(S.published || []).filter((r) => r.pattern !== "lucky").length}.`)}
+      ${small(`Numbers come from a public random beacon. Winners are confirmed when several phones agree. Neither you nor the owner can choose or change them in the software. Confirmed so far: ${(S.published || []).filter((r) => r.pattern !== "lucky").length}.`)}
       <button type="button" class="zc-mini" id="csv"${S.settledPreview.length && !S.shield ? "" : " disabled"}>Download report</button></div>`;
   }
   function stepDay() {
@@ -848,8 +848,8 @@
     ["How do I start the game?", "Open Game day, open the game page, choose the prizes, and press Start. The Organizer and Hosts can do this."],
     ["Who can do what?", "The Organizer can do everything, including the account (keys, e-mail). A Host can do everything in the game except the account and adding Hosts. A Co-host invites people and can pay. Open step 5 to see it."],
     ["What is the big screen link?", "A page for a projector or TV. It shows the target number, the countdown and the top-10 list, with nicknames only. Copy it in step 6 and open it on the laptop connected to the screen."],
-    ["Can I get a refund?", "We do not give refunds. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days. Unused credit lapses at the end of day 365."],
-    ["Who do I contact?", "Write to our Grievance Officer. We reply within 30 days."],
+    ["Can I get a refund?", "A paid game cancelled before it starts stays in the Organizer's account as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365."],
+    ["Who do I contact?", "Write to the Grievance Officer. Each message is answered within 30 days."],
   ];
   const ROLE_LABEL = { organizer: "Organizer", host: "Host", cohost: "Co-host", partner: "Partner" };
   function rolePill() {
@@ -906,11 +906,11 @@
   const ABOUT = {
     1: ["This is the basics. Pick the occasion, the day and the time.", "Times are in your own time zone, as your device shows it.", "Players can join before the start. You press Start on the game page when everybody is in.", "You can change all this until the game starts."],
     2: ["Pick the biggest crowd you expect. Or type your own number. You see the price when you pay.", "Who can join: \"Only people on a list\" keeps it private, and people not on a list wait for you to let them in.", "\"Anyone with the link\" lets people in at once.", "Players type just a nickname to join. You choose the prizes on the game page, just before you press Start.", "Each guest can invite family or colleagues if you switch it on."],
-    3: ["Tick the places that get a prize: 1st to 5th. Pick what each one is.", "\"I will decide later\" is fine. You can still publish and choose before the game starts.", "\"No prize\" shows as \"No prize\" in the results.", "You give the prizes. We provide the software.", "The software picks the winners from the scores. Nobody can change them, not even us."],
+    3: ["Tick the places that get a prize: 1st to 5th. Pick what each one is.", "\"I will decide later\" is fine. You can still publish and choose before the game starts.", "\"No prize\" shows as \"No prize\" in the results.", "You give the prizes. Corporate Luck by Chance provides the software.", "The software picks the winners from the scores. Nobody can change them, not even the owner."],
     4: ["Add your company name, a colour and a small logo for the top of every player's page and the big screen.", "Press \"See what players see\" to check it before you publish."],
     5: ["A Host runs the game with you. A Host needs a name, a mobile number and an e-mail.", "A Co-host invites people and can pay. A Co-host needs a name and a mobile number only.", "Players need a nickname only (a mobile number too if you chose that).", "Send each private link to one person only.", "Each Co-host can add up to 100 people unless you change it below."],
     6: ["Add your people here, one by one, from your phone contacts (where your phone allows it), by pasting from Excel or by uploading a CSV.", "Each person gets their own link to send by WhatsApp or e-mail. Or share the one common link in Slack, Teams, Zoom chat or any group.", "With \"Only people on a list\", people who are not on your list wait under \"Waiting to come in\". You can let them in one by one or press \"Approve all\".", "The big screen link is for the laptop connected to the room screen or shared in your video call. It shows the target number, the countdown and the top-10 list, with nicknames only."],
-    7: ["Look through your game and change what you need.", "Publishing is free. Guests can join after you publish.", "You can cancel before the start time. We do not give refunds: a paid game becomes credit for your next game for 365 days. Or change the date instead.", "Press \"See what players see\" to look at a sample play screen."],
+    7: ["Look through your game and change what you need.", "Publishing is free. Guests can join after you publish.", "You can cancel before the start time. A paid game that is cancelled stays with you as credit for your next game, valid for 365 days. Or change the date instead.", "Press \"See what players see\" to look at a sample play screen."],
     8: ["Pay once, before the start time. You see the price here.", "The Organizer, a Host or a Co-host can pay.", "Paid late? The game opens 2 minutes after your payment is confirmed.", "A paid game cannot be cancelled after the start time. Before it, your payment stays as credit for 365 days.", "\"Copy payment link\" makes a link anyone can open to pay for this game."],
     9: ["Open the game page, choose the prizes, and press Start.", "Starting closes the list of players.", "Only the Organizer and Host can start the game or remove a person."],
     10: ["A few minutes after the game, a report link is e-mailed to the Organizer.", "Guest names and numbers are deleted within 24 hours.", "The winners and the Organizer's and Hosts' details are kept for 365 days.", "You can delete guest data earlier."],
@@ -955,7 +955,7 @@
     const open = S.acctOpen === null ? !eid : S.acctOpen;
     const credits = creditsBlock();
     const keys = (S.keys || []).length ? `<div class="zc-block"><h3>Your sign-in keys</h3>${S.keys.map((k) => `<div class="zc-rowl"><span>${k.kind === "ai" ? "AI assistant link" : k.kind === "host" ? "Host key" : k.kind === "cohost" ? "Co-host key" : "Organizer key"} · made ${new Date(k.created_ms).toLocaleDateString()}${k.thisOne ? " · in use now" : ""}</span>${k.revoked ? `<i>retired</i>` : k.thisOne ? `<i>active</i>` : `<button type="button" class="zc-mini" data-retirekey="${esc(k.id)}">Retire</button>`}</div>`).join("")}${small("If you ever lose a key or think someone has it, sign in with another one and retire it here.")}</div>` : "";
-    const sugs = (S.sugs || []).length ? `<div class="zc-block"><h3>Ideas to improve Corporate Luck by Chance</h3>${small("Suggested by organizers' AI assistants. We review them all.")}${S.sugs.map((x) => rowl(esc(x.title) + (x.yours ? " · yours" : ""), `<i>${x.votes} · ${esc(x.status.replace("_", " "))}</i>`)).join("")}</div>` : "";
+    const sugs = (S.sugs || []).length ? `<div class="zc-block"><h3>Ideas to improve Corporate Luck by Chance</h3>${small("Suggested by organizers' AI assistants. Each one is reviewed.")}${S.sugs.map((x) => rowl(esc(x.title) + (x.yours ? " · yours" : ""), `<i>${x.votes} · ${esc(x.status.replace("_", " "))}</i>`)).join("")}</div>` : "";
     const T = S.aiTrail;
     const audit = `<div class="zc-block"><h3>What your AI assistant did</h3>${T ? (T.length ? T.slice(0, 40).map((t) => `<div class="zc-rowl"><span>${esc(dmy(t.at_ms))}<br><small class="zc-small zc-nomargin">${esc(t.method)} ${esc(t.path)} → ${esc(String(t.status))} · from ${esc(t.ip || "?")} ${esc(t.country || "")} · ${esc((t.ua || "").slice(0, 60))} · key ${esc(t.key_id || "")}</small></span></div>`).join("") : small("Your AI assistant has not made any call yet.")) : `<button type="button" class="zc-mini" id="aiaudit">Show the AI activity log</button>`}${small("Every call your AI assistant makes is recorded with the time, the key used and where it came from. It is kept for 365 days.")}</div>`;
     const close = `<div class="zc-block"><h3>Close my account</h3>${small("This deletes your account and all your games. Billing data is kept for audit and tax reasons. It cannot be undone.")}<button type="button" class="zc-mini zc-danger" id="closeacct">Close my account</button></div>`;
@@ -1013,7 +1013,7 @@
     return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Luck by Chance</b></span></header><div class="zc-main">
       <div class="zc-eyebrow">Organizer console</div>
       <h2>${NEWGAME ? "Create a new game as an organizer" : "Sign in to your console"}</h2>
-      <p class="zc-lead">Type your e-mail and press Continue. There is no password. New here? Your account is made at once. Coming back? We e-mail you two ways to get in, and you use <b>one</b> of them.</p>
+      <p class="zc-lead">Type your e-mail and press Continue. There is no password. New here? Your account is made at once. Coming back? Two ways to get in are e-mailed to you, and you use <b>one</b> of them.</p>
       ${googleBlock(true)}${S.gcid ? `<div class="zc-or">or</div>` : ""}
       ${msg ? `<div class="zc-toast" role="status">${esc(msg)}</div>` : ""}
       <label class="zc-lbl" for="lem">Your e-mail</label><input id="lem" class="zc-in" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail">
@@ -1051,7 +1051,7 @@
         ${grp("occ", "Occasion", OCC.map((o) => [o, o]))}${lbl("qk-date", `Day (your time, ${tzName()})`)}<input id="qk-date" class="zc-in" type="date" data-fi="dayo" value="${esc(f.dayo)}" min="${istDateStr(istNow())}">${lbl("qk-time", `Start time (your time, ${tzName()})`)}<input id="qk-time" class="zc-in" type="time" data-fi="timeo" step="300" value="${esc(f.timeo)}">
         ${small("Players can join before. You press Start on the game page when everybody is in. Choose a time at least 2 hours ahead.")}</div>
       <div class="zc-block"><h3>2. How many players?</h3><span class="zc-lbl" id="gl-cap">How many people at most? (people invited by your guests count too)</span><div role="group" aria-labelledby="gl-cap">${caps}</div>${grp("join", "Who can join?", [["list", "Only people on a list"], ["anyone", "Anyone with the link"]])}<div class="zc-chips zc-gap">${bchip("inv", "Let each guest invite up to 4 family or colleagues")}</div>${small("It is a dice game of pure luck. The game has 10 rounds with a press window of 10 seconds.")}</div>
-      <div class="zc-block"><h3>3. Prizes for the top places</h3>${grp("bundle", "Start from", ["Classic", "Simple", "Rich"].map((b) => [b, BUNDLE_WORDS[b]]))}${houses}${small("You give the prizes; we only provide the software. Your company name and logo are added on the next page.")}</div>
+      <div class="zc-block"><h3>3. Prizes for the top places</h3>${grp("bundle", "Start from", ["Classic", "Simple", "Rich"].map((b) => [b, BUNDLE_WORDS[b]]))}${houses}${small("You give the prizes; the software is all that is provided. Your company name and logo are added on the next page.")}</div>
       <div class="zc-block"><h3>4. Check and save</h3><div id="qk-summary" class="zc-small" aria-live="polite"></div><div id="qk-err" class="zc-toast zc-badt" role="alert" style="display:none"></div><div class="zc-foot"><button class="zc-btn" id="qk-save" type="button">Yes, save my draft</button></div>${small("Nothing is charged. Nobody else can see a draft. Next you publish it (free) and pay before the start time.")}</div>`;
     return frame(`<div class="zc-body"><div class="zc-main">${main}</div></div>`, false);
   }
@@ -1127,7 +1127,7 @@
     if (!isOrg() || !secret) return;
     ls.set("cbz-pass", ""); // used or refused, it is not tried again
     try { const r = await call("POST", "/api/pass", { token: v.t }); S.passMsg = r.again ? "This demo link is already yours: start a new game." : `Your free demo is ready: one game of up to ${r.cap} people at Rs 0. In step 2 choose "Up to ${r.cap} people".`; }
-    catch (e) { S.passMsg = e && e.message ? e.message : "This demo link could not be used. Please ask us for a new one."; }
+    catch (e) { S.passMsg = e && e.message ? e.message : "This demo link could not be used. Please ask for a new one."; }
   }
   async function refreshHome() {
     if (isOrg()) await redeemPass(); // a demo pass link opened in this browser is used now (before a first game is made for a new person)
@@ -1279,7 +1279,7 @@
       const f = S.f;
       if (role() === "cohost") { markDone(n); return advance(n); }
       if (n === 1) { const name = f.occ === "Other" ? (f.oname || "").trim() : f.occ, ms = startOf(f); if (!(ms > Date.now())) throw new Error(MSG_PAST); if (ms > Date.now() + 30 * 86400000) throw new Error("A game can start at most 30 days from today. Please pick a closer date."); await call("PATCH", `/api/z/${eid}/settings`, { name, startRound: ZG.roundAt(ms), tz: TZ }); }
-      else if (n === 2) { { const c = Number(f.cap); if (!Number.isInteger(c) || c < 1) throw new Error("Please give the number of players, for example 180."); if (c > 10000) throw new Error("For more than 10,000 players, please write to us and we will arrange it."); } if (f.inv && !f.emp && !f.cats.length) throw new Error("Pick at least one kind of guest."); await call("PATCH", `/api/z/${eid}/settings`, { cap: Number(f.cap), callSeconds: Number(f.spd), tickets: Number(f.tix), mark: f.mk === "tap" ? "tap" : "auto", join: "name", rounds: Number(f.rnd), whoCanJoin: f.emp || f.who !== "anyone" ? "list" : "anyone", verify: f.idq ? (f.idk === "email" || f.ver !== "both" ? "id" : "both") : "mobile", idKind: f.idq && f.idk === "email" ? "email" : "emp", employeesOnly: !!f.emp, invites: { on: !f.emp && !!f.inv, per: Number(f.per) || 4, cats: f.cats } }); }
+      else if (n === 2) { { const c = Number(f.cap); if (!Number.isInteger(c) || c < 1) throw new Error("Please give the number of players, for example 180."); if (c > 10000) throw new Error("For more than 10,000 players, please write, and it will be arranged."); } if (f.inv && !f.emp && !f.cats.length) throw new Error("Pick at least one kind of guest."); await call("PATCH", `/api/z/${eid}/settings`, { cap: Number(f.cap), callSeconds: Number(f.spd), tickets: Number(f.tix), mark: f.mk === "tap" ? "tap" : "auto", join: "name", rounds: Number(f.rnd), whoCanJoin: f.emp || f.who !== "anyone" ? "list" : "anyone", verify: f.idq ? (f.idk === "email" || f.ver !== "both" ? "id" : "both") : "mobile", idKind: f.idq && f.idk === "email" ? "email" : "emp", employeesOnly: !!f.emp, invites: { on: !f.emp && !!f.inv, per: Number(f.per) || 4, cats: f.cats } }); }
       else if (n === 3) { const rewards = rewardsOut(f); if (!rewards.length) throw new Error("Tick at least one prize."); await call("PATCH", `/api/z/${eid}/settings`, { tickets: Number(f.tix), rewards }); }
       else if (n === 4) {
         const bn = (f.brand.name || "").trim(), bc = f.brand.color || "", bl = f.brand.logo || "", brandChanged = JSON.stringify(f.brand) !== JSON.stringify((S.fBase || {}).brand);
@@ -1475,7 +1475,7 @@
         const r = await call("POST", path, body);
         const key = r.hostKey || r.cohostKey || "", id = r.id || (key ? key.slice(0, 10) : ""), hash = kind === "host" ? "host" : "cohost";
         S.teamLinks[id] = key ? `${location.origin}/zc.html?e=${encodeURIComponent(eid)}#${hash}=${key}` : r.link || ""; if (kind === "host" && S.lastHostWa) S.teamWa[id] = { d: S.lastHostWa, name: name };
-        S.teamNote = kind === "host" ? (S.lastHostWa ? "Host added. Send their link on WhatsApp, to that one person only." : "Host added. We sent their link to their e-mail.") : "Co-host added. Send the link to that one person only."; S.tv = {}; await refreshTeam();
+        S.teamNote = kind === "host" ? (S.lastHostWa ? "Host added. Send their link on WhatsApp, to that one person only." : "Host added. Their link was sent to their e-mail.") : "Co-host added. Send the link to that one person only."; S.tv = {}; await refreshTeam();
       } catch (e) { S.teamNote = friendly(e); redraw(); }
     };
     if ($("hostadd")) $("hostadd").onclick = () => person("host");

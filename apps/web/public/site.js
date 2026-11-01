@@ -103,7 +103,7 @@
         <div id="taxBox"></div><div id="fErr"></div><div id="tbSlot" class="tbslot"></div>
         <button class="btn block" style="margin-top:16px" type="submit" id="payGo" disabled>${ic("lock")} ${PAYMODE === "razorpay" ? "Pay securely with Razorpay" : PAYMODE === "off" ? "Payments are not switched on yet" : "Pay (local test payment)"}</button>
       </form>
-      <p class="proto">${PAYMODE === "razorpay" ? "Secure payment by Razorpay. We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The organizer keeps the credit in their account. Once it has started, a paid game cannot be cancelled. Payment to <a href='https://itservices-rajat-agarwal.pages.dev/' rel='noopener' target='_blank'>IT Services by Rajat Agarwal</a>. An invoice is e-mailed to you." : "Local test payment: no real money is taken. Unused places are not credited."}</p>`);
+      <p class="proto">${PAYMODE === "razorpay" ? "Secure payment by Razorpay. A paid game cancelled before it starts stays with you as credit for your next game, valid for 365 days. Unused credit lapses at the end of day 365. The organizer keeps the credit in their account. Once it has started, a paid game cannot be cancelled. Payment to <a href='https://itservices-rajat-agarwal.pages.dev/' rel='noopener' target='_blank'>IT Services by Rajat Agarwal</a>. An invoice is e-mailed to you." : "Local test payment: no real money is taken. Unused places are not credited."}</p>`);
     $("oCty").addEventListener("change", taxField);
     $("coForm").addEventListener("submit", (e) => { e.preventDefault(); pay(); });
     mountTerms("K3", "tbSlot", "payGo");
@@ -135,7 +135,7 @@
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled>Create my game ${ic("arrow")}</button></form>
       <p class="trust">${ic("shield")}Free to build and publish. No password.</p>
-      <p class="proto">Your console opens at once. We use your e-mail for your invoice and to sign you in later.</p><p class="proto"><a href="/demo.html">Want to see it first? Watch the 70-second video.</a></p>
+      <p class="proto">Your console opens at once. Your e-mail is used for your invoice and to sign you in later.</p><p class="proto"><a href="/demo.html">Want to see it first? Watch the 70-second video.</a></p>
       ${termsLinks}</div>`);
     mountTerms("K2", "tbSlot", "frGo");
     $("frForm").addEventListener("submit", async (e) => {
@@ -145,7 +145,7 @@
       const b = $("frGo"); b.disabled = true; setErr("");
       try {
         const r = await TB.api("POST", "/api/start", { email: m, consent: t, ...(passTok() ? { pass: passTok() } : {}) });
-        if (r.exists) { TB.toast("You already have an account, so we are e-mailing you a code to confirm it is you"); return askCode(m, b); }
+        if (r.exists) { TB.toast("You already have an account, so a code is being e-mailed to you to confirm it is you"); return askCode(m, b); }
         try { CTK.set("cbz-org", r.token); sessionStorage.setItem("cbz-aimsg", r.aiMessage); CTK.set("cbz-email", m); } catch {}
         location.href = "/zc.html";
       } catch (x) { b.disabled = !(TBX && TBX.ok()); setErr(x.message); }
@@ -172,8 +172,8 @@
     const o = ORDER;
     TB.sheet(`${xbtn}<div class="res ok">${ic("check")}</div><h2 class="center">Your game is ready</h2>
       <div class="sum"><div class="kv"><span>Order</span><b class="mono">${esc(o.orderId)}</b></div><div class="kv"><span>Organization</span><b>${esc(o.org)}</b></div><div class="kv"><span>Players</span><b>Up to ${nf(o.pack)}</b></div><div class="kv t"><span>${o.mode === "test" ? "Paid (test)" : "Paid"}</span><b>${TB.money(o.total, o.currency)}</b></div>${o.invoiceNumber ? `<div class="kv"><span>Invoice</span><b class="mono"><a href="${esc(o.invoiceUrl)}" target="_blank" rel="noopener">${esc(o.invoiceNumber)}</a></b></div>` : ""}</div>
-      ${o.organizerKey ? `<div class="note info" role="note"><b>Your organizer key</b> (shown only once, and we have e-mailed it to you):<div class="mono" id="orgKey" style="word-break:break-all;margin:6px 0">${esc(o.organizerKey)}</div><button class="btn sm" type="button" id="cpKey">Copy key</button></div>` : `<p class="small muted center">You already have an organizer key. Sign in with your e-mail to continue.</p>`}
-      <p class="small muted center">Next step: open your console to set the date, pick your prizes and share the link. We sent the details and your invoice to <b>${esc(o.email)}</b>.</p>
+      ${o.organizerKey ? `<div class="note info" role="note"><b>Your organizer key</b> (shown only once, and it has also been e-mailed to you):<div class="mono" id="orgKey" style="word-break:break-all;margin:6px 0">${esc(o.organizerKey)}</div><button class="btn sm" type="button" id="cpKey">Copy key</button></div>` : `<p class="small muted center">You already have an organizer key. Sign in with your e-mail to continue.</p>`}
+      <p class="small muted center">Next step: open your console to set the date, pick your prizes and share the link. The details and your invoice were sent to <b>${esc(o.email)}</b>.</p>
       <div id="fErr"></div>
       <button class="btn block" id="toLogin" type="button">Open my console ${ic("arrow")}</button>`);
     const cp = $("cpKey"); if (cp) cp.addEventListener("click", () => { try { navigator.clipboard.writeText(o.organizerKey); TB.toast("Key copied"); } catch {} });
@@ -185,7 +185,7 @@
   function nextAfterSignIn() { let nx = "/zc.html"; try { const n = sessionStorage.getItem("cbz-next"); if (n && /^\/(zc|pay)(\.html)?(\?(e=[A-Za-z0-9_-]{4,40}|demo=1|quick=1(&cap=\d{1,5})?))?$/.test(n)) nx = n; sessionStorage.removeItem("cbz-next"); } catch {} return nx; }
   function openLogin(email) {
     window.CBFunnel && CBFunnel.report("signup_started");
-    TB.sheet(`${xbtn}<div class="eyebrow">Organizer sign-in</div><h2>Sign in or create your account</h2><p class="muted small">Type your e-mail and press Continue. That is all: there is no password. New here? Your account is made at once. Coming back? We e-mail you two ways to get in; you use <b>one</b> of them. Players never sign in here: they join with your game link.</p>
+    TB.sheet(`${xbtn}<div class="eyebrow">Organizer sign-in</div><h2>Sign in or create your account</h2><p class="muted small">Type your e-mail and press Continue. That is all: there is no password. New here? Your account is made at once. Coming back? Two ways to get in are e-mailed to you; you use <b>one</b> of them. Players never sign in here: they join with your game link.</p>
       ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Your e-mail</label><input class="inp big" id="lMail" data-need="1" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" value="${esc(email || "")}"><div id="k2slot"></div><div id="fErr" role="alert"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="lgGo">Continue ${ic("arrow")}</button></form>
       ${termsLinks}`);
@@ -194,7 +194,7 @@
     const showTerms = () => { // a new address (or Google) needs the Terms box ticked first: the button stays disabled until it is
       if (termsShown) return; termsShown = true;
       const k = $("k2slot"); if (!k) return;
-      k.innerHTML = `<p class="small muted" style="margin:12px 0 4px"><b>New here?</b> Tick the box below and we create your organizer account at once. It is free to build and publish.</p><div id="tbSlot" class="tbslot"></div>`;
+      k.innerHTML = `<p class="small muted" style="margin:12px 0 4px"><b>New here?</b> Tick the box below and your organizer account is created at once. It is free to build and publish.</p><div id="tbSlot" class="tbslot"></div>`;
       const g = $("lgGo"); if (g) g.disabled = true;
       mountTerms("K2", "tbSlot", "lgGo"); setErr("");
       setTimeout(() => { const f = k.querySelector("input"); if (f) f.focus(); }, 120);
@@ -231,7 +231,7 @@
     const boxes6 = [0, 1, 2, 3, 4, 5].map((i) => `<input class="otpb" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="${i === 0 ? "one-time-code" : "off"}" aria-label="Digit ${i + 1} of 6" autocapitalize="off" spellcheck="false">`).join("");
     TB.sheet(`${xbtn}<div class="sheethead"><div class="eyebrow">Step 2 of 2</div><span class="sbrand" role="img" aria-label="Corporate Luck by Chance"><span class="mark"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="34" height="34"></span><span class="word">Corporate Luck by Chance<i>.</i></span></span></div>
       <h2 id="cdTitle">Now open your e-mail</h2>
-      <p class="sheetbody">We sent an e-mail to <b class="sendto">${esc(email)}</b>. Pick <b>ONE</b> of these two ways. You do not need both.</p>
+      <p class="sheetbody">An e-mail was sent to <b class="sendto">${esc(email)}</b>. Pick <b>ONE</b> of these two ways. You do not need both.</p>
       <div class="optbox"><div class="optn">Option 1</div><p class="optt">Go to your e-mail and type the 6-digit number here</p><p class="opts">Open the e-mail. Find the 6 numbers. Type them in the six boxes below and press <b>Submit</b>.</p></div>
       <div class="optbox"><div class="optn">Option 2</div><p class="optt">Go to your e-mail and tap the button</p><p class="opts">Open the e-mail and tap the button <b>Sign me in</b>. You are signed in at once. You do not type anything. (You can then close this page.)</p></div>
       ${devCode ? `<div class="note info devcode" role="note"><span>Local test mode: your code is <b>${esc(devCode)}</b></span><button type="button" class="btn sm" id="useCode">Use this code</button></div>` : ""}

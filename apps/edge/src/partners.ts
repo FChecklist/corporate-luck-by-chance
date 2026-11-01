@@ -109,7 +109,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     const b = await body(req);
     const digits = partnerCode(b?.phone), email = validEmail(b?.email);
     if (!b || !digits) return json({ error: "Enter a valid mobile number." }, 400);
-    if (!email) return json({ error: "Enter a valid e-mail address. We send you a code." }, 400);
+    if (!email) return json({ error: "Enter a valid e-mail address. A code is sent to you." }, 400);
     if (b.consent !== true) return json({ error: "Please agree to join Refer & earn." }, 400);
     if (await overLimit("enroll", 10)) return json({ error: "Too many tries from this network today. Please try again tomorrow." }, 429);
     const name = typeof b.name === "string" ? b.name.replace(/[<>`]/g, "").trim().slice(0, 60) : "";
@@ -136,7 +136,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
   if (req.method === "POST" && p === "/api/partner/enroll/verify") {
     const b = await body(req);
     const email = validEmail(b?.email), code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
-    const bad = () => json({ error: "That code is not right or has expired. Please ask for a new one." }, 400);
+    const bad = () => json({ error: "That code does not match, or it has expired. Please ask for a new one." }, 400);
     if (!email || code.length !== 6) return bad();
     const eh = await sha("pemail|" + email);
     const row = await db.prepare("SELECT v FROM kv WHERE k=?").bind(`penr/${eh}`).first<{ v: string }>();
@@ -176,7 +176,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     return json({ ok: true, sent: true, ...(devCode ? { devCode, devToken } : {}) });
   }
   if (req.method === "POST" && (p === "/api/partner/signin/verify" || p === "/api/partner/signin/link")) {
-    const b = await body(req); const bad = () => json({ error: p.endsWith("link") ? "This sign-in link is not valid any more. Please ask for a new one." : "That code is not right or has expired. Please ask for a new one." }, 400);
+    const b = await body(req); const bad = () => json({ error: p.endsWith("link") ? "This sign-in link has expired. Please ask for a new one." : "That code does not match, or it has expired. Please ask for a new one." }, 400);
     let eh = "";
     if (p.endsWith("link")) {
       const t = typeof b?.token === "string" && /^[0-9a-f]{48}$/.test(b.token) ? b.token : ""; if (!t || (await overLimit("psiglink", 30))) return bad();
@@ -203,7 +203,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
   if (req.method === "POST" && p === "/api/partner/close") { // a partner closes their own account: the partner row (name, hashes, key) goes; commission rows stay as accounting records, without any link to a person
     const k = req.headers.get("x-partner") ?? "";
     const mine = k ? await db.prepare("SELECT code FROM partner WHERE key_hash=?1 OR code IN (SELECT code FROM partner_key WHERE key_hash=?1)").bind(await sha("partner|" + k)).first<{ code: string }>() : null;
-    if (!mine) return json({ error: "Not allowed." }, 403);
+    if (!mine) return json({ error: "That is not open to this sign-in." }, 403);
     await db.batch([db.prepare("DELETE FROM partner WHERE code=?").bind(mine.code), db.prepare("DELETE FROM partner_key WHERE code=?").bind(mine.code)]);
     await helperClosed(env, mine.code, now); // a Help Desk helper's links and keys end with the partner account (helpdesk.ts)
     return json({ ok: true, closed: true });
@@ -215,7 +215,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
   };
   if (req.method === "GET" && p === "/api/partner/me") {
     const m = await me();
-    if (!m) return json({ error: "Not allowed." }, 403);
+    if (!m) return json({ error: "That is not open to this sign-in." }, 403);
     const rows = (await db.prepare("SELECT c.payment_id, c.base, c.currency, c.rate, c.amount, c.status, c.reason, c.created_ms, pay.pack FROM commission c LEFT JOIN payment pay ON pay.id=c.payment_id WHERE c.partner_code=? AND c.is_test=? ORDER BY c.id DESC LIMIT 200").bind(m.code, m.is_test ? 1 : 0).all<any>()).results ?? [];
     const sum = (st: string) => r2(rows.filter((r: any) => r.status === st && r.currency === "INR").reduce((s: number, r: any) => s + (r.amount ?? 0), 0));
     return json({
@@ -227,7 +227,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
   }
 
   // ---- us (platform) ----
-  if (!platform) return json({ error: "Not allowed." }, 403);
+  if (!platform) return json({ error: "That is not open to this sign-in." }, 403);
   if (req.method === "GET" && p === "/api/partners") {
     const t = url.searchParams.get("mode") === "test" ? 1 : 0; // the owner's list shows real partners unless the test ones are asked for
     const rows = (await db.prepare("SELECT p.code, p.name, p.state, p.source, p.enrolled_ms, (SELECT COUNT(*) FROM commission c WHERE c.partner_code=p.code AND c.is_test=?) AS sales, (SELECT COALESCE(SUM(amount),0) FROM commission c WHERE c.partner_code=p.code AND status='accrued' AND c.is_test=?) AS accrued FROM partner p WHERE p.is_test=? ORDER BY p.enrolled_ms DESC LIMIT 500").bind(t, t, t).all<any>()).results ?? [];

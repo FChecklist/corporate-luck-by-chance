@@ -60,13 +60,13 @@ export function layoutReport(d: ReportData): Uint8Array {
   pdf.box("Sent to you", [
     `E-mail address: ${d.organizerEmail}`,
     `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`,
-    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once we delete ours.",
+    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once the system has deleted its own.",
   ], [0.93, 0.96, 1], NAVY);
 
-  pdf.box("What we keep, and what we delete", [
-    `We have given you ALL the data we hold about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, we permanently delete from our systems every participant's name, mobile number, join record, seat assignment and invite link record. After that nobody at Corporate Luck by Chance, and nothing in our software or database, holds them.`,
-    "We keep, for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); and (2) the winners record: which prize, which place, at what time, and the seat number. The winners record holds no names or numbers.",
-    `Everything about this game, including those two records, is deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. We keep billing data for audit and tax reasons.`,
+  pdf.box("What is kept, and what is deleted", [
+    `You have been given ALL the data held about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, the system permanently deletes every participant's name, mobile number, join record, seat assignment and invite link record. After that nobody at Corporate Luck by Chance, and nothing in the software or database, holds them.`,
+    "Only this is kept, for 365 days: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); and (2) the winners record: which prize, which place, at what time, and the seat number. The winners record holds no names or numbers.",
+    `Everything about this game, including those two records, is deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. Billing data is kept for audit and tax reasons.`,
     "For your next game you can reuse the people list until it is deleted (the reuse button in your console), or upload your own list again afterwards from this report.",
   ]);
 
@@ -138,19 +138,19 @@ export function layoutReport(d: ReportData): Uint8Array {
     ["Participants' names and mobile numbers, seats, invite links", istFull(d.personalDeleteAtMs, d.tz)],
     ["Organizer / host / co-host details and the winners record", `00:00 hours IST, ${istDate(d.fullDeleteAtMs)}`],
   ]);
-  pdf.para("You can ask us to delete everything sooner: press 'Delete all participant data now' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail us from your registered address.", { size: 9 });
+  pdf.para("Everything can be deleted sooner on your request: press 'Delete all participant data now' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail from your registered address.", { size: 9 });
 
-  pdf.h1("8. Our commitment to your data");
+  pdf.h1("8. Corporate Luck by Chance's commitment to your data");
   pdf.box("All of it is deleted. Here is exactly what, and when.", [
-    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from our systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that we hold none of it.`,
-    "2. We keep only two things, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
-    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is deleted too. We keep billing data for audit and tax reasons.`,
-    "4. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever built from them.",
+    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from the system within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that none of it is held.`,
+    "2. Only two things are kept, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
+    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is deleted too. Billing data is kept for audit and tax reasons.`,
+    "4. Names and mobile numbers are stored encrypted while they are held, and only your own game's report is ever built from them.",
   ]);
-  pdf.box("The laws we follow", [
+  pdf.box("The laws followed", [
     "Corporate Luck by Chance is built to follow India's Digital Personal Data Protection Act, 2023 (DPDP Act), the European Union's General Data Protection Regulation (GDPR) and the United Kingdom's equivalent, and the privacy laws of the United States, including state laws such as the California Consumer Privacy Act (CCPA / CPRA).",
-    "In practice this means: we collect only the data needed to run your game; we use it only for that purpose; we protect it with encryption; we keep it for the shortest time we can and tell you exactly how long; we never sell it or use it for advertising; and the people who took part, and you, can ask us to show, correct or delete their data at any time.",
-    "You are the organizer of your game and decide who takes part; we process the data on your behalf. To exercise any right, or to ask us anything, reply to the e-mail this report came with.",
+    "In practice this means: only the data needed to run your game is collected; it is used only for that purpose; it is protected with encryption; it is kept for the shortest time possible, and you are told exactly how long; it is never sold or used for advertising; and the people who took part, and you, can ask for their data to be shown, corrected or deleted at any time.",
+    "You are the organizer of your game and decide who takes part; the data is processed on your behalf. To exercise any right, or to ask anything, reply to the e-mail this report came with.",
   ], [0.93, 0.96, 1], NAVY);
   pdf.para(`Sent on ${istFull(d.sentAtMs, d.tz)} to ${d.organizerEmail}.`, { size: 8.5, color: [0.4, 0.43, 0.48] });
   pdf.para(`${BRAND.name}  |  Questions? Write to ${BRAND.support}  |  Rules, privacy and disclaimer: ${BRAND.defaultOrigin}${BRAND.legalPath}`, { size: 8.5, color: [0.4, 0.43, 0.48] });
@@ -208,7 +208,7 @@ export function layoutPeoplePart(d: ReportData, people: ReportPerson[], k: numbe
   pdf.para("Corporate Luck by Chance", { font: "F2", size: 11, color: GOLD, gap: 2 });
   pdf.para(`People, part ${k} of ${n}  |  Game ${d.engagementId}`, { font: "F2", size: 16, color: WHITE });
   pdf.y = pdf.H - 70 - 14;
-  pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is deleted from our systems by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
+  pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is deleted from the system by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
   treeSection(pdf, people); listSection(pdf, people, d.tz);
   return pdf.build();
 }

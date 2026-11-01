@@ -264,7 +264,7 @@ async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (
   const origin = env.PUBLIC_ORIGIN ?? meta.origin ?? "";
   const keptCredit = closed ? await creditFromPayment(db, { ...p, paid_ms: now }, org, meta.eid, now, "late") : null; // a payment for a cancelled or closed game: credit, never a refund
   const lines = [
-    closed ? `Thank you. Your payment was received after the game "${meta.eid}" had been cancelled or closed. We do not give refunds: it stays as credit for the organizer's next game${keptCredit ? ` until ${new Date(keptCredit.expires_ms - 1).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" })}` : ""}.` : `Thank you. Payment received for up to ${p.pack} participants.`,
+    closed ? `Thank you. Your payment was received after the game "${meta.eid}" had been cancelled or closed. It stays as credit for the organizer's next game${keptCredit ? ` until ${new Date(keptCredit.expires_ms - 1).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" })}` : ""}.` : `Thank you. Payment received for up to ${p.pack} participants.`,
     closed ? "The organizer has been told." : published ? `Your game is live. Share the link from your console: ${origin}/zc.html?e=${published}` : organizerKey ? `Your organizer key (keep it private, it is shown only once): ${organizerKey}\nOpen ${origin}/zc.html and paste it to begin.` : `Use your existing organizer key at ${origin}/zc.html to create this game.`,
     `\nINVOICE\n${renderInvoiceText(data)}\nView or print it: ${origin}/api/invoice/${token}`,
   ];
@@ -333,7 +333,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       if (!pv) return json({ error: "Not found" }, 404);
       if (pv.status !== "open") return json({ error: pv.status === "paid" ? "This game has already been paid for." : pv.status === "cancelled" ? "This game was cancelled by the organizer. It cannot be paid for." : pv.status === "closed" ? "This game did not start and is closed. It cannot be paid for." : pv.status === "confirming" ? "A payment for this game is being confirmed. Please wait a few minutes." : "This pay link has run out or was replaced. Ask for the newest link.", status: pv.status }, 409);
       boundPack = packFor(pv.e.cap);
-      if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+      if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
       boundOrg = pv.link.org; boundEid = pv.link.eid; paidBy = "link";
       try { // the same free-plan guard as other public writes: a few attempts per network address per day, and a daily write budget
         const ipk = `plim/${new Date(now).toISOString().slice(0, 10)}/pl${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
@@ -354,7 +354,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       if (await db.prepare("SELECT 1 AS x FROM payment WHERE eid=? AND status<>'paid' AND confirming_ms IS NOT NULL AND confirming_ms>?").bind(b.eid, now - 30 * 60_000).first()) return json({ error: "A payment for this game is being confirmed. Please wait a few minutes.", code: "confirming" }, 409); // a second order while one is being confirmed could charge twice (the pay link and the credit path refuse the same way)
       if (await db.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`startpending/${b.eid}`).first()) return json({ error: "Pick the date and time of this game first.", code: "start-pending" }, 400);
       boundPack = PACKS.find((x) => x[0] >= eg.cap)?.[0] ?? null;
-      if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+      if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
       boundOrg = k.org; boundEid = b.eid;
     }
     const pack = boundPack ?? Number(b?.pack); const cur = b?.currency === "USD" ? "USD" : "INR";
@@ -368,7 +368,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const dial = typeof b.phoneCode === "string" && /^\d{1,4}$/.test(b.phoneCode) ? b.phoneCode : "91", phoneDigits = typeof b.phone === "string" ? b.phone.replace(/\D/g, "").replace(/^0+/, "") : "";
     const contact = phoneDigits.length >= 6 && phoneDigits.length <= 14 ? `+${dial}${phoneDigits}` : "";
     if ((typeof b.country !== "string" || b.country.slice(0, 2) === "IN") && typeof b.taxId === "string" && b.taxId.trim() && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(b.taxId.trim().toUpperCase())) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
-    if (cur === "USD" && rzp && env.RAZORPAY_INTERNATIONAL !== "1") return json({ error: "Payments in US dollars are not switched on yet. Please pay in Indian rupees or write to us." }, 400);
+    if (cur === "USD" && rzp && env.RAZORPAY_INTERNATIONAL !== "1") return json({ error: "Payments in US dollars are not switched on yet. Please pay in Indian rupees or write from the contact page." }, 400);
     if (!(await spend(2))) return busy();
     const full = price(pack, cur);
     // credit already applied to THIS game (by the Organizer, a Host or a Co-host, before this checkout) reduces what is charged; nothing else about credit is ever shown or used here
@@ -431,7 +431,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!rzp) return json({ error: "Online payments are not switched on." }, 400);
     const b = await body(req);
     const row = b && typeof b.paymentId === "string" ? await db.prepare("SELECT * FROM payment WHERE id=?").bind(b.paymentId).first<any>() : null;
-    if (!row || row.rzp_order_id !== b.razorpay_order_id) return json({ error: "We could not match this payment." }, 404);
+    if (!row || row.rzp_order_id !== b.razorpay_order_id) return json({ error: "This payment could not be matched." }, 404);
     if (row.status === "paid") return json(JSON.parse(row.result));
     if (!verifyPaymentSignature(rzp.keySecret, String(b.razorpay_order_id), String(b.razorpay_payment_id), String(b.razorpay_signature)))
       return json({ error: "The payment could not be verified. If money was taken it will be refunded." }, 400);
@@ -522,7 +522,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!eid) return json({ error: "Not found" }, 404);
     const g = await db.prepare("SELECT cap, pack, config, start_round FROM engagement WHERE id=?").bind(eid).first<{ cap: number; pack: number | null; config: string | null; start_round: number }>();
     if (!g || g.pack !== 0) return json({ error: "This game is not waiting for payment." }, 409);
-    const pack = PACKS.find((x) => x[0] >= g.cap)?.[0]; if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+    const pack = PACKS.find((x) => x[0] >= g.cap)?.[0]; if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
     const cur = b.currency === "USD" ? "USD" : "INR", co = company(env), fy = financialYear(new Date(now));
     const credited = Math.round((await creditAppliedFor(db, eid)) * 100) / 100, total = Math.max(0, Math.round((price(pack, cur).total - credited) * 100) / 100);
     const tax = splitGst(total, cur, co.stateCode, typeof b.taxId === "string" && b.taxId.trim() ? b.taxId.trim().toUpperCase() : undefined);

@@ -1,4 +1,4 @@
-# Free demo game and the Rs 1 payment test (owner order 1 Nov 2026)
+# Free demo game and the Rs 1 payment test (1 Nov 2026)
 
 ## Demo game (flag `DEMO_GAME`, OFF by default)
 - Only the exact value `on` switches it on. Off (unset or any other value): games behave exactly as before (the existing Rs 0 game for up to 10 people still works, with no label and no daily limit) and the home page shows no demo link.

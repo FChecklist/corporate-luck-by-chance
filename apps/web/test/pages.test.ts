@@ -146,7 +146,7 @@ describe("console (organizer page)", () => {
     expect(p.win.sessionStorage.getItem("cbz-org")).toMatch(/^cbk_[0-9a-f]{48}$/);
     const again = await page(o, "/signin?t=" + r.devToken + "&go=console", "signin.html", ["signin.js"], {});
     await again.waitFor((x) => /Press the button to sign in/.test(x)); again.click("#go");
-    await again.waitFor((x) => /not valid any more/.test(x));
+    await again.waitFor((x) => /has expired/.test(x));
     expect(again.win.sessionStorage.getItem("cbz-org")).toBeFalsy();
   });
   test("UC-10 / UC-54 held for non-payment: a clear red card, nothing called, no freeze", async () => {
@@ -194,7 +194,7 @@ describe("console (organizer page)", () => {
   const TEN = ["Date and time of the game", "Number of participants", "Set Prizes", "Your brand", "Make hosts and co-hosts", "Invite and Share links", "Check and publish", "Pay", "Game day", "After the game"];
   test("an Organizer sees all ten steps in order, one open at a time, with a hint on every step and Save and continue", async () => {
     const o = await organizer(); await make(o, "UI-TEN");
-    const p = await consolePage(o, "UI-TEN"); await p.waitFor((x) => /Hello\. Let us start/.test(x));
+    const p = await consolePage(o, "UI-TEN"); await p.waitFor((x) => /Hello\. The basics come first/.test(x));
     expect(sections(p)).toEqual(TEN);
     expect(p.win.document.querySelectorAll(".zc-secb").length - 1).toBe(1); // one step body is open (the other .zc-secb is the Help box)
     expect(p.$('[data-save="1"]')!.textContent).toBe("Save and continue");
@@ -789,7 +789,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
 
   test("Send my play link when the server does not know the mobile yet: the console asks for it, then sends it to the server and opens the WhatsApp link", async () => {
     const o = await organizer(); await make(o, "UI-NEEDP"); await publish(o, "UI-NEEDP"); let n = 0; const bodies: any[] = [];
-    const w = spy({ "POST /api/z/UI-NEEDP/people/me": (_m, b) => { bodies.push(b); return ++n === 1 ? { status: 400, body: { error: "We need your mobile number to make your play link.", code: "need-phone" } } : { person: { link: "https://x.test/j/abc", waLink: "https://wa.me/919876543219?text=hi" }, role: "organizer", joined: false }; } });
+    const w = spy({ "POST /api/z/UI-NEEDP/people/me": (_m, b) => { bodies.push(b); return ++n === 1 ? { status: 400, body: { error: "Your mobile number is needed to make your play link.", code: "need-phone" } } : { person: { link: "https://x.test/j/abc", waLink: "https://wa.me/919876543219?text=hi" }, role: "organizer", joined: false }; } });
     const p = await ready(o, "UI-NEEDP", w); await myPeople(p); let opened = ""; p.win.open = (u: string) => { opened = u; return null; };
     p.click("#sendmine"); await p.waitFor((x) => /Type your own mobile number, then press the button again/.test(x)); expect(p.$("#myph")).toBeTruthy(); expect(opened).toBe("");
     setField(p, "#myph", "98765 43219"); p.click("#sendmine"); await p.waitFor(() => !!opened); expect(opened).toBe("https://wa.me/919876543219?text=hi"); expect(bodies).toEqual([{}, { phone: "98765 43219" }]);
@@ -811,7 +811,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     setField(p, "#hostlabel", "Meena"); setField(p, "#hostphone", "98765 43210"); p.click("#hostadd"); await p.waitFor((x) => /Send their link on WhatsApp/.test(x));
     expect(w.st.calls.find((c: any) => c[1] === "/api/org/host")[2]).toEqual({ label: "Meena", e: "UI-HWA", mobile: "98765 43210" });
     const a = p.$("a[data-hostwa]") as any; expect(a.getAttribute("href").startsWith("https://wa.me/919876543210?text=")).toBe(true); expect(decodeURIComponent(a.getAttribute("href"))).toMatch(/#host=cbh_[0-9a-f]{48}/);
-    setField(p, "#hostlabel", "Anita"); setField(p, "#hostemail", "anita@acme.com"); p.click("#hostadd"); await p.waitFor((x) => /Your Hosts: 2 of 5/.test(x) && /We sent their link to their e-mail/.test(x)); expect(p.win.document.querySelectorAll("a[data-hostwa]").length).toBe(1); // the e-mailed Host has no WhatsApp button
+    setField(p, "#hostlabel", "Anita"); setField(p, "#hostemail", "anita@acme.com"); p.click("#hostadd"); await p.waitFor((x) => /Your Hosts: 2 of 5/.test(x) && /Their link was sent to their e-mail/.test(x)); expect(p.win.document.querySelectorAll("a[data-hostwa]").length).toBe(1); // the e-mailed Host has no WhatsApp button
   });
 
 
@@ -936,7 +936,7 @@ describe("console phase 4: Finish setup for a new Host, and Continue with Google
     await p.waitFor((x) => /Finish setup/.test(x)); expect(p.text()).toMatch(/a\*\*\*@acme\.com/); expect(p.$("#sec1")).toBeNull(); expect(p.$("#gbtn")).toBeNull(); // no Google button when the server has no client id
     setField(p, "#setupemail", "someone@else.com"); p.click("#setupsend"); await p.waitFor((x) => /This link is for a\*\*\*@acme\.com/.test(x));
     setField(p, "#setupemail", "anita@acme.com"); p.click("#setupsend"); await p.waitFor(() => !!p.$("#setupcode"));
-    setField(p, "#setupcode", "000000"); p.click("#setupverify"); await p.waitFor((x) => /not right or has expired/.test(x));
+    setField(p, "#setupcode", "000000"); p.click("#setupverify"); await p.waitFor((x) => /does not match, or it has expired/.test(x));
     const code = codeFor(o, "anita@acme.com"); expect(code).toMatch(/^\d{6}$/); setField(p, "#setupcode", code); p.click("#setupverify");
     await p.waitFor((x) => /Your e-mail is checked/.test(x)); const newKey = p.win.sessionStorage.getItem("cbz-org"); expect(newKey).toBe(w.st.last["POST /api/host/setup/email/verify"].token); expect(newKey).toMatch(/^cbh_/); // the key the server handed over for this device is the one the page keeps
     setField(p, "#setupmobile", "123"); p.click("#setupmobilego"); await p.waitFor((x) => /check your mobile number/.test(x));
@@ -1024,7 +1024,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     });
     const p = await consolePage(o, "UI-CRD", o.token, {}, { afterLoad: w.hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x)); openStep(p, 7);
     p.click("#cancelopen"); await p.waitFor((x) => /1st confirmation/.test(x));
-    expect(p.$("#norefund")!.textContent).toBe("There is no refund. Your payment stays as credit for your next game, for 365 days."); expect(p.$("#cancelresched")!.textContent).toBe("Change the date instead");
+    expect(p.$("#norefund")!.textContent).toBe("Your payment stays with you as credit for your next game, valid for 365 days."); expect(p.$("#cancelresched")!.textContent).toBe("Change the date instead");
     p.click("#cancelresched"); await p.waitFor(() => /open/.test(p.$("#sec1")!.className)); expect(p.$("#cancelpanel")).toBeNull(); expect(posts.length).toBe(0); // it goes to step 1 and sends nothing
     openStep(p, 7); p.click("#cancelopen"); await p.waitFor((x) => /1st confirmation/.test(x)); p.click("#cancel1"); await p.waitFor((x) => /2nd confirmation/.test(x));
     expect(p.$("#cancelwhat")!.textContent).toBe("Your credit: Rs 2,399.00, valid until 14 Jun 2027. Guests will be told. Their names and numbers will be deleted. You cannot undo this.");
@@ -1064,7 +1064,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
       { id: "c3", amountInr: 500, remainingInr: 500, createdMs: Date.parse("2025-01-10T12:00:00+05:30"), expiresMs: Date.parse("2026-01-10T12:00:00+05:30"), status: "expired", sourceGame: "OLD-3", uses: [] }] }) });
     const p = await page(o, "/zc", "zc.html", ZC_SCRIPTS, { "cbz-org": o.token, "cbz-aimsg": o.aiMessage }, { afterLoad: w.hook }); await p.waitFor((x) => /Your credit/.test(x));
     const t = p.$("#creditsblock")!.textContent as string; expect(t).toMatch(/Rs 1,000\.00 of Rs 2,399\.00/); expect(t).toMatch(/valid until 14 Jun 2027/); expect(t).toMatch(/Active/); expect(t).toMatch(/used 1 Mar 2026 for NEW-1/); expect(t).toMatch(/Used/); expect(t).toMatch(/lapsed on 10 Jan 2026/); expect(t).toMatch(/Lapsed/);
-    expect(t).toMatch(/We do not give refunds\. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days\. Unused credit lapses at the end of day 365\./);
+    expect(t).toMatch(/A paid game cancelled before it starts stays in the Organizer's account as credit for the next game, valid for 365 days\. Unused credit lapses at the end of day 365\./);
   });
 
   test("a game that waits: the Organizer sees when guest data will be erased; the Co-host sees 'Waiting for the Organizer or Host to start the game.'; a game that did not start says so with the new-game button (and no way to pay)", async () => {
@@ -1117,9 +1117,9 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
   test("words: no 'refund' or 'money back' anywhere in the console; the About lines and Help say credit for 365 days", async () => {
     const js = readFileSync(join(import.meta.dir, "../public/zc.js"), "utf8"); expect(js.match(/money back|money comes back|get back|payment charge kept|Payment charge/g)).toBeNull(); // the words of the old refund screens are gone
     const o = await organizer(); await make(o, "UI-WORDS2"); await publish(o, "UI-WORDS2"); const p = await consolePage(o, "UI-WORDS2"); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x));
-    openStep(p, 7); expect(p.$("#sec7 .zc-about")!.textContent).toMatch(/We do not give refunds: a paid game becomes credit for your next game for 365 days/); openStep(p, 8); expect(p.$("#sec8 .zc-about")!.textContent).toMatch(/your payment stays as credit for 365 days/);
+    openStep(p, 7); expect(p.$("#sec7 .zc-about")!.textContent).toMatch(/A paid game that is cancelled stays with you as credit for your next game, valid for 365 days/); openStep(p, 8); expect(p.$("#sec8 .zc-about")!.textContent).toMatch(/your payment stays as credit for 365 days/);
     p.click('[data-act="help"]'); const q = Array.from(p.win.document.querySelectorAll(".zc-qh")).findIndex((e: any) => /Can I get a refund\?/.test(e.textContent)); expect(q).toBeGreaterThanOrEqual(0); p.click(`[data-q="${q}"]`);
-    expect(p.$(".zc-qa")!.textContent).toBe("We do not give refunds. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days. Unused credit lapses at the end of day 365.");
+    expect(p.$(".zc-qa")!.textContent).toBe("A paid game cancelled before it starts stays in the Organizer's account as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.");
   });
 });
 
