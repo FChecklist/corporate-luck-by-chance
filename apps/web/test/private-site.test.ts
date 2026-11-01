@@ -2,7 +2,7 @@
 //   "The game sites are private; home.corporatetambola.com is the one public face. No search engine lists a game site; join links, organizer links,
 //    payment return, e-mail links and report links keep working."
 // Builds the site, then reads what would be uploaded.
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -11,8 +11,9 @@ const OUT = join(ROOT, "pages/public");
 const walk = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 
 describe("the game site is private (not listed by search engines) but still reachable by link", () => {
+  let b: ReturnType<typeof Bun.spawnSync>;
+  beforeAll(() => { b = Bun.spawnSync(["bun", "run", join(ROOT, "pages/build.mjs")], { cwd: ROOT, stdout: "pipe", stderr: "pipe" }); }, 120_000); // a real build: the 5 s default is too short on a slow laptop
   test("build, then: noindex meta on every page, robots.txt disallows all, no sitemap, X-Robots-Tag header on every address", () => {
-    const b = Bun.spawnSync(["bun", "run", join(ROOT, "pages/build.mjs")], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
     expect(b.exitCode, new TextDecoder().decode(b.stderr)).toBe(0);
     const pages = walk(OUT).filter((f) => f.endsWith(".html"));
     expect(pages.length).toBeGreaterThan(10);
