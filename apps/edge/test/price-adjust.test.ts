@@ -112,6 +112,22 @@ describe("owner price: checkout", () => {
   });
 });
 
+describe("owner price: only the owner's panel can set it", () => {
+  test("nothing an organizer or player can type or send changes the price: no extra field, code or link works, and a game the owner did not set stays at the list price", async () => {
+    const g = await unpaidGame(100);
+    for (const extra of [{ coupon: "X" }, { code: "OWNER" }, { adjust: -500 }, { adjust_minor: -100000 }, { price: 1 }, { amount: 1 }, { promo: "Y" }, { net_minor: 100 }]) {
+      const c = await checkout(g.key, { eid: g.id, email: g.email, ...extra }); expect(c.status).toBe(200);
+      expect(c.body.razorpay.amount).toBe(239900); expect(sentOrders.at(-1).notes.list_minor).toBeUndefined();
+    }
+    expect(q("SELECT * FROM price_adjust")).toEqual([]);
+    await adj({ eid: g.id, currency: "INR", amount: -400, reason: "agreed on phone" }); // the owner sets it for this exact game id
+    const other = await unpaidGame(100); expect((await checkout(other.key, { eid: other.id, email: other.email })).body.razorpay.amount).toBe(239900); // another game id: unaffected
+    expect((await checkout(g.key, { eid: g.id, email: g.email })).body.razorpay.amount).toBe(199900);
+    await adj({ eid: g.id, remove: true }); // removing it restores the normal price
+    expect((await checkout(g.key, { eid: g.id, email: g.email })).body.razorpay.amount).toBe(239900);
+  });
+});
+
 describe("owner price: pending to paid at Rs 1", () => {
   test("through the Razorpay stand-in: a net Rs 1 order is paid and the game goes from not paid to paid; the organizer's invoice has one line, the owner's mail the full picture", async () => {
     const g = await unpaidGame(100);
