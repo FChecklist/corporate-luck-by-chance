@@ -194,7 +194,7 @@
     const showTerms = () => { // a new address (or Google) needs the Terms box ticked first: the button stays disabled until it is
       if (termsShown) return; termsShown = true;
       const k = $("k2slot"); if (!k) return;
-      k.innerHTML = `<p class="small muted" style="margin:12px 0 4px"><b>New here?</b> Tick the box below and your organizer account is created at once. It is free to build and publish.</p><div id="tbSlot" class="tbslot"></div>`;
+      k.innerHTML = `<p class="small muted" style="margin:12px 0 4px"><b>New here?</b> Press Continue and your organizer account is created at once. It is free to build and publish.</p><div id="tbSlot" class="tbslot"></div>`;
       const g = $("lgGo"); if (g) g.disabled = true;
       mountTerms("K2", "tbSlot", "lgGo"); setErr("");
       setTimeout(() => { const f = k.querySelector("input"); if (f) f.focus(); }, 120);

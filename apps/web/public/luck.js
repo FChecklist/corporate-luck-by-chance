@@ -26,7 +26,7 @@
   const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
   const set = (html) => { $app.innerHTML = html; paintBrand(); };
   
-  // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
+  // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; one agreement line, nothing to tick (no tick-boxes since 1 Nov 2026); the server still refuses a join without the version ----------
   let tb = null, NICK = "", EMP = "", PHONE = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
   const joinView = () => {
     const isEmail = !!(INFO && INFO.idKind === "email" && INFO.verify === "id"), vm = (INFO && INFO.verify) || "mobile", needId = vm !== "mobile", needPhone = vm === "both" || vm === "id" || !!(INFO && INFO.joinPhone); // the organizer chose what a person gives to get in
