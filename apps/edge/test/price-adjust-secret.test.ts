@@ -42,3 +42,12 @@ describe("the private price is invisible to the public", () => {
     for (const path of ["/api/owner/panel", "/api/owner/panel?q=X-1", "/api/owner/price?eid=X-1"]) { const r = await call("GET", path); expect(r.status).toBe(404); expect(await r.text()).toBe(unknown); }
   });
 });
+
+describe("the server code never names the private price in a response field", () => {
+  test("no source file other than price-adjust.ts has the word coupon, discount or promo (a response key such as `coupon:` would reach an organizer's browser)", () => {
+    const dir = new URL("../src/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+    const hits: string[] = [];
+    for (const f of readdirSync(dir).filter((x) => x.endsWith(".ts") && x !== "price-adjust.ts")) readFileSync(join(dir, f), "utf8").split("\n").forEach((l, i) => { if (/\b(coupon|promo)\b/i.test(l)) hits.push(`${f}:${i + 1}`); });
+    expect(hits).toEqual([]);
+  });
+});
