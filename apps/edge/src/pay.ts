@@ -27,6 +27,7 @@ import { getMode, mailGate, testFlag, type ModeEnv } from "./mode";
 import { isTestLogin } from "./testlogins";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
 import { recordFunnel } from "./funnel";
+import { PRICE_LINE, adjustFor, adjustMeta, adjustNotes, payablePublic } from "./price-adjust";
 import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs, teamEmails } from "./credit";
 
 export interface PayEnv extends Env, Pick<ModeEnv, "OWNER_EMAIL" | "TEST_MAIL_ALLOW"> {
@@ -257,8 +258,10 @@ async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (
     try { const r = await db.prepare("SELECT v FROM kv WHERE k=?").bind(`contact/${eidForInvoice}`).first<{ v: string }>(); contact = r ? JSON.parse(r.v) : {}; } catch { contact = {}; }
   }
   const organizer = { name: meta.paidBy && meta.paidBy !== "organizer" ? contact.name : meta.name ?? contact.name, org: meta.org || undefined, email: contact.email ?? p.email, phone: contact.phone ? String(contact.phone) : meta.phone };
+  const cp = meta.priceAdjust && !closed && creditTotal === 0 ? meta.priceAdjust as { listMinor: number; adjustMinor: number; netMinor: number } : null; // the owner set a price for this game: the invoice shows ONE line with the amount actually charged
+  const cpnLines = cp && Math.round(p.amount * 100) === cp.netMinor ? [{ description: `${brand.name}: up to ${p.pack} participants (one game), ${PRICE_LINE}`, quantity: 1, amount: tax.taxable }] : null;
   const data: InvoiceData = { number, issuedAt: now, brand, company: co, draft: !!test || companyGaps(co).length > 0, buyer: { name: meta.org || meta.name || "", gstin: meta.taxId || undefined, email: p.email, phone: meta.phone || undefined, country: meta.country }, currency: p.currency,
-    lines: [{ description: closed ? `${brand.name}: payment received after the game closed (kept as credit)` : `${brand.name}: up to ${p.pack} participants (one game)${creditTotal > 0 ? (p.amount > 0 ? ", balance after credit" : ", paid from credit") : ""}`, quantity: 1, amount: tax.taxable }], tax, paymentRef: p.rzp_payment_id ?? undefined, orderRef: p.id, paidAtMs: pinfo?.createdAtMs ?? now, ...(eidForInvoice ? { game: { id: eidForInvoice, ...(gameName ? { name: gameName } : {}), ...(gameStart ? { startMs: gameStart } : {}) } } : {}), organizer, ...(pinfo ? { pay: pinfo } : {}),
+    lines: cpnLines ?? [{ description: closed ? `${brand.name}: payment received after the game closed (kept as credit)` : `${brand.name}: up to ${p.pack} participants (one game)${creditTotal > 0 ? (p.amount > 0 ? ", balance after credit" : ", paid from credit") : ""}`, quantity: 1, amount: tax.taxable }], tax, paymentRef: p.rzp_payment_id ?? undefined, orderRef: p.id, paidAtMs: pinfo?.createdAtMs ?? now, ...(eidForInvoice ? { game: { id: eidForInvoice, ...(gameName ? { name: gameName } : {}), ...(gameStart ? { startMs: gameStart } : {}) } } : {}), organizer, ...(pinfo ? { pay: pinfo } : {}),
     ...(creditTotal > 0 ? { note: `${cuses.map((u) => `Paid from credit of invoice ${u.invoice ?? u.credit_id}: ${rs(u.amount, p.currency)}`).join("; ")}.` } : {}) };
   await db.prepare("INSERT OR IGNORE INTO invoice(token,payment_id,brand,fy,seq,number,issued_ms,data) VALUES(?,?,?,?,?,?,?,?)").bind(token, p.id, brand.id, fy, seq, number, now, JSON.stringify(data)).run();
   const origin = env.PUBLIC_ORIGIN ?? meta.origin ?? "";
@@ -292,7 +295,7 @@ Download the PDF: ${origin}/api/invoice/${token}.pdf`
   await recordFunnelForOrg({ DB: db }, org, "paid", now);
   await recordFunnel(env as any, "payment_succeeded", meta.eid ?? p.id, now, { org }); // sales funnel (funnel.ts)
   // E9: the owner is told of every paid order, once (the claim is inside notifyOwnerOfPaidOrder), whichever path - the webhook or the verify call - got here first
-  try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
+  try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players${cpnLines ? `, owner set price: list ${rs(cp!.listMinor / 100, p.currency)}, adjustment ${cp!.adjustMinor < 0 ? "minus" : "plus"} ${rs(Math.abs(cp!.adjustMinor) / 100, p.currency)}` : ""}`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
   return { result };
 }
 
@@ -314,6 +317,8 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     let name = v.e.id; try { const c = v.e.config ? JSON.parse(v.e.config) : {}; if (typeof c.name === "string" && c.name) name = c.name; } catch { /* the id is the name */ }
     const pub = payLinkPublic(v, name, (1692803367 + (v.e.start_round - 1) * 3) * 1000, url.searchParams.get("currency") === "USD" ? "USD" : "INR");
     // the full price, unless the person who made the link had already applied credit to this game: then (and only then) the reduced amount is what gets charged. The credit itself is never shown.
+    const cpn = pub.price && v.status === "open" && pub.game.participants ? await adjustFor(db, v.e.id, pub.game.participants, pub.price.currency) : null; // a price the owner set for THIS game id: the net is simply what is charged, nothing else is said
+    if (pub.price && cpn) pub.price = { ...pub.price, total: cpn.netMinor / 100, base: cpn.netMinor / 100, gst: 0 };
     const credited = pub.price && v.status === "open" ? await creditAppliedFor(db, v.e.id) : 0;
     if (pub.price && credited > 0 && pub.price.currency === "INR") { const total = Math.max(0, Math.round((pub.price.total - credited) * 100) / 100); pub.price = { ...pub.price, total, base: Math.round((total / 1.18) * 100) / 100, gst: Math.round((total - total / 1.18) * 100) / 100 }; }
     return json(pub);
@@ -370,7 +375,9 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if ((typeof b.country !== "string" || b.country.slice(0, 2) === "IN") && typeof b.taxId === "string" && b.taxId.trim() && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(b.taxId.trim().toUpperCase())) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
     if (cur === "USD" && rzp && env.RAZORPAY_INTERNATIONAL !== "1") return json({ error: "Payments in US dollars are not switched on yet. Please pay in Indian rupees or write from the contact page." }, 400);
     if (!(await spend(2))) return busy();
-    const full = price(pack, cur);
+    const list = price(pack, cur);
+    const cpn = await adjustFor(db, boundEid, pack, cur); // the owner's price for THIS game id (never for a bare pack, never once paid); the list price itself is untouched
+    const full = cpn ? { total: cpn.netMinor / 100, base: cpn.netMinor / 100, tax: 0 } : list;
     // credit already applied to THIS game (by the Organizer, a Host or a Co-host, before this checkout) reduces what is charged; nothing else about credit is ever shown or used here
     const credited = boundEid ? Math.round((await creditAppliedFor(db, boundEid)) * 100) / 100 : 0;
     const cash = Math.round((full.total - credited) * 100) / 100;
@@ -378,10 +385,10 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const pr = credited > 0 ? { total: cash, base: cur === "INR" ? Math.round((cash / 1.18) * 100) / 100 : cash, tax: cur === "INR" ? Math.round((cash - cash / 1.18) * 100) / 100 : 0 } : full;
     const id = "pay_" + randHex(8);
     await recordConsent(db, { subject: boundOrg ?? "payer", kind: "K3", ref: id, now }); // K3: stored with the payment it was for
-    const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}) };
+    const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}), ...adjustMeta(cpn) };
     let order: any = null;
     if (rzp) {
-      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `luck_pack_${pack}`, user: boundOrg ?? null, email: b.email.trim().toLowerCase(), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-luck-by-chance.pages.dev", stream: "sales", product: "corporate_luck_by_chance", plan: `luck_pack_${pack}`, variation: `luck_pack_${pack}`, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), payment_ref: id } }); }
+      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `luck_pack_${pack}`, user: boundOrg ?? null, email: b.email.trim().toLowerCase(), notes: { ...adjustNotes(cpn), brand: brand.name, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), site: env.PAY_SITE ?? "corporate-luck-by-chance.pages.dev", stream: "sales", product: "corporate_luck_by_chance", plan: `luck_pack_${pack}`, variation: `luck_pack_${pack}`, payment_ref: id } }); }
       catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     }
     const ref = (await helperRefFor(db, boundEid)) ?? refCode(b.ref); // a game a Help Desk helper prepared always pays its helper (helpdesk.ts); otherwise from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
@@ -524,13 +531,13 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!g || g.pack !== 0) return json({ error: "This game is not waiting for payment." }, 409);
     const pack = PACKS.find((x) => x[0] >= g.cap)?.[0]; if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
     const cur = b.currency === "USD" ? "USD" : "INR", co = company(env), fy = financialYear(new Date(now));
-    const credited = Math.round((await creditAppliedFor(db, eid)) * 100) / 100, total = Math.max(0, Math.round((price(pack, cur).total - credited) * 100) / 100);
+    const credited = Math.round((await creditAppliedFor(db, eid)) * 100) / 100, pcp = credited > 0 ? null : await adjustFor(db, eid, pack, cur), total = Math.max(0, Math.round(((pcp ? pcp.netMinor / 100 : price(pack, cur).total) - credited) * 100) / 100);
     const tax = splitGst(total, cur, co.stateCode, typeof b.taxId === "string" && b.taxId.trim() ? b.taxId.trim().toUpperCase() : undefined);
     let gameName: string | undefined; try { const c = g.config ? JSON.parse(g.config) : {}; if (typeof c.name === "string" && c.name) gameName = c.name.slice(0, 120); } catch { /* the id is the name */ }
     const s = (x: unknown, n: number) => (typeof x === "string" ? x.trim().slice(0, n) : "");
     const data: InvoiceData = { kind: "proforma", number: `PF-${fy}-${eid}`.slice(0, 60), issuedAt: now, brand, company: co, draft: false, currency: cur,
       buyer: { name: s(b.org, 120) || s(b.name, 120) || "(your name)", gstin: s(b.taxId, 20) || undefined, email: s(b.email, 120) || undefined, phone: s(b.phone, 20) || undefined, country: s(b.country, 2) || undefined },
-      lines: [{ description: `${brand.name}: up to ${pack} participants (one game)${credited > 0 ? ", balance after credit" : ""}`, quantity: 1, amount: tax.taxable }], tax, orderRef: eid,
+      lines: [{ description: `${brand.name}: up to ${pack} participants (one game)${pcp ? `, ${PRICE_LINE}` : credited > 0 ? ", balance after credit" : ""}`, quantity: 1, amount: tax.taxable }], tax, orderRef: eid,
       game: { id: eid, name: gameName, startMs: (1692803367 + (g.start_round - 1) * 3) * 1000 }, organizer: { name: s(b.name, 120) || undefined, org: s(b.org, 120) || undefined, email: s(b.email, 120) || undefined },
       note: "This is a proforma invoice. It is NOT PAID and is not a tax invoice. Pay now to receive your invoice, and the same invoice is e-mailed to you and to the organizer." };
     const full = renderInvoiceHtml(data), style = full.match(/<style>[\s\S]*?<\/style>/)?.[0] ?? "";
