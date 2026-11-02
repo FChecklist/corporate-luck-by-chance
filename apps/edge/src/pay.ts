@@ -62,17 +62,17 @@ const rzpOf = (env: PayEnv): (RazorpayConfig) | null => (env.RAZORPAY_KEY_ID && 
  * razorpay / IT Services / <website> / <stream> / <plan>. This site is the "sales" stream; the plan is the pack (pack_250) or payment_test.
  * Without PAY_SERVICE_KEY, or if the central service cannot be reached, the order is opened directly with Razorpay exactly as before (the webhook still reaches the ledger).
  */
-async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string }): Promise<CreatedOrder> {
+async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string; gameId?: string | null }): Promise<CreatedOrder> {
   const c = centralOf(env);
   if (c) {
     try {
-      const r = await fetch(`${c.url}/api/pay/order`, { method: "POST", headers: { "content-type": "application/json", "x-site-key": c.key }, body: JSON.stringify({ site: c.site, product: "corporate_luck_by_chance", plan: o.plan, amount_minor: o.amountMinor, currency: o.currency, payment_ref: o.receipt, extra_notes: o.notes, ...(o.user ? { user: o.user } : {}), ...(o.email ? { payer_email: o.email } : {}) }), signal: AbortSignal.timeout(6000) });
+      const r = await fetch(`${c.url}/api/pay/order`, { method: "POST", headers: { "content-type": "application/json", "x-site-key": c.key }, body: JSON.stringify({ site: c.site, product: "corporate_luck_by_chance", plan: o.plan, amount_minor: o.amountMinor, currency: o.currency, payment_ref: o.receipt, extra_notes: o.notes, ...(o.gameId ? { game_id: o.gameId } : {}), ...(o.user ? { user: o.user } : {}), ...(o.email ? { payer_email: o.email } : {}) }), signal: AbortSignal.timeout(6000) });
       const d: any = await r.json().catch(() => ({}));
       if (r.ok && d.orderId) return { id: d.orderId, amount: o.amountMinor, currency: o.currency, receipt: o.receipt, status: "created" };
       console.warn("central order refused", r.status, d?.error);
     } catch (e) { console.warn("central order unreachable", String(e)); }
   }
-  return createOrder(rzp, { ...o, notes: { ...o.notes, txn_id: txnIdOf(o.receipt) } }); // opened straight with Razorpay (central service down or not set): the txn_id still travels in the order notes (A)
+  return createOrder(rzp, { ...o, notes: { ...o.notes, ...(o.gameId ? { game_id: o.gameId } : {}), txn_id: txnIdOf(o.receipt) } }); // opened straight with Razorpay (central service down or not set): the txn_id still travels in the order notes (A)
 }
 /** After a correctly signed payment: tell the central ledger (best effort, never blocks or fails the buyer; the central webhook records it too). */
 async function reportToCentral(env: PayEnv, b: any): Promise<any | null> {
@@ -162,7 +162,7 @@ async function fulfilPaytest(env: PayEnv, p: any, meta: any, now: number) {
   const tax = splitGst(p.amount, p.currency, co.stateCode, undefined);
   const data: InvoiceData = { number, issuedAt: now, brand, company: co, draft: false, buyer: { name: meta.org || meta.name, gstin: meta.taxId || undefined, email: p.email, phone: meta.phone || undefined, country: meta.country }, currency: p.currency,
     lines: [{ description: `${brand.name}: payment test (nothing was bought)`, quantity: 1, amount: tax.taxable }], tax, paymentRef: p.rzp_payment_id ?? undefined, orderRef: p.id, paidAtMs: pinfo?.createdAtMs ?? now,
-    organizer: { name: meta.name, email: p.email, phone: meta.phone || undefined }, ...(pinfo ? { pay: pinfo } : {}), note: "This receipt is for a payment test. No game, pack or credit was bought." };
+    organizer: { name: meta.name, email: p.email, phone: meta.phone || undefined }, ...(meta.testRef ? { game: { id: meta.testRef } } : {}), ...(pinfo ? { pay: pinfo } : {}), note: "This receipt is for a payment test. No game, pack or credit was bought." };
   const token = "inv_" + randHex(16);
   await db.prepare("INSERT OR IGNORE INTO invoice(token,payment_id,brand,fy,seq,number,issued_ms,data) VALUES(?,?,?,?,?,?,?,?)").bind(token, p.id, brand.id, fy, seq, number, now, JSON.stringify(data)).run();
   const origin = env.PUBLIC_ORIGIN ?? meta.origin ?? "";
@@ -385,10 +385,10 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const pr = credited > 0 ? { total: cash, base: cur === "INR" ? Math.round((cash / 1.18) * 100) / 100 : cash, tax: cur === "INR" ? Math.round((cash - cash / 1.18) * 100) / 100 : 0 } : full;
     const id = "pay_" + randHex(8);
     await recordConsent(db, { subject: boundOrg ?? "payer", kind: "K3", ref: id, now }); // K3: stored with the payment it was for
-    const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}), ...adjustMeta(cpn) };
+    const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, gameId: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}), ...adjustMeta(cpn) };
     let order: any = null;
     if (rzp) {
-      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `luck_pack_${pack}`, user: boundOrg ?? null, email: b.email.trim().toLowerCase(), notes: { ...adjustNotes(cpn), brand: brand.name, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), site: env.PAY_SITE ?? "corporate-luck-by-chance.pages.dev", stream: "sales", product: "corporate_luck_by_chance", plan: `luck_pack_${pack}`, variation: `luck_pack_${pack}`, payment_ref: id } }); }
+      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `luck_pack_${pack}`, user: boundOrg ?? null, gameId: boundEid, email: b.email.trim().toLowerCase(), notes: { ...adjustNotes(cpn), brand: brand.name, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), site: env.PAY_SITE ?? "corporate-luck-by-chance.pages.dev", stream: "sales", product: "corporate_luck_by_chance", plan: `luck_pack_${pack}`, variation: `luck_pack_${pack}`, payment_ref: id } }); }
       catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     }
     const ref = (await helperRefFor(db, boundEid)) ?? refCode(b.ref); // a game a Help Desk helper prepared always pays its helper (helpdesk.ts); otherwise from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
@@ -423,12 +423,13 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!(await spend(2))) return busy();
     const id = "pay_" + randHex(8);
     await recordConsent(db, { subject: id, kind: "K3", ref: id, now }); // K3: stored with the test payment it was for
+    const testRef = typeof b.gameId === "string" ? b.gameId.trim().replace(/[^A-Za-z0-9 _.-]/g, "").slice(0, 40) : ""; // optional free text, never looked up
     let order: any;
-    try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: b.email.trim().toLowerCase(), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-luck-by-chance.pages.dev", stream: "sales", product: "corporate_luck_by_chance", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
+    try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: b.email.trim().toLowerCase(), notes: { ...(testRef ? { test_ref: testRef } : {}), brand: brand.name, site: env.PAY_SITE ?? "corporate-luck-by-chance.pages.dev", stream: "sales", product: "corporate_luck_by_chance", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
     catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     const taxId = typeof b.taxId === "string" ? b.taxId.trim().toUpperCase().slice(0, 20) : "";
     if (cty === "IN" && taxId && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(taxId)) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
-    const meta = { paytest: true, name: nm.slice(0, 120), ...(typeof b.org === "string" && b.org.trim() ? { org: b.org.trim().slice(0, 120) } : {}), ...(taxId ? { taxId } : {}), ...(contact ? { phone: contact } : {}), country: cty, origin: env.PUBLIC_ORIGIN ?? url.origin };
+    const meta = { paytest: true, name: nm.slice(0, 120), ...(typeof b.org === "string" && b.org.trim() ? { org: b.org.trim().slice(0, 120) } : {}), ...(taxId ? { taxId } : {}), ...(testRef ? { testRef } : {}), ...(contact ? { phone: contact } : {}), country: cty, origin: env.PUBLIC_ORIGIN ?? url.origin };
     const lf = ledgerFields(siteOf(meta.origin), "payment_test", "payment_test", null);
     await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,is_test,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), 0, cur, 1, 0, order.id, "created", now, JSON.stringify(meta), lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
     return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: 100, currency: cur, name: brand.name, description: "(close group dice game software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: nm.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
