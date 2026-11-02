@@ -1,4 +1,4 @@
-// The page side of the free demo game and of the owner-only Rs 1 payment test: the real pages in a DOM against the real Worker.
+// The page side of the free demo game and of the Rs 1 payment test (open to everybody since the second release): the real pages in a DOM against the real Worker.
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -32,10 +32,9 @@ describe("Demo label on every screen", () => {
   });
 });
 describe("Rs 1 payment test page", () => {
-  test("asks for the owner key (a password box kept in memory) and sends it as the platform key, never in the address", async () => {
+  test("needs no key (open to everybody): no password box, nothing sent as the platform key, nothing read from the address", async () => {
     const p = await load(newWorld({ DATA_KEY: "k" }), "paytest.html");
-    const k = p.$("#okey"); expect(k.type).toBe("password"); expect(k.getAttribute("autocomplete")).toBe("off");
-    const js = src("paytest.js"); expect(js).toContain("{ key: (S.key || \"\").trim() }"); expect(js).not.toMatch(/localStorage|sessionStorage|\?key=/);
-    expect(src("common.js")).toContain('headers["x-organizer"] = opt.key');
+    expect(p.$("#okey")).toBeNull();
+    const js = src("paytest.js"); expect(js).not.toMatch(/okey|x-organizer|localStorage|sessionStorage|\?key=|location\.(hash|search)/);
   });
 });

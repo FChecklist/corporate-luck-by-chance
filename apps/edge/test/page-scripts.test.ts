@@ -15,8 +15,19 @@ describe("pages that show the Terms boxes load termsbox.js first and at once", (
     if (at < 0) continue;
     test(f, () => {
       expect(list[at]!.attrs).not.toMatch(/\bdefer\b|\basync\b/);
-      const users = list.slice(0, at).filter((s) => !/\b(defer|async)\b/.test(s.attrs) && /\/(site|pay|paylink|signin|ai-link|zc|luck)\.js$/.test(s.src));
+      const users = list.slice(0, at).filter((s) => !/\b(defer|async)\b/.test(s.attrs) && /\/(site|signin|ai-link|zc|luck)\.js$/.test(s.src));
       expect(users.map((s) => s.src)).toEqual([]); // none of the scripts that draw the boxes runs before termsbox.js
+    });
+  }
+});
+
+// The three payment pages (pay, paylink, paytest) draw the one agreement line from consent.js (CBConsent), which must run before their script, at once.
+describe("the payment pages load consent.js first and at once", () => {
+  for (const f of ["pay.html", "paylink.html", "paytest.html"]) {
+    test(f, () => {
+      const list = scripts(readFileSync(join(DIR, f), "utf8"));
+      const at = list.findIndex((s) => s.src.includes("consent.js")), page = list.findIndex((s) => /\/(pay|paylink|paytest)\.js$/.test(s.src));
+      expect(at).toBeGreaterThanOrEqual(0); expect(page).toBeGreaterThan(at); expect(list[at]!.attrs).not.toMatch(/defer|async/);
     });
   }
 });

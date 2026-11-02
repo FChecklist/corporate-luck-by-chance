@@ -525,11 +525,11 @@ describe("central payments (every order opens through IT Services by Rajat Agarw
     expect(central.orders[0]).toMatchObject({ key: "psk_test", site: "corporate-luck-by-chance.pages.dev", product: "corporate_luck_by_chance", plan: "luck_pack_500", extra_notes: { site: "corporate-luck-by-chance.pages.dev", stream: "sales", plan: "luck_pack_500" }, amount_minor: 469900, currency: "INR" });
     expect(central.orders[0].payment_ref).toMatch(/^pay_[0-9a-f]{16}$/);
   });
-  test("the Rs 1 payment test is the owner's only: no key, a wrong key, a link key and the status page all get the plain 404 and no order is made", async () => {
+  test("the Rs 1 payment test is open to everybody: no key, a wrong key and a link key all get an order of 100 paise; an unknown status address is still a plain 404", async () => {
     const body = { email: "a@b.co", name: "Asha Rao", country: "IN" };
-    for (const h of [{}, { "x-organizer": "wrong" }, { "x-organizer": "plat", "x-cb-link": "1" }] as Record<string, string>[]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(404); expect(await r.json()).toEqual({ error: "Not found" }); }
+    for (const h of [{}, { "x-organizer": "wrong" }, { "x-organizer": "plat", "x-cb-link": "1" }] as Record<string, string>[]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(200); }
     expect((await call("GET", "/api/payments/paytest/pay_0000000000000000")).status).toBe(404);
-    expect(central.orders.length).toBe(0); expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 0 });
+    expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 3 });
   });
   test("the payment test is the payment_test plan", async () => {
     const r = await call("POST", "/api/payments/paytest", { email: "a@b.co", name: "Asha Rao", country: "IN" }, { "x-organizer": "plat" });
