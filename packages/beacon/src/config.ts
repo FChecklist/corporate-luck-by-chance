@@ -232,7 +232,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
   }
   const kindIn = input.idKind !== undefined ? input.idKind : legacyEmail ? "email" : undefined;
   if (kindIn !== undefined) {
-    if (kindIn !== "email" && kindIn !== "emp") return { ok: false, error: "What the ID is: an employee ID or an Email ID." };
+    if (kindIn !== "email" && kindIn !== "emp") return { ok: false, error: "Choose an Employee ID or an Email ID." };
     if (kindIn === "email") {
       if (verifyIn !== undefined && verifyIn !== "id") return { ok: false, error: "An Email ID is asked on its own: choose Email ID only, not a mobile number with it." };
       if (cfg.verify !== undefined && cfg.verify !== "id") return { ok: false, error: "An Email ID is asked on its own: choose Email ID only, not a mobile number with it." };

@@ -4,7 +4,7 @@ window.ZFLOW_GAME = {
   brand: "Corporate Luck by Chance",
   tickets: [1],
   bumper: false,
-  idKind: true,               // the pack shows "Which ID?" (Employee ID | Email ID) in step 2 and saves the game setting idKind (emp | email): the same field Luck's own console and join page read
+  idKind: true,               // the pack shows "Which Employee or Email ID?" (Employee ID | Email ID) in step 2 and saves the game setting idKind (emp | email): the same field Luck's own console and join page read
   sample: false, board: false, claims: false, handover: false,
   rehearsal: false, feed: false, presence: false, control: false, lucky: false,
   popular: [], recommended: [],
