@@ -20,9 +20,9 @@ describe("the deployed legal pages equal the final pages", () => {
     expect(TERMS_VERSION).toBe("2026-11-01"); expect((TEXT as any).version).toBe(TERMS_VERSION);
     expect(mainText(read("apps/web/public/terms.html"))).toContain(`Version ${TERMS_VERSION}`); expect(mainText(read("site/terms.html"))).toContain(`Version ${TERMS_VERSION}`);
   });
-  test("the Terms say Luck by Chance only: clause 6.2 is here, the ticket clause 6.1 and every other game's name are not", () => {
+  test("the Terms are the one document common to all the games: they carry the Luck by Chance rules (9.6) and the same document the other games carry", () => {
     const t = mainText(read("apps/web/public/terms.html"));
-    expect(t).toContain("Corporate Luck by Chance"); expect(t.replace(/corporatetambola\.com/g, "")).not.toMatch(/Tambola|Bingo|Snakes|Tic Tac Toe/i); // the shared domain name is not another game
+    expect(t).toContain("9.6 Luck by Chance"); expect(t).toContain("Corporate Tambola and its sister games"); expect(t).toContain("Credit instead of a refund");
   });
 });
 
