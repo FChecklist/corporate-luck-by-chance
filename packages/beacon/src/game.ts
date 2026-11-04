@@ -146,7 +146,7 @@ export function unshiftedRound(start: number, stride: number, breaks: readonly B
 /** The beacon round call k of round `round` uses, with the organizer's signed pauses applied. Null when the engagement was stopped before it. */
 export function callRoundR(st: ControlState | null, start: number, stride: number, breaks: readonly BreakCfg[], round: number, k: number): number | null {
   let a = unshiftedRound(start, stride, breaks, round, k);
-  if (st) { for (const i of st.intervals) if (a >= i.start) a += i.end - i.start; if (st.stopRound !== null && a >= st.stopRound) return null; }
+  if (st) { for (const i of st.intervals) if (a >= i.start && i.end > start) a += i.end - Math.max(i.start, start); if (st.stopRound !== null && a >= st.stopRound) return null; }
   return a;
 }
 /**

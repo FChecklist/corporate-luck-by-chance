@@ -17,7 +17,7 @@ export interface Tally { seat: number; points: number; hits: number; best: numbe
 export const emptyTally = (seat: number, nf = false): Tally => (nf ? { seat, points: 0, hits: 0, best: 0, reachedAt: -1, nf: true, fives: 0 } : { seat, points: 0, hits: 0, best: 0, reachedAt: -1 });
 /** New-flow points for a dice: exact 10, 1 away 5, 2 away 3, 3 or more away 1 (a dice always counts: the press happened). */
 export const nfPoints = (target: number, dice: number): number => { const d = Math.abs(target - dice); return d === 0 ? 10 : d === 1 ? 5 : d === 2 ? 3 : 1; };
-export function addNf(t: Tally, g: number, pts: number): void { t.points += pts; if (pts === 10) t.hits++; if (pts === 5) t.fives = (t.fives ?? 0) + 1; if (pts > 0) t.reachedAt = g; }
+export function addNf(t: Tally, g: number, pts: number): void { t.points += pts; if (pts === 10) t.hits++; if (pts === 5) t.fives = (t.fives ?? 0) + 1; if (pts > 0) t.reachedAt = g; /* "reached the score" = the last dice round that added points: a seat that did not press scored nothing and has not reached anything new (smoke rules G-05, G-06, G-10) */ }
 export function addHit(t: Tally, g: number, target: number): void { t.points += target; t.hits++; if (target > t.best) t.best = target; t.reachedAt = g; }
 
 export type Measure = "points" | "best" | "hits" | "earliest" | "fate" | "exact" | "fives";
@@ -58,7 +58,7 @@ export async function rankTop(gameId: string, label: string, beacon: string, tal
   }
   const ranked: Ranked[] = [];
   for (let i = 0; i < n; i++) {
-    const t = out[i]!, prev = out[i - 1], next = out[i + 1];
+    const t = out[i]!, prev = out[i - 1], next = out[i + 1] ?? sorted[i + 1]; /* the player just below the list counts as the neighbour of the last place (smoke rules G-10, G-11) */
     // how was this place decided? by the first measure that separates it from the neighbour it was tied on points with
     const tiedPrev = prev && prev.points === t.points, tiedNext = next && next.points === t.points;
     let decidedBy: Measure | null = null, line = "";
