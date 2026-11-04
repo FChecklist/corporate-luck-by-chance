@@ -195,7 +195,8 @@ export const pausedAt = (s: ControlState, round: number) => s.intervals.some((i)
  */
 export function callRound(s: ControlState, startRound: number, strideRounds: number, k: number): number | null {
   let a = startRound + k * strideRounds;
-  for (const i of s.intervals) if (a >= i.start) a += i.end - i.start;
+  // a pause delays only the time it covers after the first call is due: one that ended before startRound delays nothing, one that began before it only by what is left of it (smoke rule C-08)
+  for (const i of s.intervals) if (a >= i.start && i.end > startRound) a += i.end - Math.max(i.start, startRound);
   return s.stopRound !== null && a >= s.stopRound ? null : a;
 }
 

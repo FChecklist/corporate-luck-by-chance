@@ -55,7 +55,7 @@ export async function ensureL(env: Env, eid: string): Promise<TRow> {
 export const gameStarted = async (env: Env, eid: string): Promise<boolean> => !!(await env.DB.prepare("SELECT 1 AS x FROM luck_t WHERE eid=? AND state<>'open'").bind(eid).first());
 export function endBoundLuck(startMs: number, t: { end_ms: number | null; ended_ms: number | null } | null): number { return t?.ended_ms ? t.ended_ms + 60_000 : t?.end_ms ? t.end_ms + NO_AGREEMENT_MS + 60_000 : startMs + MAX_MS; }
 
-const cleanName = (n: unknown) => String(n ?? "").replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, 24) || "Player";
+export const cleanName = (n: unknown) => String(n ?? "").replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, 24).replace(/[\uD800-\uDBFF]$/, "").trim() || "Player"; // cut to 24 first, then drop half an emoji and a blank the cut left (smoke rule R-16)
 
 // ---------------------------------------------------------------------------------------------------------------- results (votes of the phones)
 export interface ResultLine { seat: number; points: number; hits: number; best: number; line: string }
