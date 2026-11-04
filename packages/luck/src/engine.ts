@@ -17,7 +17,7 @@ export interface Tally { seat: number; points: number; hits: number; best: numbe
 export const emptyTally = (seat: number, nf = false): Tally => (nf ? { seat, points: 0, hits: 0, best: 0, reachedAt: -1, nf: true, fives: 0 } : { seat, points: 0, hits: 0, best: 0, reachedAt: -1 });
 /** New-flow points for a dice: exact 10, 1 away 5, 2 away 3, 3 or more away 1 (a dice always counts: the press happened). */
 export const nfPoints = (target: number, dice: number): number => { const d = Math.abs(target - dice); return d === 0 ? 10 : d === 1 ? 5 : d === 2 ? 3 : 1; };
-export function addNf(t: Tally, g: number, pts: number): void { t.points += pts; if (pts === 10) t.hits++; if (pts === 5) t.fives = (t.fives ?? 0) + 1; t.reachedAt = g; }
+export function addNf(t: Tally, g: number, pts: number): void { t.points += pts; if (pts === 10) t.hits++; if (pts === 5) t.fives = (t.fives ?? 0) + 1; if (pts > 0) t.reachedAt = g; }
 export function addHit(t: Tally, g: number, target: number): void { t.points += target; t.hits++; if (target > t.best) t.best = target; t.reachedAt = g; }
 
 export type Measure = "points" | "best" | "hits" | "earliest" | "fate" | "exact" | "fives";

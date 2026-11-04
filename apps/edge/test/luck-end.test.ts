@@ -65,6 +65,17 @@ describe("R51: the organizer ends a running game", () => {
     const rank = await j(await call("GET", "/api/z/LE-1/luck/rank", undefined, {}, e.endsMs + 3000)); expect(rank.agreed).toBe(true); expect(rank.rounds.length).toBe(1); expect(rank.overall.length).toBe(4);
     expect(sql("SELECT COUNT(*) c FROM winner WHERE eid='LE-1'")[0].c).toBeGreaterThan(0);
   });
+  test("R-15: a player the organizer removed during the game is not on the podium; the next player moves up", async () => {
+    const o = await game("LE-R15"); const ps = await joinAll("LE-R15", 4);
+    const st = await j(await call("POST", "/api/z/LE-R15/luck/start", { settings: SET }, o.h));
+    const e = await j(await call("POST", "/api/z/LE-R15/luck/end", {}, o.h, st.startMs + 5000));
+    const { result } = await phoneResult("LE-R15", 4, e.endsMs + 1);
+    const top = sql("SELECT pid FROM luck_p WHERE eid='LE-R15' AND seat=?", result.overall[0]!.seat)[0].pid, next = sql("SELECT pid FROM luck_p WHERE eid='LE-R15' AND seat=?", result.overall[1]!.seat)[0].pid;
+    raw.run("UPDATE seat SET blocked=1 WHERE eid='LE-R15' AND pid=?", [top]);
+    for (const p of ps.filter((q) => q.pid !== top).slice(0, 3)) { const x = await call("POST", "/api/z/LE-R15/luck/vote", { pid: p.pid, device: p.device, result }, {}, e.endsMs + 2000); expect(x.status).toBe(200); }
+    const pids = sql("SELECT pattern, pids FROM settled WHERE eid='LE-R15'").map((r) => [r.pattern, JSON.parse(r.pids)[0]]);
+    expect(pids.some((r) => r[1] === top)).toBe(false); expect(pids.find((r) => r[0] === "first")![1]).toBe(next);
+  });
   test("a result with 3 rounds is refused after the end (the game has 1), and nobody gets points for dice rounds that were never published", async () => {
     const o = await game("LE-2"); const ps = await joinAll("LE-2", 4);
     const st = await j(await call("POST", "/api/z/LE-2/luck/start", { settings: SET }, o.h));

@@ -92,9 +92,12 @@ async function settleVotes(env: Env, t: TRow, now: number): Promise<TRow> {
     const res: LuckResult = JSON.parse(row!.payload);
     const endMs = Math.max(t.end_ms ?? 0, now);
     const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='done', result=?, ended_ms=? WHERE eid=? AND state='running'").bind(row!.payload, endMs, t.eid)];
-    for (let i = 0; i < PODIUM.length; i++) {
-      const w = res.overall[i]; if (!w) continue;
+    let place = 0; // a removed (blocked) player takes no place: the next one moves up
+    for (const w of res.overall) {
+      if (place >= PODIUM.length) break;
       const who = await env.DB.prepare("SELECT pid FROM luck_p WHERE eid=? AND seat=?").bind(t.eid, w.seat).first<{ pid: string }>(); if (!who) continue;
+      if (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND pid=? AND blocked=1").bind(t.eid, who.pid).first()) continue;
+      const i = place++;
       stmts.push(env.DB.prepare("INSERT OR REPLACE INTO settled(eid,pattern,ordinal,round,idx,pids) VALUES(?,?,?,?,?,?)").bind(t.eid, PODIUM[i], 1, 1, 0, JSON.stringify([who.pid])));
       const shellSeat = parseInt(who.pid, 10);
       if (Number.isFinite(shellSeat)) stmts.push(env.DB.prepare("INSERT OR REPLACE INTO winner(eid,round,pattern,ordinal,seat,idx,at_ms,src) VALUES(?,?,?,?,?,?,?,?)").bind(t.eid, 1, PODIUM[i], 1, shellSeat, 0, endMs, "phones"));
