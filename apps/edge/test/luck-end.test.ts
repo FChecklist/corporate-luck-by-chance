@@ -46,7 +46,7 @@ async function phoneResult(id: string, players: number, now: number) {
   const rounds = []; for (let r = 1; r <= settings.rounds; r++) rounds.push((await g.roundRanking(r)).map(line));
   return { settings, vals, result: { overall: (await g.overallRanking()).map(line), rounds } };
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://luck.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://luck.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
 
 describe("R51: the organizer ends a running game", () => {
   test("ending in round 1 of 3: the game has 1 round from now on, the feed stops there, and the phones' result is the final one", async () => {

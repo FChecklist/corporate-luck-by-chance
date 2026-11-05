@@ -27,7 +27,7 @@ async function game(id: string, publish = true) {
   return { h };
 }
 const view = async (id: string) => j(await call("GET", `/api/z/${id}/luck/view`));
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://luck.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://luck.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
 
 describe("message to everyone reaches the public game view", () => {
   test("no message: the view says ann is null; a sent message appears in the view for everyone, with an id and the text only", async () => {
