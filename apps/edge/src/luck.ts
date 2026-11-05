@@ -131,9 +131,12 @@ async function beginGame(c: LuckCtx, t: TRow, s: LuckSettings, startMs: number):
   if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
   const endMs = gameEndMs(s, startMs);
   const seed = await seedOf(t.secret!, c.eid, players.map((p) => p.pid));
-  const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, eid)];
+  // The players are written FIRST (each press starts from a clean list), the game is switched to "running" LAST in its own step: if a passing database hiccup stops a big game (more than 89 players = several steps) half-way,
+  // the game is still "open", so the next press simply does it all again instead of finding a running game with missing players (5 Nov 2026 audit).
+  const stmts: any[] = [env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(eid)];
   players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) VALUES(?,?,?,?)").bind(eid, p.pid, i, p.name)));
   for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+  await env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, eid).run();
   return json({ ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s), commit: t.commit_hash, secretShownAt: "reveal" });
 }
 const WAITING_ROOM_MS = 120_000;
