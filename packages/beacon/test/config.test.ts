@@ -15,10 +15,10 @@ const bad = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); 
 /** The older all-numbers pattern of the shared ticket code: not one of this game's places, so the tests below name it through `never`. */
 const BLACKOUT = "blackout" as never;
 describe("engagement settings", () => {
-  test("nothing set gives one card, the three default places with no text, auto marking and no breaks", () => {
+  test("nothing set gives one card, the five default places with no text, auto marking and no breaks", () => {
     const c = ok({});
     expect(c.tickets).toBe(1);
-    expect(c.rewards.map((r) => r.pattern)).toEqual(["first", "second", "third"]);
+    expect(c.rewards.map((r) => r.pattern)).toEqual(["first", "second", "third", "fourth", "fifth"]);
     expect(c.rewards.every((r) => r.ordinal === 1 && r.scope === "ticket" && r.text === "")).toBe(true);
     expect(c.mark).toBeUndefined();
     expect(c.breaks).toEqual([]);
@@ -211,6 +211,9 @@ describe("five brand moments for each ticket: openings, during the game, closing
     refused({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: "https://evil.example/x" }] });
     refused({ opening: [msg({ mediaUrl: "http://acme.com/a.mp4" })] });
     expect(good({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: "https://youtu.be/abcdefghijk" }] }).closing![0]!.mediaUrl).toContain("youtu.be");
+    for (const u of ["https://m.youtube.com/watch?v=abcdefghijk", "https://music.youtube.com/watch?v=abcdefghijk", "https://www.youtube.com/watch?v=abcdefghijk"]) expect(good({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: u }] }).closing![0]!.mediaUrl).toBe(u); // a link copied from a phone is a YouTube link
+    expect(refused({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: "https://youtube.com.evil.example/watch?v=abcdefghijk" }] })).toMatch(/not a YouTube video link/); // a look-alike address is not, and the sentence says what to do
+    expect(refused({ opening: [msg({ seconds: 40 })] })).toMatch(/steps of 3/); expect(refused({ breaks: [mid({ after: 30, seconds: 40 })] })).toMatch(/steps of 3/);
     refused({ opening: [msg({ title: "x" })] });
   });
 

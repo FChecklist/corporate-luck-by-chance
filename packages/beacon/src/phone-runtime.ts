@@ -83,7 +83,9 @@ export class PhoneRuntime {
   private logs: number[][] = [[]];
   private ticketMemo = new Map<number, Ticket[]>();
   private offsetMs: number | null = null; // utc - mono
+  private offsetSamples: number[] = []; // the last few clock answers (the newest estimate is used)
   private syncedAtMono = -Infinity;
+  private clockFailSince: number | null = null; // when the public clock first failed to answer (a blocked network): after 15 seconds the banner says what to try
   private lastControlPoll = -Infinity;
   private lastResultPoll = -Infinity;
   private get logCache(): number[] { return this.logs[this.cur - 1] ?? (this.logs[this.cur - 1] = []); }
@@ -108,7 +110,12 @@ export class PhoneRuntime {
     if (this.offsetMs !== null && m - this.syncedAtMono < 60_000) return true;
     const x = await fetchRound("latest", { ...this.deps.beacon, ...(this.deps.verify ? { verify: this.deps.verify as any } : {}) }, 0);
     if (!x) return this.offsetMs !== null;
-    this.offsetMs = roundTimeMs(x.round) + (QUICKNET.periodSec * 1000) / 2 - m;
+    // One answer of "latest" can be a round or two old (a cached mirror) and then makes the clock run SLOW. A stale answer is never too new, so of the last 5 answers the NEWEST estimate
+    // (the largest) is the most accurate. An answer more than 15 s below the best one (a changed clock) starts the list again.
+    const sample = roundTimeMs(x.round) + (QUICKNET.periodSec * 1000) / 2 - m;
+    if (this.offsetSamples.length && Math.max(...this.offsetSamples) - sample > 15_000) this.offsetSamples = [];
+    this.offsetSamples.push(sample); if (this.offsetSamples.length > 5) this.offsetSamples.shift();
+    this.offsetMs = Math.max(...this.offsetSamples);
     this.syncedAtMono = m;
     return true;
   }
@@ -158,9 +165,9 @@ export class PhoneRuntime {
   }
 
   /** Joins with a mobile number. The same number again returns the same participant (and the same ticket). */
-  async join(phone: string, name?: string, invite?: { from?: number; cat?: string }): Promise<boolean> {
+  async join(phone: string, name?: string, invite?: { from?: number; cat?: string }, empId?: string): Promise<boolean> {
     try {
-      const r = await this.deps.api("POST", `/api/z/${this.eid}/join`, { phone, name, device: this.device(), ...(invite && Number.isInteger(invite.from) ? { from: invite.from, cat: invite.cat } : {}) });
+      const r = await this.deps.api("POST", `/api/z/${this.eid}/join`, { phone, name, ...(empId ? { empId } : {}), device: this.device(), ...(invite && Number.isInteger(invite.from) ? { from: invite.from, cat: invite.cat } : {}) });
       this.scheduledRound = r.startRound; this.startRound = r.startRound + GRACE_ROUNDS; this.callSeconds = r.callSeconds; this.trackClaims = r.trackClaims !== false;
       if (r.tickets !== undefined || r.rewards !== undefined || r.breaks !== undefined || r.rounds !== undefined || r.opening !== undefined || r.closing !== undefined) this.readCfg(r);
       this.deps.store.set(this.key("pid"), r.pid);
@@ -168,7 +175,9 @@ export class PhoneRuntime {
       this.adopt(r.pid); this.error = null;
       return true;
     } catch (e: any) {
-      this.error = e?.status === 423 || e?.code === "invite-full" ? String(e.message || "This ticket is already on another phone.") : e?.status === 409 ? "This engagement is full." : e?.status === 400 ? "Enter a valid mobile number." : e?.status === 503 ? "It is a busy day. Please try again in a few minutes." : "Could not join. Check your connection and try again.";
+      const m = String(e?.message ?? "").trim(), st = Number(e?.status) || 0;
+      const own = st >= 400 && m !== "" && !/^http \d+$/.test(m); // the server's own plain words say what is wrong and what to do (an employee ID, a full game, a busy minute): they are shown as they are
+      this.error = own ? m : st === 503 ? "It is a busy day. Please try again in a few minutes." : "Could not join. Check your connection and try again.";
       return false;
     }
   }
@@ -226,7 +235,8 @@ export class PhoneRuntime {
   async tick(): Promise<RuntimeView> {
     if (this.phase === "ended") { await this.autoClaim(); await this.pollResults(); await this.castVotes(); return this.view(); } // a claim that failed to send keeps being retried after the last call // the engagement is over, but the outcome is still worth fetching
     if (this.phase !== "play") return this.view();
-    if (!(await this.syncClock())) { this.error = "Waiting for the clock. Check your connection."; return this.view(); }
+    if (!(await this.syncClock())) { const m0 = this.deps.mono(); if (this.clockFailSince === null) this.clockFailSince = m0; this.error = m0 - this.clockFailSince > 15_000 ? "This network is not letting the game get its numbers. If you are on office Wi-Fi, switch to mobile data. Keep this page open: it carries on by itself." : "Waiting for the clock. Check your connection."; return this.view(); }
+    this.clockFailSince = null;
     this.error = null;
     const now = this.nowRound!;
     await this.pollControl(now);
@@ -454,7 +464,7 @@ export class PhoneRuntime {
     }
     for (let i = 0; i < send.length; i += 3) {
       const part = send.slice(i, i + 3);
-      try { await this.deps.api("POST", `/api/z/${this.eid}/vote`, { pid: this.pid, results: part.map((x) => x.body) }); for (const x of part) this.voted.add(x.key); }
+      try { await this.deps.api("POST", `/api/z/${this.eid}/vote`, { pid: this.pid, device: this.device(), results: part.map((x) => x.body) }); for (const x of part) this.voted.add(x.key); }
       catch { break; /* kept: the next pass reports it again */ }
     }
   }

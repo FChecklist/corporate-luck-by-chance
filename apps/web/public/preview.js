@@ -10,7 +10,7 @@
   if (q.get("w") === "card" || q.get("w") === "player") { ticketPreview(); return; }
   const when = ["break", "opening", "closing"].includes(q.get("w")) ? q.get("w") : "break";
   const b = { kind: q.get("k") || "speech", title: (q.get("t") || "Your message").slice(0, 80), mediaUrl: q.get("u") || "", seconds: Math.max(15, Math.min(600, Number(q.get("s")) || 60)) };
-  if (b.mediaUrl && !/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl)) b.mediaUrl = "";
+  let badLink = false; if (b.mediaUrl && !/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl)) { b.mediaUrl = ""; badLink = true; }
 
   const mediaHost = document.createElement("div");
   mediaHost.id = "cbmedia"; mediaHost.style.cssText = "position:absolute;z-index:30;display:none;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.3)";
@@ -61,7 +61,7 @@
   const sampleCard = `<div class="zcard"><h2>The play screen (sample)</h2>${cardGrid("Sample play screen")}</div>`;
   const what = b.kind === "speech" ? "Please listen to the host." : b.kind === "slides" ? "Please look at the screen." : "";
   const heading = when === "break" ? "A short break" : when === "opening" ? "A message from your organizer" : "Thank you from your organizer";
-  const verdict = !b.mediaUrl ? "No link: guests see your message only." : kind ? "This link plays inside the game." : "<b>This link will NOT play inside the game.</b> It opens in a new tab and takes the guest out of the game. Use a YouTube link, or a direct link to a video (.mp4) or audio (.mp3) file.";
+  const verdict = badLink ? "<b>The link you pasted was not used.</b> It must start with https:// and have no spaces. Go back, correct it and press Test it again." : !b.mediaUrl ? "No link: guests see your message only." : kind ? "This link plays inside the game." : "<b>This link will NOT play inside the game.</b> It opens in a new tab and takes the guest out of the game. Use a YouTube link, or a direct link to a video (.mp4) or audio (.mp3) file.";
   let timer = 0, endsAt = 0;
 
   function paint(secondsLeft) {
@@ -102,7 +102,7 @@
       return { name, color, logo, fg: 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? "#ffffff" : "#111111" };
     };
     const eid = (q.get("e") || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
-    let key = ""; try { key = sessionStorage.getItem("cbz-org") || ""; } catch {}
+    let key = ""; try { key = CTK.get("cbz-org") || ""; } catch {}
     const fromHash = () => ({
       brand: q.get("n") ? { name: q.get("n"), color: q.get("c") || "" } : null,
       rewards: (q.get("p") || "").split("|").map((t) => t.trim()).filter(Boolean).slice(0, 8).map((t, i) => ({ pattern: "", ordinal: 1, text: t })),
@@ -119,7 +119,7 @@
       const luckyN = lucky && lucky.winners ? lucky.winners : 3;
       $app.innerHTML = `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b></div>
         <div class="zbanner info" role="note"><b>PREVIEW.</b> This is a sample of what players see, not a real game. Nothing is saved, nobody is told, and no game is running.${note ? " " + esc(note) : ""}</div>
-        ${brand ? `<div class="zbrand" id="pvbrand">${brand.logo ? `<img class="zblogo" alt="" src="${esc(brand.logo)}">` : ""}${brand.name ? `<b>${esc(brand.name)}</b>` : ""}</div><div class="zpow"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="12" height="12"></a>Powered by Corporate Luck by Chance</div>` : `<div class="zbrand" id="pvbrand0"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="18" height="18"></a>CORPORATE LUCK BY CHANCE</div><div class="zsmall" style="margin:4px 0 0">No company name or logo is set yet, so guests see our name. Set yours in the Brand step to see it here.</div>`}
+        ${brand ? `<div class="zbrand" id="pvbrand">${brand.logo ? `<img class="zblogo" alt="" src="${esc(brand.logo)}">` : ""}${brand.name ? `<b>${esc(brand.name)}</b>` : ""}</div><div class="zpow"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="12" height="12"></a>Powered by Corporate Luck by Chance</div>` : `<div class="zbrand" id="pvbrand0"><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="18" height="18"></a>CORPORATE LUCK BY CHANCE</div><div class="zsmall" style="margin:4px 0 0">No company name or logo is set yet, so guests see the name Corporate Luck by Chance. Set yours in the Brand step to see it here.</div>`}
         <div class="zcard"><h2>The play screen <span class="zdemotag">PREVIEW</span></h2>${cardGrid("Sample play screen")}</div>
         <div class="zcard"><h2>What you can win</h2><ul class="zlist">${prizeLi}</ul></div>`;
       const b0 = document.getElementById("pvbrand0"); if (b0) { b0.style.background = "#0B5D5B"; b0.style.color = "#ffffff"; }
@@ -131,6 +131,6 @@
     fetch(`/api/z/${encodeURIComponent(eid)}/info`, { method: "GET", headers: key ? { "x-organizer": key } : {} })
       .then((r) => { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
       .then((j) => draw({ brand: j.brand, rewards: Array.isArray(j.rewards) ? j.rewards : [], breaks: Array.isArray(j.breaks) ? j.breaks : [], lucky: "" }, ""))
-      .catch(() => draw(fromHash(), "We could not read your game just now, so this shows sample words."));
+      .catch(() => draw(fromHash(), "Your game could not be read just now, so this shows sample words."));
   }
 })();

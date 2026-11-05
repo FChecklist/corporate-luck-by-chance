@@ -15,7 +15,7 @@ export interface BuiltMail { subject: string; text: string; html: string }
 import { BRAND, esc, footerText, pageHtml } from "./brand";
 
 const AI_CAN = "It can do what you do in the console.";
-const AI_STAYS = "You keep payment, publishing, erasing data, and ending a running game.";
+const AI_STAYS = "You keep payment, publishing, deleting data, and ending a running game.";
 const HOST_CAN = "Watch the game, message every guest, tick prizes as given.";
 const HOST_STAYS = "Nothing else. It cannot change settings, people, payment or data.";
 
@@ -72,7 +72,7 @@ export function coHostLinkMail(origin: string, key: string, owner: string, expir
   const { text, html } = shell({
     origin, warning: HOST_WARNING,
     title: "A Host AI work link",
-    intro: `For the Corporate Luck by Chance games of ${owner}. Watch and announce only. Give it to your Host by pasting the box. Do not forward this e-mail.`,
+    intro: `For the Corporate Luck by Chance games of ${owner}. Watch and announce only. Give it to your Host by pasting the box. Please keep this e-mail to yourself.`,
     expiry: `THIS HOST LINK WORKS FOR 24 HOURS ONLY (until ${istStamp(expiresMs)}).`,
     button: { label: "Open my console", url: `${origin}/zc.html`, note: "Your lasting Host link is in your console." },
     pasteLabel: "YOUR HOST PASTES THIS INTO AN AI CHAT",
@@ -91,11 +91,11 @@ export const HOST_LINK_WARNING = "DO NOT FORWARD: this e-mail holds your persona
 export function hostLinkMail(origin: string, key: string, name: string, eid = ""): BuiltMail {
   const url = `${origin}/zc.html?k=${key}${eid ? "&e=" + encodeURIComponent(eid) : ""}`; // with a game id the link opens that game
   const hello = name ? `Hello ${name},` : "Hello,";
-  const text = [HOST_LINK_WARNING, "", hello, "You have been added as a Host of a Corporate Luck by Chance game.", "As a Host you can look after the game, add Co-hosts and pay. Only the Organizer can change the account.", "", `OPEN MY CONSOLE: ${url}`, "", "This link is only for you. Keep it private. Do not forward it.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
+  const text = [HOST_LINK_WARNING, "", hello, "You have been added as a Host of a Corporate Luck by Chance game.", "As a Host you can look after the game, add Co-hosts and pay. Only the Organizer can change the account.", "", `OPEN MY CONSOLE: ${url}`, "", "This link is only for you. Keep it private. Please keep it to yourself.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
   const warn = `<tr><td style="padding:16px 22px 0;"><div style="background:#fdecea;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;color:#b71c1c;font-weight:700;font-size:14px;line-height:1.4;text-align:center;">${esc(HOST_LINK_WARNING)}</div></td></tr>`;
   const html = pageHtml("You are a Host", `${warn}<tr><td style="padding:18px 22px 4px;"><h1 style="margin:0;font-size:24px;line-height:1.25;color:#0B5D5B;">You are a Host</h1><p style="margin:10px 0 0;font-size:15px;line-height:1.5;">${esc(hello)} You have been added as a Host of a Corporate Luck by Chance game. You can look after the game, add Co-hosts and pay. Only the Organizer can change the account.</p></td></tr>
 <tr><td align="center" style="padding:16px 22px 4px;"><a href="${esc(url)}" style="display:inline-block;background:#FFC93C;color:#0B5D5B;font-weight:700;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:8px;">Open my console</a></td></tr>
-<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">This link is only for you. Keep it private. Do not forward it.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
+<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">This link is only for you. Keep it private. Please keep it to yourself.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
   return { subject: HOST_LINK_SUBJECT, text, html };
 }
 
@@ -105,12 +105,12 @@ export function helpDeskPublishedMail(origin: string, o: { eid: string; hostKey?
   const consoleUrl = o.hostKey ? `${origin}/zc.html?k=${o.hostKey}&e=${encodeURIComponent(o.eid)}` : "", aiUrl = `${origin}/ai/${o.aiHostKey}`;
   const intro = `The Organizer published the game ${o.eid}. You are now a Host of this game, as the Help desk.`;
   const once = "This link works once, for 7 days. Confirm your e-mail and add your mobile number. After that, sign in with your e-mail code.";
-  const text = [HOST_LINK_WARNING, "", intro, "", ...(consoleUrl ? [`OPEN MY HOST CONSOLE: ${consoleUrl}`, once, ""] : ["Open your Host console by signing in with your e-mail code.", ""]), `HOST AI LINK FOR THIS GAME (works 24 hours, until ${istStamp(o.expiresMs)}): ${aiUrl}`, "", "These links are only for you. Keep them private. Do not forward them.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
+  const text = [HOST_LINK_WARNING, "", intro, "", ...(consoleUrl ? [`OPEN MY HOST CONSOLE: ${consoleUrl}`, once, ""] : ["Open your Host console by signing in with your e-mail code.", ""]), `HOST AI LINK FOR THIS GAME (works 24 hours, until ${istStamp(o.expiresMs)}): ${aiUrl}`, "", "These links are only for you. Keep them private. Please keep them to yourself.", "", HOST_LINK_WARNING, "", footerText(origin), ""].join("\n");
   const warn = `<tr><td style="padding:16px 22px 0;"><div style="background:#fdecea;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;color:#b71c1c;font-weight:700;font-size:14px;line-height:1.4;text-align:center;">${esc(HOST_LINK_WARNING)}</div></td></tr>`;
   const html = pageHtml(subject, `${warn}<tr><td style="padding:18px 22px 4px;"><h1 style="margin:0;font-size:24px;line-height:1.25;color:#0B5D5B;">Your game is published</h1><p style="margin:10px 0 0;font-size:15px;line-height:1.5;">${esc(intro)}</p></td></tr>
 ${consoleUrl ? `<tr><td align="center" style="padding:16px 22px 4px;"><a href="${esc(consoleUrl)}" style="display:inline-block;background:#FFC93C;color:#0B5D5B;font-weight:700;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:8px;">Open my Host console</a><div style="font-size:12px;color:#666;margin-top:6px;">${esc(once)}</div></td></tr>` : ""}
 <tr><td style="padding:14px 22px 6px;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A5A00;margin-bottom:6px;">HOST AI LINK FOR THIS GAME (WORKS 24 HOURS)</div><div style="background:#FBF6EC;border:2px dashed #FFC93C;border-radius:8px;padding:14px;font-family:Consolas,'Courier New',monospace;font-size:13px;line-height:1.5;color:#111;overflow-wrap:anywhere;text-decoration:none;">${esc(aiUrl)}</div></td></tr>
-<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">These links are only for you. Keep them private. Do not forward them.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
+<tr><td style="padding:12px 22px 6px;font-size:13px;color:#666;line-height:1.5;">These links are only for you. Keep them private. Please keep them to yourself.</td></tr>${warn.replace("16px 22px 0", "8px 22px 20px")}`, origin);
   return { subject, text, html };
 }
 
@@ -125,26 +125,23 @@ export function newUseAlertMail(info: { when: string; country: string; program: 
   return { subject: `Someone new used your ${info.kind} work link`, text, html };
 }
 
-export const SIGNIN_SUBJECT = "Sign in to Corporate Luck by Chance - choose how you want to continue";
-/** The sign-in e-mail for an existing account: three ways in. No AI key or paste: the buttons are single-use sign-in links (10 minutes) to the signed-in pages; the 6-digit code is the fallback. */
-export function signInMail(origin: string, code: string, token: string): BuiltMail {
-  const aiUrl = `${origin}/signin.html?t=${token}&go=ai`, consoleUrl = `${origin}/signin.html?t=${token}&go=console`;
-  const intro = "Choose one way to sign in.";
-  const o1 = "Your AI asks a few questions and sets it all up. You keep payment and publishing.";
-  const foot = "Did not ask for this? Ignore it. Do not forward it: it opens your account.";
+export const SIGNIN_SUBJECT = "Your Corporate Luck by Chance sign-in: a 6-digit code, or one tap";
+/** The sign-in e-mail, for an Organizer and for a Host alike: exactly two ways in. Option 1 types the 6-digit code on the sign-in page; Option 2 taps the one button in this e-mail
+ *  (single use, 10 minutes). Nothing else: no AI link, no extra choices (people were confused by "sign-in link" and three options). */
+export function signInMail(origin: string, code: string, token: string, linkOverride?: string): BuiltMail {
+  const link = linkOverride ?? `${origin}/signin.html?t=${token}&go=console`;
+  const foot = "If you did not ask for this, you can simply ignore this e-mail. Please keep it to yourself: it opens your account.";
   const text = [
-    "YOU ARE ALMOST IN", "", intro, "",
-    "OPTION 1 - LET YOUR AI DO THE WORK", o1, `Sign in and get my AI work link: ${aiUrl}`, "",
-    "OPTION 2 - WORK ON YOUR OWN", `Open my console: ${consoleUrl}`, "",
-    "OPTION 3 - SIGN-IN PAGE ALREADY OPEN?", `Type this 6-digit code there: ${code}`, "It works for 10 minutes.", "",
+    "SIGN IN TO YOUR ACCOUNT", "", "Do ONE of these two things. You do not need both.", "",
+    "OPTION 1 - TYPE THE 6-DIGIT CODE", "Go back to the sign-in page, type these 6 numbers in the six boxes and press Submit:", code, "It works for 10 minutes.", "",
+    "OPTION 2 - TAP THE BUTTON", "Tap this link. You are signed in at once:", link, "It works once, for 10 minutes.", "",
     foot, "", footerText(origin), "",
   ].join("\n");
-  const card = (n: string, title: string, body: string) => `<tr><td style="padding:12px 22px 0;"><div style="border:1px solid #D5E3E1;border-radius:10px;background:#F7FBFA;padding:14px 16px;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A5A00;">OPTION ${n}</div><div style="font-size:18px;font-weight:700;color:#0B5D5B;margin:3px 0 6px;">${esc(title)}</div>${body}</div></td></tr>`;
-  const btn = (label: string, url: string) => `<a href="${esc(url)}" style="display:inline-block;background:#FFC93C;color:#0B5D5B;font-weight:700;font-size:16px;text-decoration:none;padding:12px 22px;border-radius:8px;">${esc(label)}</a>`;
-  const html = pageHtml("Sign in to " + BRAND.name, `<tr><td style="padding:20px 22px 4px;"><h1 style="margin:0;font-size:26px;line-height:1.25;color:#0B5D5B;">You are almost in</h1><p style="margin:10px 0 0;font-size:15px;line-height:1.5;">${esc(intro)}</p></td></tr>
-${card("1", "Let your AI do the work", `<p style="margin:0 0 12px;font-size:14px;line-height:1.5;">${esc(o1)}</p>${btn("Sign in and get my AI work link", aiUrl)}`)}
-${card("2", "Work on your own", `<p style="margin:0 0 12px;font-size:14px;line-height:1.5;">Build it yourself in your console.</p>${btn("Open my console", consoleUrl)}`)}
-${card("3", "Sign-in page already open?", `<p style="margin:0 0 8px;font-size:14px;line-height:1.5;">Type this 6-digit code there:</p><div style="font-family:Consolas,'Courier New',monospace;font-size:30px;letter-spacing:.3em;font-weight:700;color:#0B5D5B;background:#fff;border:2px dashed #FFC93C;border-radius:8px;padding:8px 14px;display:inline-block;">${esc(code)}</div><p style="margin:8px 0 0;font-size:13px;color:#555;">It works for 10 minutes.</p>`)}
+  const card = (n: string, title: string, body: string) => `<tr><td style="padding:12px 22px 0;"><div style="border:1px solid #E6D9B8;border-radius:10px;background:#FBF6EC;padding:14px 16px;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A5A00;">OPTION ${n}</div><div style="font-size:18px;font-weight:700;color:#0B3D91;margin:3px 0 6px;">${esc(title)}</div>${body}</div></td></tr>`;
+  const btn = (label: string, url: string) => `<a href="${esc(url)}" style="display:inline-block;background:#E0B872;color:#0B3D91;font-weight:700;font-size:16px;text-decoration:none;padding:12px 22px;border-radius:8px;">${esc(label)}</a>`;
+  const html = pageHtml("Sign in to " + BRAND.name, `<tr><td style="padding:20px 22px 4px;"><h1 style="margin:0;font-size:26px;line-height:1.25;color:#0B3D91;">Sign in to Corporate Luck by Chance</h1><p style="margin:10px 0 0;font-size:15px;line-height:1.5;">Do <b>one</b> of these two things. You do not need both.</p></td></tr>
+${card("1", "Type the 6-digit code", `<p style="margin:0 0 8px;font-size:14px;line-height:1.5;">Go back to the sign-in page, type these 6 numbers in the six boxes and press <b>Submit</b>:</p><div style="font-family:Consolas,'Courier New',monospace;font-size:30px;letter-spacing:.3em;font-weight:700;color:#0B3D91;background:#fff;border:2px dashed #E0B872;border-radius:8px;padding:8px 14px;display:inline-block;">${esc(code)}</div><p style="margin:8px 0 0;font-size:13px;color:#555;">It works for 10 minutes.</p>`)}
+${card("2", "Tap the button", `<p style="margin:0 0 12px;font-size:14px;line-height:1.5;">Tap the button below. You are signed in at once.</p>${btn("Sign me in", link)}<p style="margin:8px 0 0;font-size:13px;color:#555;">It works once, for 10 minutes.</p>`)}
 <tr><td style="padding:14px 22px 20px;"><div style="background:#fdecea;border:1px solid #c0392b;border-radius:8px;padding:10px 12px;color:#b71c1c;font-weight:700;font-size:13px;text-align:center;">${esc(foot)}</div></td></tr>`, origin);
   return { subject: SIGNIN_SUBJECT, text, html };
 }

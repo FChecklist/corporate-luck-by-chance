@@ -36,7 +36,7 @@ beforeEach(() => {
     if (pm) { const p = payments[pm[1]!]; if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p)); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -130,7 +130,7 @@ describe("cancel: what guests and everybody see afterwards", () => {
     await call("GET", "/api/z/CAN-1/info", undefined, undefined, T + 4 * H);
     expect(outbox("%could not begin%")).toHaveLength(0);
   });
-  test("guests' names and numbers are erased 23 hours after the CANCEL time (not the start time), and the Organizer and Host are told", async () => {
+  test("guests' names and numbers are auto-deleted 23 hours after the CANCEL time (not the start time), and the Organizer and Host are told", async () => {
     const t = await team(); await paidGame(t);
     await join("9876543210", "Asha"); await join("9876543211", "Ben");
     const at = T + 30 * 60_000;
@@ -152,7 +152,7 @@ describe("cancel e-mails", () => {
     const paid = paymentRow().amount;
     for (const to of ["boss@acme.com", "priya@acme.com"]) {
       const m = mailsTo(to).find((x) => /^\[Luck by Chance\] Game cancelled/.test(x.subject))!; expect(m).toBeTruthy();
-      expect(m.body).toContain("cancelled by a Host"); expect(m.body).toContain("stays as credit until"); expect(m.body).toContain(paid.toLocaleString("en-IN")); expect(m.body).toContain("We do not give refunds.");
+      expect(m.body).toContain("cancelled by a Host"); expect(m.body).toContain("stays as credit until"); expect(m.body).toContain(paid.toLocaleString("en-IN")); expect(m.body).toContain("A paid game cancelled before it starts stays with you as credit");
       expect(m.body).not.toMatch(/refund of|2\.36|credit note/i);
     }
     expect(mailsTo("payer@acme.com").some((x) => /^\[Luck by Chance\] Game cancelled/.test(x.subject))).toBe(false);
@@ -214,6 +214,14 @@ describe("Confirming your payment", () => {
     expect(r.status).toBe(200);
     expect((await j(await call("GET", "/api/z/CAN-1/summary", undefined, t.master))).payment.status).toBe("confirming");
     expect(raw.prepare("SELECT COUNT(*) AS c FROM payment WHERE status='paid'").get()).toEqual({ c: 0 });
+  });
+  test("a second checkout for the same game is refused while the first payment is being confirmed, and allowed again when that has worn off", async () => {
+    const t = await team();
+    const c = await j(await pay(t.master)); await complete(c, "pay_1", T, "created");
+    const again = await pay(t.master, "CAN-1", T + 60_000);
+    expect(again.status).toBe(409); const body = await j(again); expect(body.code).toBe("confirming"); expect(body.error).toMatch(/being confirmed/);
+    expect(raw.prepare("SELECT COUNT(*) AS c FROM payment").get()).toEqual({ c: 1 }); // no second order was made
+    expect((await pay(t.master, "CAN-1", T + 31 * 60_000)).status).toBe(200);
   });
   test("the 'confirming' state wears off after 30 minutes", async () => {
     const t = await team();
@@ -310,15 +318,15 @@ describe("Co-host: name + mobile (no e-mail), bound to one game", () => {
     expect(raw.prepare("SELECT src FROM seat WHERE eid='CAN-1'").get()).toMatchObject({ src: expect.stringMatching(/^co:/) });
     expect((raw.prepare("SELECT src FROM seat WHERE eid='CAN-2'").get() as any).src).toBe("link"); // not credited to a Co-host of another game
   });
-  test("name and mobile are erased (key retired) when the game's participant data is erased", async () => {
+  test("name and mobile are erased (key retired) when the game's participant data is deleted", async () => {
     const t = await team(); await paidGame(t); await join("9876543210");
     expect((await call("POST", "/api/z/CAN-1/erase", {}, t.master)).status).toBe(200);
     expect((await call("GET", "/api/whoami", undefined, t.cohost)).status).toBe(403);
     expect(raw.prepare("SELECT label, pii, revoked FROM organizer_key WHERE kind='cohost'").get()).toEqual({ label: null, pii: null, revoked: 1 });
   });
-  test("name and mobile are erased by the automatic 23-hour deletion, even if nobody joined", async () => {
+  test("name and mobile are erased by the automatic 20-hour deletion, even if nobody joined", async () => {
     const t = await team(); await paidGame(t);
-    await lifecycleTick(env as any, T + 3 * H + 22 * H); // the game ended long before; 23 h after the end has not passed yet
+    await lifecycleTick(env as any, T + 3 * H + 19 * H); // the game ended long before; 20 h after the end has not passed yet
     expect((raw.prepare("SELECT revoked FROM organizer_key WHERE kind='cohost'").get() as any).revoked).toBe(0);
     await lifecycleTick(env as any, T + 3 * H + 40 * H);
     expect(raw.prepare("SELECT label, pii, revoked FROM organizer_key WHERE kind='cohost'").get()).toEqual({ label: null, pii: null, revoked: 1 });

@@ -40,7 +40,7 @@
           if (!b.values.length) break;
         }
         let guard = 0;
-        while (!R.game.finished && R.beacons[2 * R.game.done] && R.beacons[2 * R.game.done + 1] && guard++ < 6) await R.game.addDiceRound(R.game.done, R.beacons[2 * R.game.done], R.beacons[2 * R.game.done + 1]);
+        while (!R.game.finished && R.beacons[2 * R.game.done] && R.beacons[2 * R.game.done + 1] && guard++ < 6) { const gg = R.game.done; let pressed = null; if (s.newFlow) { const pr = await j(`/api/z/${eid}/luck/presses?g=${gg}`).catch(() => null); if (!pr || !pr.seats) break; pressed = new Set(pr.seats); } await R.game.addDiceRound(gg, R.beacons[2 * gg], R.beacons[2 * gg + 1], pressed); }
         // the target of the dice round that is open now exists as soon as beacon value A is out, before the dice (B) does
         const g = R.game.done; if (R.beacons[2 * g] && R.targets[g] === undefined && g < E.totalDiceRounds(s)) R.targets[g] = await E.targetOf(eid, g, R.beacons[2 * g]);
       } catch (e) { R.error = e.message || "Connecting..."; }

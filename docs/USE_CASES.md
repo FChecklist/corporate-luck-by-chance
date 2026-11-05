@@ -81,14 +81,14 @@ Building and publishing are free. The organizer pays before the start time. If i
 ## G. Results
 | ID | Scenario | Expected | Test |
 |---|---|---|---|
-| UC-46 | The final ends | The strict ranking is made once and stored; the champion is rank 1; the podium (first to fifth) goes into the winners record as seat numbers; the 23-hour clock starts | `tournament.test.ts` G12/R24 |
+| UC-46 | The final ends | The strict ranking is made once and stored; the champion is rank 1; the podium (first to fifth) goes into the winners record as seat numbers; the 20-hour clock starts | `tournament.test.ts` G12/R24 |
 | UC-47 | Points and ties | 2 per game won, 1 per game drawn; order: round reached, total points, points in the last match, fate; every rank unique | `bracket.test.ts` R23 R24 |
 | UC-48 | Replay with the same people | A new tournament (clone) with a fresh sealed seed | `tournament.test.ts` G13 |
 
 ## H. Data and deletion
 | ID | Scenario | Expected | Test |
 |---|---|---|---|
-| UC-49 | 23 hours after the end | Every name is gone (participant, seat, `ttt_p`, `ttt_e`, consent, ranking); the opaque match record and the podium seat numbers remain | `tournament.test.ts` G18/D5 |
+| UC-49 | 20 hours after the end | Every name is gone (participant, seat, `ttt_p`, `ttt_e`, consent, ranking); the opaque match record and the podium seat numbers remain | `tournament.test.ts` G18/D5 |
 | UC-50 | One tournament's data and another's | Never mixed | `tournament.test.ts` U5/D13 |
 | UC-51 | Organizer presses Erase early; the AI asks | Done on the organizer's confirmation | shared |
 | UC-52 | 365 days after the end | Everything about the tournament is deleted at 00:00 IST; invoice details are kept | shared |
@@ -101,7 +101,7 @@ Building and publishing are free. The organizer pays before the start time. If i
 | UC-55 | Daily write budget reached | A polite "busy" answer, no half-saved state |
 | UC-56 | Oversized body, malformed JSON | Refused cleanly |
 | UC-57 | The host closes the tab while a tournament runs | The scheduled job plays due clock-outs (`apps/cron`, every minute); any look at the tournament also settles them |
-| UC-58 | The host never presses Start | The tournament counts as ended 6 hours after the scheduled start; players' data is erased 23 hours after that |
+| UC-58 | The host never presses Start | The tournament counts as ended 6 hours after the scheduled start; players' data is erased 20 hours after that |
 | UC-59 | An organizer removes a player during the tournament | The player can no longer move and loses by the clock (the one human power over who plays; see `WINNERS_AND_AUDIT.md`) |
 
 ## Known limits

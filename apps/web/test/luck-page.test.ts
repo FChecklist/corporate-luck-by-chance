@@ -1,5 +1,5 @@
-// The player's page (z.html + luck.js + termsbox.js) in a simulated phone browser: the join screen shows the K4 boxes BEFORE any name field works,
-// nothing is ticked in advance, the button stays disabled until both are ticked, and the request carries the ticks and the Terms version. Gates K4, U1, U2, U3, LR-6, LR-7.
+// The player's page (z.html + luck.js + termsbox.js) in a simulated phone browser: the join screen shows the one-line agreement notice BEFORE the name field,
+// there is nothing to tick (no tick-boxes since 1 Nov 2026), the button waits for a name, and the request carries the Terms version. Gates K4, U1, U2, U3, LR-6, LR-7.
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
 setDefaultTimeout(60_000);
 import { readFileSync } from "node:fs";
@@ -32,32 +32,29 @@ async function openPlayerPage(search = "?e=GAME-1", opts: { pid?: boolean; ann?:
 }
 
 describe("the join screen (K4, U1-U3)", () => {
-  test("U1/K4: the boxes are drawn first, with the server's exact wording, unticked; the name field and the button are disabled", async () => {
+  test("U1/K4: the agreement notice is drawn first (one line, three links, nothing to tick); the name field is ready and the button waits for a name", async () => {
     const { d } = await openPlayerPage();
-    const boxes = [...d.querySelectorAll('input[type="checkbox"]')] as any[];
-    expect(boxes.length).toBe(2); expect(boxes.every((b) => b.checked === false)).toBe(true);
-    const labels = [...d.querySelectorAll("#tbslot label")].map((l: any) => l.textContent.trim()); expect(labels).toEqual([K4.A, K4.B]); // string for string with the agreed wording
-    expect(d.getElementById("go")!.getAttribute("aria-disabled")).toBe("true");
-    expect(d.getElementById("nm")!.disabled).toBe(true); expect(d.getElementById("go")!.disabled).toBe(true);
-    const order = d.body.innerHTML; expect(order.indexOf("tbslot")).toBeLessThan(order.indexOf('id="nm"')); // the boxes come before the name field
+    expect(d.querySelectorAll('input[type="checkbox"]').length).toBe(0); // no tick-boxes since 1 Nov 2026
+    const note = d.querySelector("#tbslot .tb-note") as any; expect(note).toBeTruthy();
+    expect(note.textContent.trim()).toBe("By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules.");
+    expect([...note.querySelectorAll("a")].map((a: any) => a.getAttribute("href"))).toEqual(["https://home.corporatetambola.com/terms#terms", "https://home.corporatetambola.com/terms#privacy", "https://home.corporatetambola.com/terms#game-rules"]);
+    expect(d.getElementById("nm")!.disabled).toBe(false); expect(d.getElementById("go")!.disabled).toBe(true); expect(d.getElementById("go")!.getAttribute("aria-disabled")).toBe("true"); // a name is still needed
+    expect(d.body.textContent).not.toMatch(/tick the box/i);
+    const order = d.body.innerHTML; expect(order.indexOf("tbslot")).toBeLessThan(order.indexOf('id="nm"')); // the notice comes before the name field
   });
-  test("U3/LR-6: only a name is asked (no phone field), and the invite chain is in the wording the person ticks", async () => {
+  test("U3/LR-6: only a name is asked (no phone field), and the agreement line is on the join screen", async () => {
     const { d } = await openPlayerPage();
     expect(d.querySelector('input[type="tel"]')).toBeNull(); expect(d.getElementById("ph")).toBeNull();
-    expect(d.body.textContent).toContain("who invited me is recorded until then");
+    expect(d.body.textContent).toContain("By continuing, you agree to the Terms and Conditions");
   });
-  test("K4: one box is not enough; with both ticked and a name typed the button works, and the request carries both ticks and the version", async () => {
+  test("K4: with a name typed the button works, and the request carries the version and the points of the point (notice: true)", async () => {
     const { d, sent } = await openPlayerPage();
-    const [a, b] = [...d.querySelectorAll('input[type="checkbox"]')] as any[];
-    a.checked = true; a.dispatchEvent(new (d.defaultView as any).Event("change")); await tick();
-    expect(d.getElementById("nm")!.disabled).toBe(true); expect(d.getElementById("go")!.disabled).toBe(true);
-    b.checked = true; b.dispatchEvent(new (d.defaultView as any).Event("change")); await tick();
     const nm = d.getElementById("nm") as any; expect(nm.disabled).toBe(false); expect(d.getElementById("go")!.disabled).toBe(true); // a name is still needed
     nm.value = "Maya"; nm.dispatchEvent(new (d.defaultView as any).Event("input")); await tick();
     const go = d.getElementById("go") as any; expect(go.disabled).toBe(false);
     go.click(); await tick(60);
     const join = sent.find((s) => s.url.endsWith("/join"))!;
-    expect(join.body.name).toBe("Maya"); expect(join.body.consent).toEqual({ v: VER, boxes: ["A", "B"] }); expect(join.body.device).toMatch(/^[0-9a-f]{32}$/);
+    expect(join.body.name).toBe("Maya"); expect(join.body.consent).toEqual({ v: VER, boxes: ["A", "B"], notice: true }); expect(join.body.device).toMatch(/^[0-9a-f]{32}$/);
     expect(d.body.textContent).toContain("Waiting for the host to start the game");
   });
   test("the page never types the consent wording itself (it comes from the server)", () => {

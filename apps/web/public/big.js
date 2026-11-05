@@ -43,9 +43,14 @@
     }
     $app.innerHTML = shell(status, body, v.commit);
   }
+  // connection lost: when nothing has answered for 15 seconds the screen says so in red, so nobody trusts a frozen picture in front of a room
+  let lastOk = Date.now();
+  const lostEl = document.createElement("div"); lostEl.className = "lostbar"; lostEl.id = "lostbar"; lostEl.setAttribute("role", "alert"); lostEl.hidden = true; lostEl.textContent = "Connection lost. This screen may be late. Reconnecting...";
+  document.body.insertBefore(lostEl, document.body.firstChild);
+  setInterval(() => { lostEl.hidden = Date.now() - lastOk < 15000; }, 1000);
   async function tick() {
-    try { await RUN.fetchView(null); err = ""; if (RUN.game) await RUN.advance(); }
-    catch (e) { err = e.code === "cancelled" ? "This game was cancelled by the organizer." : e.code === "did-not-start" ? "This game did not start." : e.code === "payment-due" ? "Waiting for the Organizer or Host to start the game." : e.status === 403 ? "This game is not open yet." : e.status === 404 ? "That game was not found." : "Connecting..."; lastKey = ""; }
+    try { await RUN.fetchView(null); err = ""; lastOk = Date.now(); if (RUN.game) await RUN.advance(); }
+    catch (e) { if (e && (e.status || e.code)) lastOk = Date.now(); /* the server answered, so the connection is fine */ err = e.code === "cancelled" ? "This game was cancelled by the organizer." : e.code === "did-not-start" ? "This game did not start." : e.code === "payment-due" ? "Waiting for the Organizer or Host to start the game." : e.status === 403 ? "This game is not open yet." : e.status === 404 ? "That game was not found." : "Connecting..."; lastKey = ""; }
     try { await paint(); } catch (e) { err = "Connecting..."; }
     setTimeout(tick, RUN.view && RUN.view.state === "running" ? 900 : 4000);
   }

@@ -1,7 +1,7 @@
 // Privacy and lifecycle, end to end through the real Worker code and a real SQLite: names and numbers are sealed, invitations obey the organizer's rules,
 // the winners record outlives the personal data, the report is built and e-mailed, and everything is deleted on time.
 import { beforeEach, describe, expect, test } from "bun:test";
-import { withDevice } from "./device";
+import { SEEN_DEVICES, withDevice } from "./device";
 import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
 import { purgeOld, type Env } from "../src/worker";
@@ -19,15 +19,19 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), env, now);
 const j = async (r: Response) => (await r.json()) as any;
 const org = { "x-organizer": SECRET };
+/** Erasing is refused while a game is being played (a Luck game is taken to end at the latest 6 hours after its start; these games began 2 hours before T): the erase calls that must work are made after that. */
+const AFTER_GAME = T + 5 * 3_600_000;
 const tick = (now: number) => lifecycleTick(env as any, now);
 /** An engagement whose game is long over at T (it began 2 hours before). */
-const create = (id = "PRV-1", over: Record<string, unknown> = {}) => call("POST", "/api/z", { id, startRound: roundOf(T - 2 * 3_600_000), callSeconds: 6, cap: 5000, ...over }, org);
+const create = (id = "PRV-1", over: Record<string, unknown> = {}) => call("POST", "/api/z", { id, startRound: roundOf(T - 2 * 3_600_000), callSeconds: 6, cap: 2000, ...over }, org);
 const setContact = (id: string, email = "boss@acme.com") => env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?)").bind(`contact/${id}`, JSON.stringify({ email, phone: "9811122233" })).run();
-const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => call("POST", `/api/z/${id}/join`, { phone: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now);
+const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => { SEEN_DEVICES.add(String(i).padStart(32, "0")); return call("POST", `/api/z/${id}/join`, { phone: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now); };
+/** A phone says the game is over: its own device id goes with the report (the one that fits the seat is the one let through). */
+const overAs = async (pid: string, now: number) => { let r!: Response; for (const device of SEEN_DEVICES) { r = await call("POST", "/api/z/PRV-1/over", { pid, device }, {}, now); if (r.status !== 403) break; } return r; };
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "10000000" };
+  env = { DB: d.db, ORGANIZER_SECRET: SECRET, RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "10000000" };
   sentReports.length = 0;
 });
 
@@ -76,7 +80,7 @@ describe("names and numbers are sealed", () => {
     expect(r.copied).toBe(2);
     const names = (await j(await call("GET", `/api/z/PRV-NEW/names?pids=${(await j(await call("GET", "/api/z/PRV-NEW/participants", undefined, org))).participants.map((p: any) => p.pid).join(",")}`, undefined, org))).names;
     expect(Object.values(names).sort()).toEqual(["Asha", "Bala"]);
-    await call("POST", "/api/z/PRV-OLD/erase", {}, org);
+    await call("POST", "/api/z/PRV-OLD/erase", {}, org, AFTER_GAME);
     const gone = await call("POST", "/api/z/PRV-NEW/reuse", { from: "PRV-OLD" }, org);
     expect(gone.status).toBe(410); expect((await j(gone)).error).toMatch(/deleted within 24 hours/);
   });
@@ -143,13 +147,13 @@ describe("the winners record", () => {
     await create(); for (let i = 1; i <= 5; i++) await joinAs(i, "P" + i);
     const pids = (raw.query("SELECT pid FROM seat ORDER BY seq").all() as any[]).map((x) => x.pid);
     const early = T - 2 * 3_600_000; // the very start of this game
-    for (const p of pids) await call("POST", "/api/z/PRV-1/over", { pid: p }, {}, early);
+    for (const p of pids) await overAs(p, early);
     expect(raw.query("SELECT COUNT(*) c FROM overvote").get()).toEqual({ c: 0 }); // too early to count
     const afterTwenty = T - 2 * 3_600_000 + 400_000;
-    await call("POST", "/api/z/PRV-1/over", { pid: pids[0] }, {}, afterTwenty); await call("POST", "/api/z/PRV-1/over", { pid: pids[0] }, {}, afterTwenty + 1000); // the same phone twice is one vote
-    await call("POST", "/api/z/PRV-1/over", { pid: pids[1] }, {}, afterTwenty);
+    await overAs(pids[0], afterTwenty); await overAs(pids[0], afterTwenty + 1000); // the same phone twice is one vote
+    await overAs(pids[1], afterTwenty);
     expect(raw.query("SELECT COUNT(*) c FROM life WHERE end_src='phones'").get()).toEqual({ c: 0 }); // two of five is not enough
-    await call("POST", "/api/z/PRV-1/over", { pid: pids[2] }, {}, afterTwenty + 5000);
+    await overAs(pids[2], afterTwenty + 5000);
     expect(raw.query("SELECT end_src, end_ms FROM life").get()).toEqual({ end_src: "phones", end_ms: afterTwenty + 5000 });
   });
 });
@@ -215,7 +219,7 @@ describe("the report and the deletion", () => {
     expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(0);
   });
   test("a big game: one link, the report page reads the people in pieces and lays out the parts on the device, which together list every person once", async () => {
-    await create("PRV-BIG", { cap: 5000 }); await setContact("PRV-BIG");
+    await create("PRV-BIG", { cap: 2000 }); await setContact("PRV-BIG");
     const N = 1620;
     for (let i = 1; i <= N; i++) {
       const pii = await sealPii(env as any, { phone: "9876" + String(100000 + i), name: "Person " + i });
@@ -257,7 +261,7 @@ describe("exact deletion dates", () => {
     expect((await call("POST", "/api/lifecycle/tick")).status).toBe(403);
     expect((await call("POST", "/api/lifecycle/tick", {}, org)).status).toBe(200);
     expect((await call("POST", "/api/z/PRV-1/erase", {})).status).toBe(403);
-    expect((await j(await call("POST", "/api/z/PRV-1/erase", {}, org))).erased).toBe(2);
+    expect((await j(await call("POST", "/api/z/PRV-1/erase", {}, org, AFTER_GAME))).erased).toBe(2);
     expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(0); expect((raw.query("SELECT COUNT(*) c FROM winner").get() as any).c).toBe(1);
   });
 });
@@ -276,7 +280,7 @@ describe("asking for deletion", () => {
     expect((await j(await call("GET", "/api/z/PRV-AI/control/request", undefined, { "x-organizer": k.token }))).requests[0].action).toBe("erase");
     const mail = raw.query("SELECT subject, body FROM outbox WHERE to_addr='boss@acme.com' ORDER BY id DESC LIMIT 1").get() as any;
     expect(mail.subject).toMatch(/asked to delete all participant data/); expect(mail.body).toMatch(/Nothing is deleted yet/);
-    expect((await call("POST", "/api/z/PRV-AI/erase", {}, { "x-organizer": k.token })).status).toBe(200); // the organizer's own confirmation
+    expect((await call("POST", "/api/z/PRV-AI/erase", {}, { "x-organizer": k.token }, AFTER_GAME)).status).toBe(200); // the organizer's own confirmation
     expect((raw.query("SELECT COUNT(*) c FROM participant WHERE eid='PRV-AI'").get() as any).c).toBe(0);
   });
   test("an e-mail to us asking for a deletion works only from the organizer's registered address and with the right secret", async () => {

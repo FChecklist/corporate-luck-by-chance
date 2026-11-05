@@ -16,8 +16,8 @@ export const PRIZE_HOUSES: readonly PrizeHouse[] = [
   { id: "first", label: "1st place", how: "The most points. If points are equal: the highest single hit, then the most hits, then who reached the score first, then a public random number.", max: 1, kind: "set", dflt: true, squares: "1st" },
   { id: "second", label: "2nd place", how: "The second most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "2nd" },
   { id: "third", label: "3rd place", how: "The third most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "3rd" },
-  { id: "fourth", label: "4th place", how: "The fourth most points, by the same order.", max: 1, kind: "set", squares: "4th" },
-  { id: "fifth", label: "5th place", how: "The fifth most points, by the same order.", max: 1, kind: "set", squares: "5th" },
+  { id: "fourth", label: "4th place", how: "The fourth most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "4th" },
+  { id: "fifth", label: "5th place", how: "The fifth most points, by the same order.", max: 1, kind: "set", dflt: true, squares: "5th" },
 ];
 /** One plain line naming every house and its maximum winners, for the AI manual and the choices list. */
 export const HOUSES_LINE: string = PRIZE_HOUSES.map((h) => `${h.id} = ${h.label} (${h.max === 1 ? "1 winner" : `up to ${h.max} winners`})`).join(", ");
@@ -56,7 +56,7 @@ export const LOGO_MIN_SIDE = 64;
 export const LOGO_MAX_RATIO = 4;
 export const LOGO_STORED_MIN_SIDE = 48;
 export const LOGO_STORED_MAX_SIDE = 192;
-export const LOGO_RULES_TEXT = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. We shrink it to fit (30 KB, 192 pixels) and show it 30 pixels high on every page, in the browser and in the installed app.";
+export const LOGO_RULES_TEXT = "PNG, JPEG or WebP, up to 5 MB, at least 64 x 64 pixels, square or wide (at most 4 times wider than tall). Best: a square 256 x 256 picture with a white or see-through background. It is made small to fit (30 KB, 192 pixels) and shown 30 pixels high on every page, in the browser and in the installed app.";
 /** Width and height of a PNG, JPEG or WebP from its first bytes (a string of raw characters), or null when they cannot be read. */
 export function logoSize(raw: string, kind: string): { w: number; h: number } | null {
   const b = (i: number) => raw.charCodeAt(i);
@@ -92,7 +92,11 @@ export function checkBrandLogo(v: unknown): { ok: true; bytes: number } | { ok: 
 }
 export const MAX_INVITES_PER_PERSON = 10;
 export const defaultInvites = (): InviteCfg => ({ on: false, per: 4, cats: ["family", "colleagues"] });
-export interface EngagementCfg { /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
+/** A game for up to this many people costs Rs 0: a real game in every way, it publishes without payment. */
+export const DEMO_CAP = 10;
+export type VerifyMode = "mobile" | "id" | "either" | "both";
+export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both"];
+export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** What the ID is: an employee ID (default, absent) or an Email ID. ONE field the console reads and writes; it is kept only with verify "id" (Email ID only), and validateCfg is the single place that keeps the two in step. */ idKind?: "email"; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
 /**
  * Who decides the winners: the software, never a person. Every phone works out the winners from the public numbers and reports them; our store accepts a result
  * only when this many DIFFERENT phones (one ticket per phone) reported exactly the same winners. Tiny games need half their people; larger ones 5% (3 to 25).
@@ -112,7 +116,7 @@ export const INTERMISSION_ROUNDS = 30;
 /** Round 1 keeps the engagement's own id; later rounds use a derived id, so each round has its own numbers and its own tickets. */
 export const roundEid = (eid: string, round: number): string => (round <= 1 ? eid : `${eid}~r${round}`);
 
-/** The default prize set, in order: what a new game rewards until the organizer says otherwise (Line, Four Corners, X, Blackout). All houses, in order: HOUSE_ORDER. */
+/** The default prize set, in order: what a new game rewards until the organizer says otherwise (the top five places). All houses, in order: HOUSE_ORDER. */
 export const PATTERN_ORDER: readonly HouseId[] = PRIZE_HOUSES.filter((h) => h.dflt).map((h) => h.id);
 /** Brand moments are allowed PER TICKET each participant holds: 1 opening, 3 during the game and 1 closing for every ticket (5 with one ticket, 10 with two). */
 export const MAX_MID_PER_TICKET = 3;
@@ -149,7 +153,7 @@ export const linesFor = (rewards: readonly RewardLine[], key: PatternKey) => rew
 export const breakShift = (breaks: readonly BreakCfg[], k: number): number => breaks.reduce((s, b) => s + (b.after <= k ? b.seconds / 3 : 0), 0);
 
 const cleanText = (s: unknown, max: number) => (typeof s === "string" ? s.replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, max) : "");
-const YT = /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i;
+const YT = /^https:\/\/((www|m|music)\.)?(youtube\.com|youtu\.be)\//i; // a phone copies m.youtube.com or music.youtube.com links; any other address (youtube.com.evil.example) is still refused
 /** A media file kept on our own site (for example the demo's built-in video): a path with no folders, and only a media file type. */
 export const SITE_MEDIA = /^\/[A-Za-z0-9._-]{1,80}\.(mp4|webm|m4a|mp3)$/i;
 
@@ -157,8 +161,8 @@ export const SITE_MEDIA = /^\/[A-Za-z0-9._-]{1,80}\.(mp4|webm|m4a|mp3)$/i;
 export const DEFAULT_TZ = "Asia/Kolkata";
 /** True for a real IANA time zone name this runtime knows. */
 export const isTimeZone = (z: unknown): z is string => { if (typeof z !== "string" || z.length > 64 || !/^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+){0,2}$/.test(z)) return false; try { new Intl.DateTimeFormat("en-US", { timeZone: z }); return true; } catch { return false; } };
-export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
-  const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}) };
+export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown; idKind?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
+  const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}), ...(base.idKind === "email" && base.verify === "id" ? { idKind: "email" as const } : {}) };
   if (input.rounds !== undefined) {
     if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `The number of rounds is a whole number from 1 to ${MAX_ROUNDS}.` };
     cfg.rounds = input.rounds as number;
@@ -206,7 +210,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       let mediaUrl: string | undefined;
       if (b?.mediaUrl !== undefined && b.mediaUrl !== "") {
         if (typeof b.mediaUrl !== "string" || b.mediaUrl.length > 300 || !(/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl) || SITE_MEDIA.test(b.mediaUrl))) return { ok: false, error: "The link must start with https:// and have no spaces." };
-        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "A YouTube break needs a YouTube link." };
+        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "That is not a YouTube video link (a youtube.com or youtu.be address). Copy it again from the YouTube Share button, or use a video file link instead." };
         mediaUrl = b.mediaUrl;
       }
       if ((kind === "file" || kind === "youtube") && !mediaUrl) return { ok: false, error: "This kind of break needs a link." };
@@ -219,6 +223,26 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     cfg.breaks = out;
   }
   if (input.mark !== undefined) { if (input.mark !== "auto" && input.mark !== "tap") return { ok: false, error: "Marking is \"auto\" or \"tap\"." }; if (input.mark === "tap") cfg.mark = "tap"; else delete cfg.mark; }
+  // idKind is the source of truth for "which ID". The older spelling verify:"email" (Email ID only) is still read and means verify "id" + idKind "email".
+  const legacyEmail = input.verify === "email", verifyIn = legacyEmail ? "id" : input.verify;
+  if (verifyIn !== undefined) {
+    if (!VERIFY_MODES.includes(verifyIn as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, Email ID, or both mobile number and employee ID." };
+    if (verifyIn === "mobile") delete cfg.verify; else cfg.verify = verifyIn as VerifyMode;
+    if (verifyIn !== "id" && input.idKind === undefined) delete cfg.idKind; // an Email ID needs "Email ID only"; leaving that choice drops it
+  }
+  const kindIn = input.idKind !== undefined ? input.idKind : legacyEmail ? "email" : undefined;
+  if (kindIn !== undefined) {
+    if (kindIn !== "email" && kindIn !== "emp") return { ok: false, error: "Choose an Employee ID or an Email ID." };
+    if (kindIn === "email") {
+      if (verifyIn !== undefined && verifyIn !== "id") return { ok: false, error: "An Email ID is asked on its own: choose Email ID only, not a mobile number with it." };
+      if (cfg.verify !== undefined && cfg.verify !== "id") return { ok: false, error: "An Email ID is asked on its own: choose Email ID only, not a mobile number with it." };
+      cfg.verify = "id"; cfg.idKind = "email"; // choosing the Email ID is what turns the ID question on
+    } else delete cfg.idKind;
+  }
+  if (input.employeesOnly !== undefined) {
+    if (typeof input.employeesOnly !== "boolean") return { ok: false, error: "Employees only: say yes or no." };
+    if (input.employeesOnly) cfg.employeesOnly = true; else delete cfg.employeesOnly;
+  }
   if (input.join !== undefined) { if (input.join !== "name" && input.join !== "phone") return { ok: false, error: "Joining is \"name\" (guests type their name) or \"phone\" (guests also give a mobile number)." }; if (input.join === "phone") cfg.join = "phone"; else delete cfg.join; }
   if (input.tz !== undefined) { if (input.tz === null || input.tz === "") delete cfg.tz; else if (isTimeZone(input.tz)) { if (input.tz === DEFAULT_TZ) delete cfg.tz; else cfg.tz = input.tz; } else return { ok: false, error: "That time zone is not known. Use a name such as America/New_York or Asia/Kolkata." }; }
   if (input.name !== undefined) { const nm = cleanText(input.name, 60); if (nm) cfg.name = nm; else delete cfg.name; }
@@ -251,14 +275,14 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       let mediaUrl: string | undefined;
       if (b?.mediaUrl !== undefined && b.mediaUrl !== "") {
         if (typeof b.mediaUrl !== "string" || b.mediaUrl.length > 300 || !(/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl) || SITE_MEDIA.test(b.mediaUrl))) return { ok: false, error: "The link must start with https:// and have no spaces." };
-        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "A YouTube moment needs a YouTube link." };
+        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "That is not a YouTube video link (a youtube.com or youtu.be address). Copy it again from the YouTube Share button, or use a video file link instead." };
         mediaUrl = b.mediaUrl;
       }
       if ((kind === "file" || kind === "youtube") && !mediaUrl) return { ok: false, error: "This kind of brand moment needs a link." };
       let seconds: number | undefined;
       if (isOpening) {
         seconds = b?.seconds === undefined || b?.seconds === null || b?.seconds === "" ? 60 : b.seconds;
-        if (!Number.isInteger(seconds) || (seconds as number) < 15 || (seconds as number) > OPENING_WINDOW_SECONDS || (seconds as number) % 3) return { ok: false, error: `An opening lasts 15 to ${OPENING_WINDOW_SECONDS} seconds, in steps of 3.` };
+        if (!Number.isInteger(seconds) || (seconds as number) < 15 || (seconds as number) > OPENING_WINDOW_SECONDS || (seconds as number) % 3) return { ok: false, error: `An opening lasts 15 to ${OPENING_WINDOW_SECONDS} seconds, in steps of 3 (for example 30, 60 or 90). A time left empty counts as 60.` };
       }
       slots.push({ kind, title, ...(mediaUrl ? { mediaUrl } : {}), ...(seconds !== undefined ? { seconds } : {}) });
     }
@@ -281,5 +305,6 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     if (v.on && uniq.length < 1) return { ok: false, error: "Pick at least one kind of guest people may invite." };
     cfg.invites = { on: v.on, per, cats: uniq };
   }
+  if (cfg.employeesOnly) cfg.invites = { on: false, per: cfg.invites!.per, cats: cfg.invites!.cats }; // employees only: nobody invites anyone
   return { ok: true, cfg };
 }

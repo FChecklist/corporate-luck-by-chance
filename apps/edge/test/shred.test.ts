@@ -23,7 +23,7 @@ const count = (sql: string) => (raw.prepare(sql).get() as any).c as number;
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "test-data-key" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "test-data-key" };
 });
 async function game() {
   const x = await j(await call("POST", "/api/start", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.1" }));
@@ -85,7 +85,7 @@ describe("participant crypto-shredding", () => {
     raw.prepare("UPDATE audit_pii SET sealed='e1.AAAA.BBBB' WHERE seq=2 AND eid='EVT1'").run();
     const v = await verifyChain((env as any).DB, "EVT1"); expect(v.ok).toBe(false); expect(v.reason).toMatch(/personal part was changed/);
     raw.prepare("DELETE FROM audit_pii WHERE eid='EVT1'").run();
-    const w = await verifyChain((env as any).DB, "EVT1"); expect(w.ok).toBe(false); expect(w.reason).toMatch(/without a recorded erasure/);
+    const w = await verifyChain((env as any).DB, "EVT1"); expect(w.ok).toBe(false); expect(w.reason).toMatch(/without a recorded deletion/);
   });
 
   test("rows of the organizer, co-host and AI key, and the winners' prize confirmations, are NOT shredded", async () => {
@@ -121,17 +121,17 @@ describe("participant crypto-shredding", () => {
   });
 });
 
-describe("the 23-hour clock", () => {
-  test("constants: the link closes at 22 hours, participants' data goes at 23 (inside the promised 24)", () => {
-    expect(REPORT_LINK_MS).toBe(22 * HOUR); expect(PURGE_AFTER_MS).toBe(23 * HOUR);
+describe("the 20-hour clock", () => {
+  test("constants: the link closes at 19 hours, participants' data goes at 20 (inside the promised 24)", () => {
+    expect(REPORT_LINK_MS).toBe(19 * HOUR); expect(PURGE_AFTER_MS).toBe(20 * HOUR);
   });
-  test("the tick deletes participants and shreds their audit part at 23 hours after the end, not at 22", async () => {
+  test("the tick deletes participants and shreds their audit part at 20 hours after the end, not at 19", async () => {
     await game();
     const end = await endBoundMs(env as any, engagementRow());
     await lifecycleTick(env as any, end + 5 * 60_000);
-    await lifecycleTick(env as any, end + 22 * HOUR + 59 * 60_000);
+    await lifecycleTick(env as any, end + 19 * HOUR + 59 * 60_000);
     expect(count("SELECT COUNT(*) c FROM participant")).toBe(2); expect(count("SELECT COUNT(*) c FROM audit_pii")).toBe(2); expect(count("SELECT COUNT(*) c FROM shred")).toBe(0);
-    const out = await lifecycleTick(env as any, end + 23 * HOUR + 1000);
+    const out = await lifecycleTick(env as any, end + 20 * HOUR + 1000);
     expect(out.purged).toBe(1);
     expect(count("SELECT COUNT(*) c FROM participant")).toBe(0); expect(count("SELECT COUNT(*) c FROM audit_pii")).toBe(0); expect(count("SELECT COUNT(*) c FROM eng_key")).toBe(0);
     expect(raw.prepare("SELECT eid FROM shred").get()).toEqual({ eid: "EVT1" });

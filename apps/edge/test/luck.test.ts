@@ -49,7 +49,7 @@ async function phoneResult(id: string, settings: LuckSettings, players: number, 
   return { game: g, vals, result: { overall: (await g.overallRanking()).map(line), rounds } };
 }
 const vote = (id: string, p: P, result: unknown, now: number) => call("POST", `/api/z/${id}/luck/vote`, { pid: p.pid, device: p.device, result }, {}, now);
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://luck.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://luck.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
 
 describe("the lobby and the start", () => {
   test("R34: start is refused with fewer than two players, for a stranger and for the AI helper; wrong settings are refused with a plain sentence", async () => {

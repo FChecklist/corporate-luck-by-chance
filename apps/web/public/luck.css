@@ -130,6 +130,12 @@ body:has(.zapp) #cb-notify{display:none!important}
   .lt-press{min-height:52px;font-size:20px}
   .lt-clock{align-self:center}
 }
+/* laptop and desktop: use the width. The target and the dice sit side by side; phones are untouched (this only starts at 861 px wide and 521 px tall) */
+@media (min-width:861px) and (min-height:521px){
+  .zapp:has(.lt-game){max-width:min(90%,1100px)}
+  .zapp:has(.lt-game) .lt-game{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;grid-template-areas:"top stage" "tgt stage" "clock verdict" "hint btn";align-items:start}
+  .lt-top{grid-area:top}.lt-targetp{grid-area:tgt}.lt-stage{grid-area:stage;align-self:stretch}.lt-verdict{grid-area:verdict}.lt-clock{grid-area:clock}.lt-press{grid-area:btn;margin-top:0}.lt-hint{grid-area:hint}
+}
 /* older screens of the page */
 .lt-info{margin:0 0 6px;color:var(--muted);font-size:14px}
 .lt-totals{margin:10px 0 0;font-size:16px}
@@ -181,7 +187,7 @@ body:has(.zapp) #cb-notify{display:none!important}
   .lt-press{transition:none}
 }
 /* every screen of the player's page */
-.zhead{background:linear-gradient(90deg,#0B5D5B,#1B8660 70%,#2BA57A);border-radius:16px;padding:8px 12px;box-shadow:0 3px 0 rgba(6,59,58,.35)}
+.zhead{background:linear-gradient(90deg,#0B5D5B,#1B8660 70%,#1B7A55);border-radius:16px;padding:8px 12px;box-shadow:0 3px 0 rgba(6,59,58,.35)}
 .zhead b{color:#fff}
 .zhead b::before{border-radius:8px;box-shadow:0 0 0 2px rgba(255,255,255,.6)}
 .zapp .zcard{border:2px solid #CFE3DE;border-top:5px solid #F2B705;border-radius:16px;box-shadow:0 4px 0 rgba(15,29,28,.05)}
@@ -210,3 +216,10 @@ body:has(.zapp) #cb-notify{display:none!important}
 
 .zlogo{display:inline-flex;flex:0 0 auto;line-height:0;text-decoration:none}
 .zlogo img{display:block;width:20px;height:20px;border-radius:5px}
+/* a rarely used choice is hidden, never disabled: the value stays in the page and is still sent */
+.zc-hide{display:none !important}
+.zwait-p{margin:0 0 6px}
+.zwait-n{margin:0}
+
+/* a 44 x 44 px tap area for the logo link; the logo itself looks the same */
+.zlogo{min-width:44px;min-height:44px;align-items:center;justify-content:center;margin:-12px}

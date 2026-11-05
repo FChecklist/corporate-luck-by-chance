@@ -23,12 +23,12 @@ beforeEach(() => {
   // a stand-in for Razorpay's REST API
   (globalThis as any).fetch = async (url: string, init?: any) => {
     const u = String(url);
-    if (u.startsWith("https://rzp.test/v1/orders")) { const b = JSON.parse(init.body); const o = { id: "order_" + (rz.orders.length + 1), amount: b.amount, currency: b.currency, receipt: b.receipt, status: "created" }; rz.orders.push(o); return new Response(JSON.stringify(o), { status: 200 }); }
+    if (u.startsWith("https://rzp.test/v1/orders")) { const b = JSON.parse(init.body); const o = { id: "order_" + (rz.orders.length + 1), amount: b.amount, currency: b.currency, receipt: b.receipt, notes: b.notes, status: "created" }; rz.orders.push(o); return new Response(JSON.stringify(o), { status: 200 }); }
     const pm = u.match(/\/payments\/([^/]+)(\/capture)?$/);
     if (pm) { const p = rz.payments[pm[1]!]; if (!p) return new Response(JSON.stringify({ error: { description: "no such payment" } }), { status: 404 }); if (pm[2]) { rz.captured.push(pm[1]!); p.status = "captured"; } return new Response(JSON.stringify(p), { status: 200 }); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -193,7 +193,7 @@ describe("what a purchase lets you do", () => {
     expect(((await (await call("POST", "/api/z/TOOBIG/publish", { email: "b@acme.com", phone: "9876543210" }, K)).json()) as any).paid).toBe(false); // published, but not covered by this pack: it must still be paid for
     expect((await mk("FIRST1", 400)).status).toBe(200);
     expect(raw.query("SELECT pack FROM engagement WHERE id='FIRST1'").get()).toEqual({ pack: 500 }); // published at once: a purchased pack was waiting
-    expect((await mk("SECOND", 10)).status).toBe(200); // a second one can be built, but it is a draft until another purchase
+    expect((await mk("SECOND", 20)).status).toBe(200); // a second one can be built, but it is a draft until another purchase
     expect(raw.query("SELECT pack FROM engagement WHERE id='SECOND'").get()).toEqual({ pack: 0 });
     expect(((await (await call("POST", "/api/z/SECOND/publish", { email: "b@acme.com", phone: "9876543210" }, K)).json()) as any).paid).toBe(false);
     expect(raw.query("SELECT eid FROM entitlement").get()).toEqual({ eid: "FIRST1" });
@@ -205,7 +205,7 @@ describe("what a purchase lets you do", () => {
     expect((await call("PATCH", "/api/z/LIM1/settings", { cap: 500 }, K)).status).toBe(200);
     const r = await call("PATCH", "/api/z/LIM1/settings", { cap: 501 }, K);
     expect(r.status).toBe(402);
-    expect(((await r.json()) as any).error).toMatch(/Buy a bigger pack/);
+    expect(((await r.json()) as any).error).toMatch(/make a new game like this one/);
   });
   test("a returning buyer (same e-mail) gets another entitlement on the same organizer, with no second key", async () => {
     const first = await purchase();
@@ -285,7 +285,7 @@ describe("sign in by e-mailed code", () => {
     expect(t.token).not.toBe(first);
     expect((await call("GET", "/api/history", undefined, { "x-organizer": t.token })).status).toBe(200);
     expect((await call("GET", "/api/history", undefined, { "x-organizer": first })).status).toBe(200);
-    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Sign in to Corporate Luck by Chance%'").get() as any).c).toBe(1);
+    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Corporate Luck by Chance sign-in%'").get() as any).c).toBe(1);
   });
   test("an unknown address gets exactly the same answer and no mail, so nobody can learn who has an account", async () => {
     const r = await (await ask("nobody@nowhere.com")).json() as any;
@@ -297,7 +297,7 @@ describe("sign in by e-mailed code", () => {
     await account(); env.TEST_MODE = undefined; env.RAZORPAY_KEY_ID = "k"; env.RAZORPAY_KEY_SECRET = "s";
     const r = await (await ask("owner@corp.com")).json() as any;
     expect(r.devCode).toBeUndefined();
-    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Sign in to Corporate Luck by Chance%'").get() as any).c).toBe(1);
+    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Corporate Luck by Chance sign-in%'").get() as any).c).toBe(1);
   });
   test("a wrong code is refused, five wrong guesses lock that code, and the right one then no longer works", async () => {
     await account();
@@ -418,10 +418,9 @@ describe("paying to publish a draft", () => {
     const c = await (await pay(a, "PAYD-2")).json() as any; await complete(c.paymentId, c.razorpay.orderId, "pay_2");
     expect((await pay(a, "PAYD-2")).status).toBe(409);
   });
-  test("a draft that is too big for any pack needs a custom arrangement", async () => {
+  test("a game that is too big is refused at the start (the 2,000 cap), so no pay step is reached", async () => {
     const key = await start("big@acme.com", "3.3.3.3");
-    await call("POST", "/api/z", { id: "PAYD-3", startRound: FAR_START, callSeconds: 9, cap: 100000 }, { "x-organizer": key });
-    expect((await pay(key, "PAYD-3")).status).toBe(400);
+    expect((await call("POST", "/api/z", { id: "PAYD-3", startRound: FAR_START, callSeconds: 9, cap: 100000 }, { "x-organizer": key })).status).toBe(400);
   });
 });
 
@@ -437,13 +436,13 @@ describe("invoice carries Razorpay's own record (owner list 2026-10-10)", () => 
     const v = await call("POST", "/api/payments/verify", { paymentId: r.paymentId, razorpay_order_id: r.razorpay.orderId, razorpay_payment_id: "pay_U1", razorpay_signature: hmac("sek", `${r.razorpay.orderId}|pay_U1`) });
     const j = (await v.json()) as any; expect(j.ok).toBe(true);
     const html = await (await call("GET", j.invoiceUrl)).text();
-    for (const x of ["Paid on (IST)", "15:30:00 IST", "Razorpay: UPI", "UPI ID as", "@okicici", "111122223333", "pay_U1", r.razorpay.orderId, "Asha Rao", "+919876543210", "Terms and conditions", "We keep billing data for audit and tax reasons."]) expect(html).toContain(x);
+    for (const x of ["Paid on (IST)", "15:30:00 IST", "Razorpay: UPI", "UPI ID as", "@okicici", "111122223333", "pay_U1", r.razorpay.orderId, "Asha Rao", "+919876543210", "Terms and conditions", "Billing data is kept for audit and tax reasons."]) expect(html).toContain(x);
     expect(html).not.toContain("asha.rao@okicici");
   });
 });
 
 describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
-  const start = (o: Record<string, unknown> = {}) => call("POST", "/api/payments/paytest", { name: "Asha Rao", email: "asha@acme.in", country: "IN", ...o });
+  const start = (o: Record<string, unknown> = {}) => call("POST", "/api/payments/paytest", { name: "Asha Rao", email: "asha@acme.in", country: "IN", ...o }, { "x-organizer": "plat" });
   const payIt = async (r: any, payId = "pay_T1") => {
     rz.payments[payId] = { id: payId, order_id: r.razorpay.orderId, status: "captured", amount: r.razorpay.amount, currency: r.razorpay.currency, method: "upi", vpa: "asha@okicici", created_at: Math.floor(T / 1000) };
     return call("POST", "/api/payments/verify", { paymentId: r.paymentId, razorpay_order_id: r.razorpay.orderId, razorpay_payment_id: payId, razorpay_signature: hmac("sek", `${r.razorpay.orderId}|${payId}`) });
@@ -451,6 +450,13 @@ describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
   test("India pays Rs 1 with UPI first; the order is for exactly 100 paise", async () => {
     const r = (await (await start()).json()) as any;
     expect(r.razorpay.amount).toBe(100); expect(r.razorpay.currency).toBe("INR"); expect(r.razorpay.config.display.sequence[0]).toBe("block.upi"); expect(rz.orders[0].amount).toBe(100);
+  });
+  test("an optional test reference (free text, never looked up) travels in the order notes and is printed on the receipt as the Game ID of a payment test", async () => {
+    const r = (await (await start({ gameId: "  MY-TEST 01<b>  " })).json()) as any;
+    expect(rz.orders[0].notes.test_ref).toBe("MY-TEST 01b"); // cleaned: letters, digits, space, dash, underscore, dot only
+    const v = (await (await payIt(r)).json()) as any; expect(v.ok).toBe(true);
+    const html = await (await call("GET", v.invoiceUrl)).text(); expect(html).toContain("Game ID"); expect(html).toContain("MY-TEST 01b"); expect(html).toContain("payment test");
+    const none = (await (await start()).json()) as any; expect(none.razorpay.amount).toBe(100); expect(rz.orders[1].notes.test_ref).toBeUndefined(); // empty: as before
   });
   test("abroad pays US$ 1, only once international is on", async () => {
     expect((await start({ country: "US" })).status).toBe(400);
@@ -464,7 +470,7 @@ describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
     expect(raw.query("SELECT COUNT(*) c FROM invoice WHERE seq>0").get()).toEqual({ c: 0 });
     expect(raw.query("SELECT is_test FROM payment").get()).toEqual({ is_test: 1 });
     const html = await (await call("GET", v.invoiceUrl)).text(); for (const x of ["payment test", "Razorpay: UPI", "Terms and conditions", "No game, pack or credit was bought"]) expect(html).toContain(x);
-    const st = await call("GET", `/api/payments/paytest/${r.paymentId}`); expect(((await st.json()) as any).ok).toBe(true);
+    const st = await call("GET", `/api/payments/paytest/${r.paymentId}`, undefined, { "x-organizer": "plat" }); expect(((await st.json()) as any).ok).toBe(true);
   });
   test("the invoice shows on the done screen: inline markup, a real PDF, and e-mail it to any address (5 at most)", async () => {
     const r = (await (await start()).json()) as any; const v = (await (await payIt(r)).json()) as any;
@@ -490,7 +496,7 @@ describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
   test("bad input is refused before any order is created", async () => {
     for (const o of [{ email: "nope" }, { name: "A" }]) expect((await start(o)).status).toBe(400);
     expect(rz.orders.length).toBe(0);
-    expect((await call("GET", "/api/payments/paytest/pay_0000000000000000")).status).toBe(404);
+    expect((await call("GET", "/api/payments/paytest/pay_0000000000000000", undefined, { "x-organizer": "plat" })).status).toBe(404);
   });
 });
 
@@ -519,8 +525,14 @@ describe("central payments (every order opens through IT Services by Rajat Agarw
     expect(central.orders[0]).toMatchObject({ key: "psk_test", site: "corporate-luck-by-chance.pages.dev", product: "corporate_luck_by_chance", plan: "luck_pack_500", extra_notes: { site: "corporate-luck-by-chance.pages.dev", stream: "sales", plan: "luck_pack_500" }, amount_minor: 469900, currency: "INR" });
     expect(central.orders[0].payment_ref).toMatch(/^pay_[0-9a-f]{16}$/);
   });
+  test("the Rs 1 payment test is open to everybody: no key, a wrong key and a link key all get an order of 100 paise; an unknown status address is still a plain 404", async () => {
+    const body = { email: "a@b.co", name: "Asha Rao", country: "IN" };
+    for (const h of [{}, { "x-organizer": "wrong" }, { "x-organizer": "plat", "x-cb-link": "1" }] as Record<string, string>[]) { const r = await call("POST", "/api/payments/paytest", body, h); expect(r.status).toBe(200); }
+    expect((await call("GET", "/api/payments/paytest/pay_0000000000000000")).status).toBe(404);
+    expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 3 });
+  });
   test("the payment test is the payment_test plan", async () => {
-    const r = await call("POST", "/api/payments/paytest", { email: "a@b.co", name: "Asha Rao", country: "IN" });
+    const r = await call("POST", "/api/payments/paytest", { email: "a@b.co", name: "Asha Rao", country: "IN" }, { "x-organizer": "plat" });
     expect(r.status).toBe(200);
     expect(central.orders[0]).toMatchObject({ plan: "payment_test", amount_minor: 100 });
   });

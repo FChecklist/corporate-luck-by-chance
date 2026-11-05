@@ -6,12 +6,15 @@
 export const PACKS: ReadonlyArray<readonly [number, number, number]> = [
   [100, 2399, 34], [250, 3499, 51], [500, 4699, 67], [750, 5899, 84], [1000, 7099, 101], [2500, 11799, 169], [5000, 17699, 253], [10000, 29499, 421],
 ];
+/** The size that costs nothing: a game for up to 10 people is Rs 0 (it is a real game in every other way). */
+export const FREE_PACK = 10;
 export const GST_ON = false;
 export const GST = 0.18;
 export type Currency = "INR" | "USD";
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 export function price(pack: number, currency: Currency): { total: number; base: number; tax: number } {
+  if (pack === FREE_PACK) return { total: 0, base: 0, tax: 0 };
   const p = PACKS.find((x) => x[0] === pack);
   if (!p) throw new RangeError(`unknown pack ${pack}`);
   if (currency === "INR") {

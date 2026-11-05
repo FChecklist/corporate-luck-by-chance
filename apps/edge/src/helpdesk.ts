@@ -6,6 +6,8 @@
 //     The one-tap publish approval is a link in an e-mail (7 days, single use). Opening it gives the page a master key for 30 minutes (kind 'master', created_by 'dp') which is revoked when the game is published or the link is stopped.
 //   - Every e-mail address is kept sealed. The Organizer's address is also kept as the same one-way hash the sign-in uses, so an invitation can be accepted only by the account of that address.
 //   - Every paid game the helper prepared earns the helper Refer-and-earn commission: the payment's `ref` is the helper's partner code (pay.ts), and recordCommission does the rest (same rate, same repeat rule, same self-referral block).
+import { ensurePartnerKey } from "./partners";
+import { accountEmail } from "./idclean";
 import type { D1, Env } from "./worker";
 import { sendMail, type PayEnv } from "./pay";
 import { openText, sealText } from "./pii";
@@ -38,7 +40,7 @@ export const HD1_TEMPLATE = [
   "{helper} may prepare games in your account: create a game and change its settings and prizes. This is what your own AI link can do.",
   "They cannot publish a game, pay, see your sign-in keys, change your e-mail or close your account. Only you publish, with one tap.",
   "After you publish a game they prepared, they become a Host of that game and can change it like any Host. They see what a Host sees, such as the guest list. They do not use one of your 5 Host places.",
-  "When a game they prepared is paid, they earn Refer & earn commission from us. You pay nothing extra.",
+  "When a game they prepared is paid, they earn Refer & earn commission from Corporate Luck by Chance. You pay nothing extra.",
   "You can stop this at any time. It ends all their access at once. Games already published stay as they are.",
 ];
 export const hd1Lines = (helper: string): string[] => HD1_TEMPLATE.map((l) => l.replace("{helper}", helper));
@@ -56,7 +58,7 @@ const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.d
 const randHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("");
 async function body(req: Request, max = 2048): Promise<any | null> { const t = await req.text(); if (t.length > max) return null; try { const v = JSON.parse(t); return v && typeof v === "object" ? v : null; } catch { return null; } }
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
-const validEmail = (v: unknown): string => { const e = typeof v === "string" ? v.trim().toLowerCase() : ""; return EMAIL_RE.test(e) ? e : ""; };
+const validEmail = (v: unknown): string => { const e = typeof v === "string" ? accountEmail(v) : ""; return EMAIL_RE.test(e) ? e : ""; };
 const clean = (v: unknown, n: number): string => (typeof v === "string" ? v.replace(/[<>`]/g, "").trim().slice(0, n) : "");
 const TOKEN = /^[0-9a-f]{48}$/;
 const ID16 = /^[0-9a-f]{16}$/;
@@ -152,13 +154,14 @@ export async function helpdeskRoute(req: Request, env: PayEnv, now: number, spen
   if (!p.startsWith("/api/helpdesk/")) return null;
   const origin = env.PUBLIC_ORIGIN ?? url.origin;
   const busy = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
-  const notAllowed = () => json({ error: "Not allowed." }, 403);
+  const notAllowed = () => json({ error: "That is not open to this sign-in." }, 403);
   const gone = (state: string) => json({ error: state === "stopped" ? "This has been stopped." : "This link has been used or has expired.", state }, 410);
   const presentedKey = req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
 
   const partner = async () => {
     const k = req.headers.get("x-partner") ?? "";
-    return k ? db.prepare("SELECT code, name, email_hash, state FROM partner WHERE key_hash=?").bind(await sha("partner|" + k)).first<{ code: string; name: string | null; email_hash: string | null; state: string }>() : null;
+    if (k) await ensurePartnerKey(db);
+    return k ? db.prepare("SELECT code, name, email_hash, state FROM partner WHERE key_hash=?1 OR code IN (SELECT code FROM partner_key WHERE key_hash=?1)").bind(await sha("partner|" + k)).first<{ code: string; name: string | null; email_hash: string | null; state: string }>() : null;
   };
   /** The helper: a partner who turned Help Desk on. */
   const helper = async () => {

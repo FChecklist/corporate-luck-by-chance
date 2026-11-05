@@ -34,3 +34,4 @@ h2{font:600 clamp(18px,2vw,30px) Inter,sans-serif;margin:1em 0 .4em;color:var(--
 footer{font-size:clamp(12px,1.1vw,16px)}
 :focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .brand{display:inline-flex;align-items:center;gap:.4em}.brand::before{content:"";flex:0 0 1.3em;width:1.3em;height:1.3em;border-radius:.3em;background:url(/icon-192.png?v=2) center/cover}
+.lostbar{background:#B3261E;color:#fff;font:700 clamp(20px,3vw,52px)/1.2 Inter,sans-serif;text-align:center;padding:.4em 1em;border-radius:.5em;margin-bottom:1vh}

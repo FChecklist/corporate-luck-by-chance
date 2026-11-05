@@ -5,10 +5,18 @@ import { PACKS } from "../../../packages/shared/src/pricing";
 
 const PUB = new URL("../public/", import.meta.url), ORIGIN = "https://luck.corporatetambola.com";
 const rd = (f: string) => readFileSync(new URL(f, PUB), "utf8");
-const INDEXABLE = ["index.html", "partner.html", "helpdesk.html", "legal.html", "terms.html", "privacy.html", "legal-position.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "trust.html", "brochure.html", "about.html", "contact.html", "pricing.html", "refund-policy.html"];
-const NOINDEX = ["signin.html", "pay.html", "paytest.html", "ai-link.html", "helpdesk-accept.html", "helpdesk-approve.html", "report.html", "z.html", "zc.html", "big.html", "404.html", "owner-visits.html"];
+const INDEXABLE = ["index.html", "partner.html", "helpdesk.html", "terms.html", "partner-terms.html", "organizer-guide.html", "trust.html", "brochure.html", "about.html", "contact.html", "pricing.html"];
+const NOINDEX = ["signin.html", "pay.html", "paytest.html", "ai-link.html", "helpdesk-accept.html", "helpdesk-approve.html", "report.html", "z.html", "zc.html", "big.html", "404.html", "owner-visits.html", "owner-funnel.html"];
 const urlOf = (f: string) => ORIGIN + (f === "index.html" ? "/" : "/" + f);
 const meta = (h: string, re: RegExp) => (h.match(re) ?? [])[1] ?? "";
+
+const POINTERS = ["legal.html", "privacy.html", "legal-position.html", "dpa.html", "subprocessors.html", "refund-policy.html"]; // they only point to the one legal document (terms): not indexed, not in the sitemap
+
+describe("the older legal pages only point to the one document", () => {
+  for (const f of POINTERS) test(`${f}: noindex, follow, canonical to the terms page, a link into the document, and not in the sitemap`, () => {
+    const h = rd(f); expect(h).toMatch(/name="robots" content="noindex, follow"/); expect(h).toMatch(new RegExp(`<link rel="canonical" href="${ORIGIN}/terms(\\.html)?">`)); expect(h).toMatch(/href="\/terms(\.html)?#[a-z-]+"/); expect(rd("sitemap.xml")).not.toContain("/" + f.replace(/\.html$/, ""));
+  });
+});
 
 describe("sitemap and robots", () => {
   const sm = rd("sitemap.xml"), locs = [...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!);
@@ -28,8 +36,11 @@ describe("sitemap and robots", () => {
   test("a page that says noindex is never in the sitemap, and the owner page is not linked from any public page", () => {
     for (const f of NOINDEX) { let h = ""; try { h = rd(f); } catch { continue; } if (/name="robots" content="[^"]*noindex/.test(h)) expect(sm).not.toContain("/" + f); }
     expect(rd("owner-visits.html")).toMatch(/name="robots" content="noindex, nofollow"/);
+    expect(rd("owner-funnel.html")).toMatch(/name="robots" content="noindex, nofollow"/);
     for (const f of [...INDEXABLE, "signin.html", "pay.html"]) expect(rd(f)).not.toContain("owner-visits");
+    for (const f of [...INDEXABLE, "signin.html", "pay.html"]) expect(rd(f)).not.toContain("owner-funnel");
     expect(readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8")).toContain('["/owner-visits", PLAINCSP, true]'); // served with X-Robots-Tag: noindex too
+    expect(readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8")).toContain('["/owner-funnel", PLAINCSP, true]');
   });
 });
 
@@ -61,9 +72,9 @@ describe("each indexable page", () => {
     const h = rd("index.html"), f = rd("fonts.css");
     expect(f.match(/font-display: swap/g)!.length).toBe(f.match(/@font-face/g)!.length);
     for (const w of ["Inter-normal-400.woff2", "Fraunces-normal-500-700.woff2"]) expect(h).toContain(`<link rel="preload" href="/fonts/${w}" as="font" type="font/woff2" crossorigin>`);
-    for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); // termsbox.js must be loaded before site.js runs (a "#login" address opens the sign-in sheet at once); theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
+    for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme\.js|keep\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); // termsbox.js must be loaded before site.js runs (a "#login" address opens the sign-in sheet at once); theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
     expect(h).toMatch(/<script src="\/common\.js"><\/script><script src="\/google\.js"><\/script>(<script src="\/termsbox\.js"( defer)?><\/script>)?<script src="\/site\.js"><\/script>\s*<\/body>/); // the page scripts sit at the very end
-    expect(h).not.toMatch(/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)="https?:\/\/(?!luck\.corporatetambola\.com)/); // nothing is LOADED from elsewhere; the uniform footer only links to the sister sites
+    expect(h).not.toMatch(/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)="https?:\/\/(?!console\.corporatetambola\.com|luck\.corporatetambola\.com)/); // nothing is LOADED from elsewhere; the uniform footer only links to the sister sites
     expect(rd("../../../pages/build.mjs" as any).includes("max-age=31536000, immutable")).toBe(true);
   });
 });

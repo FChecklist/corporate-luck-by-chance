@@ -1,12 +1,15 @@
 // The life of an engagement's personal data. When a game ends (as seen from the public schedule, or sooner when enough phones say so):
 //   1. the organizer's report is built from the sealed records and e-mailed as PDF(s), in small steps because a free Worker has ~10 ms of CPU per call;
-//   2. the report link stops working 22 hours after the end; 23 hours after the end (we promise 24) every participant's name, number, seat, invite record and card link is deleted, the report's working copies too,
+//   2. the report link stops working 19 hours after the end; 20 hours after the end (we promise 24) every participant's name, number, seat, invite record and card link is deleted, the report's working copies too,
 //      and the participants' personal part of the audit log is crypto-shredded (audit.ts `shredParticipantAudit`: its per-engagement key is destroyed, the hash chain still verifies);
 //   3. only the organizer / host / co-host details and the winners record (seat, prize, round, time) remain, until 00:00 IST at the end of the 365th day, then everything goes.
 // Called by the scheduled job (and, as a fallback, by any outside timer with the platform key). Every call does a bounded amount of work and can be repeated safely.
 import { tzOfRow } from "./tz";
+import { deviceMatches, prefixEnd } from "./checkin";
 import { restoreCreditUses } from "./credit";
+import { transientDb } from "./transient";
 import { keepLegalParty } from "./legal";
+import { ensureGameRecordTable, keepGameRecord } from "./gamerecord";
 import { sweepVisits } from "./visits";
 import { closeAuditFor, isHeld, shredParticipantAudit } from "./audit";
 import { GRACE_ROUNDS, INVITE_CATEGORIES, PRIZE_HOUSES, validateCfg, keysInPlay, linesFor, type EngagementCfg, type PatternKey } from "../../../packages/beacon/src/config";
@@ -19,14 +22,16 @@ import { purgeOutbox, retryOutbox, sendReportMail, type PayEnv } from "./pay";
 import { eraseCohostsSql, mailDataDeleted, mailErasureHeadsUp } from "./cancel";
 import { creditTick } from "./credit";
 import { endBoundLuck } from "./luck";
+import { recordFunnel } from "./funnel";
+import { demoSweep } from "./demo";
 import type { D1, Env } from "./worker";
 
 export const GENESIS = 1692803367;
 export const roundMs = (r: number) => (GENESIS + (r - 1) * 3) * 1000;
-export const PURGE_AFTER_MS = 23 * 3_600_000;      // participants' personal data (and the personal part of their audit rows) goes this long after the game ended (the promise is 24 hours)
-export const REPORT_LINK_MS = 22 * 3_600_000;      // the organizer's report link stops working this long after the game ended, an hour before the deletion
+export const PURGE_AFTER_MS = 20 * 3_600_000;      // participants' personal data (and the personal part of their audit rows) goes this long after the game ended (the promise is 24 hours)
+export const REPORT_LINK_MS = 19 * 3_600_000;      // the organizer's report link stops working this long after the game ended, an hour before the deletion
 export const REPORT_AFTER_MS = 3 * 60_000;         // the report starts a few minutes after the end, so late wins have been recorded
-export const UNPLAYED_WARN_MS = 6 * 3_600_000;       // the heads-up e-mail for a game that did not start goes out this long before its guests' data is erased
+export const UNPLAYED_WARN_MS = 6 * 3_600_000;       // the heads-up e-mail for a game that did not start goes out this long before its guests' data is deleted
 export const SETTINGS_KEEP_MS = 30 * 86_400_000;      // the settings of a game that did not start (occasion, prizes, brand...) stay this long after it closed, so the Organizer can reuse them
 export const PAID_WINDOW_MS = 365 * 86_400_000;      // a PAID game can be set to any date within this long from the day of payment
 export const MAX_AHEAD_MS = 30 * 86_400_000;          // a game time can be set at most this far ahead
@@ -49,7 +54,7 @@ export const personalDeleteAt = (endMs: number) => endMs + PURGE_AFTER_MS;
 export const reportLinkUntil = (endMs: number) => endMs + REPORT_LINK_MS;
 
 export function cfgOfRow(e: { tickets?: number; config?: string | null }): EngagementCfg {
-  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, mark: j.mark, join: j.join, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* plain defaults */ }
+  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, mark: j.mark, join: j.join, tz: j.tz, verify: j.verify, idKind: j.idKind, employeesOnly: j.employeesOnly }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* plain defaults */ }
   return (validateCfg({}) as { ok: true; cfg: EngagementCfg }).cfg;
 }
 
@@ -70,7 +75,16 @@ export async function endBoundMs(env: Env, e: any): Promise<number> {
   return endBoundLuck(roundMs(e.start_round), t);
 }
 
-/** When this game's guest data will be (or was) erased: 23 hours after it ended, after it was cancelled, or, for a game nobody paid for, after it was meant to end. Follows the newest schedule. */
+/** The real end of the game, or null while it can still be live: the stored end once phones confirmed it (whatever the clock), else the scheduled end once the clock has reached it. A purge or a cancel is not an end. */
+export async function endedAtMsOf(env: Env, e: any, now: number): Promise<number | null> {
+  if (e.cancelled_ms) return null;
+  const l = await env.DB.prepare("SELECT end_ms, end_src FROM life WHERE eid=?").bind(e.id).first<{ end_ms: number; end_src: string }>();
+  if (l && l.end_src === "phones") return l.end_ms;
+  const bound = await endBoundMs(env, e);
+  return now >= bound ? bound : null;
+}
+
+/** When this game's guest data will be (or was) erased: 20 hours after it ended, after it was cancelled, or, for a game nobody paid for, after it was meant to end. Follows the newest schedule. */
 export async function erasureOf(env: Env, e: any): Promise<number> {
   if (e.cancelled_ms) return personalDeleteAt(e.cancelled_ms);
   if (e.pack !== 0) { const l = await env.DB.prepare("SELECT end_ms, end_src FROM life WHERE eid=?").bind(e.id).first<{ end_ms: number; end_src: string }>(); if (l && l.end_src === "phones") return personalDeleteAt(l.end_ms); }
@@ -81,7 +95,7 @@ export async function erasureOf(env: Env, e: any): Promise<number> {
 const lineLabel = (cfg: EngagementCfg, key: PatternKey, ordinal: number) => (linesFor(cfg.rewards, key).length > 1 ? ord(ordinal) + " " : "") + (NAMES[key] ?? key);
 
 /** Called when the organizer's console publishes results: the winners record gets one row per winning seat (never a name or a number). */
-export async function recordWinners(env: Env, e: any, eid: string, results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[], now: number, src = "console"): Promise<void> {
+export async function recordWinners(env: Env, e: any, eid: string, results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[], now: number, src = "console", strict = false): Promise<void> {
   try {
     const sch = await schedule(env, e);
     for (const x of results) {
@@ -95,7 +109,11 @@ export async function recordWinners(env: Env, e: any, eid: string, results: { pa
       const keep = seats.length ? seats.map(() => "?").join(",") : "-1";
       await env.DB.prepare(`DELETE FROM winner WHERE eid=? AND round=? AND pattern=? AND ordinal=? AND src=? AND seat NOT IN (${keep})`).bind(eid, round, x.pattern, ordinal, src, ...seats).run();
     }
-  } catch { /* the winners record is best effort here: phones report their own wins too */ }
+    // a person who no longer wins any prize keeps no check-in evidence: it goes with everyone else's within 24 hours
+    const still = new Set(((await env.DB.prepare("SELECT DISTINCT seat FROM winner WHERE eid=?").bind(eid).all<{ seat: number }>()).results ?? []).map((r) => Number(r.seat)));
+    const evid = (await env.DB.prepare("SELECT k FROM kv WHERE k >= ? AND k < ?").bind(`wev/${eid}/`, prefixEnd(`wev/${eid}/`)).all<{ k: string }>()).results ?? [];
+    for (const r of evid) if (!still.has(Number(r.k.split("/")[2]))) await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(r.k).run();
+  } catch (err) { if (strict && transientDb(err)) throw err; /* the winners record is best effort here: phones report their own wins too; strict (the phones' vote) lets a passing database hiccup out so the vote is not marked settled over a missing record */ }
 }
 
 /** A phone reporting a win of its own (so a game without an open console still has a winners record). Console-checked results always win over these. */
@@ -108,7 +126,8 @@ export async function acceptOver(env: Env, e: any, eid: string, b: any, now: num
   const seat = typeof b?.pid === "string" ? seatOfPid(b.pid) : null;
   if (!b || seat === null) return jsonFn({ error: "Bad report." }, 400);
   const who = await env.DB.prepare("SELECT 1 AS x FROM participant WHERE eid=? AND pid=?").bind(eid, b.pid).first();
-  if (!who) return jsonFn({ error: "Not a participant of this game." }, 403);
+  if (!who) return jsonFn({ error: "This phone does not seem to be part of this game." }, 403);
+  if (!(await deviceMatches(env, eid, b.pid, b.device))) return jsonFn({ error: "This ticket belongs to another phone.", code: "other-phone" }, 403); // the participant id is public: only the phone that holds the seat can say the game is over
   const earliest = roundMs(e.start_round + GRACE_ROUNDS) + 20 * e.call_seconds * 1000; // no game ends before 20 numbers
   if (now < earliest) return jsonFn({ ok: true, counted: false });
   if (!(await spend(env, now, 1))) return jsonFn({ error: "Busy day. Please try again after midnight UTC." }, 503);
@@ -130,7 +149,8 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
     env.DB.prepare("DELETE FROM claim WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM settled WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rcand WHERE eid=?").bind(eid),
     env.DB.prepare("DELETE FROM participant WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM seat WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM person WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM waiting WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM overvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM consent_log WHERE ref=? AND kind='K4'").bind(eid), // the join ticks (K4) go with the person; the organizer's ticks stay as the contract record
     env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(eid), // the nicknames and the phones' result votes go with the other personal data
-    env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR k LIKE ? OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/%`, `seats-blk/${eid}`),
+    env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR (k >= ? AND k < ?) OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/`, prefixEnd(`rptc/${eid}/`), `seats-blk/${eid}`),
+    env.DB.prepare("DELETE FROM kv WHERE (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?)").bind(`present/${eid}/`, prefixEnd(`present/${eid}/`), `ckfail/${eid}/`, prefixEnd(`ckfail/${eid}/`), `idx/${eid}/`, prefixEnd(`idx/${eid}/`)), // the employee-ID index of the people goes with their data
     env.DB.prepare(eraseCohostsSql).bind(eid), // the game's Co-hosts: name, mobile number and key go with the participants' data
     env.DB.prepare("INSERT INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?, 'organizer', ?, ?) ON CONFLICT(eid) DO UPDATE SET purged_ms=?, report_state=COALESCE(life.report_state, ?)").bind(eid, now, now, by, now, by),
   ]);
@@ -147,12 +167,14 @@ export async function eraseEverything(env: Env, id: string, now = Date.now()): P
 export async function purgeTestEngagement(env: Env, id: string, now = Date.now()): Promise<void> {
   await erasePersonal(env, id, now, "test-purge");
   await deleteEngagementRows(env, id);
+  try { await env.DB.prepare("DELETE FROM game_record WHERE eid=?").bind(id).run(); } catch { /* no record table yet */ } // a purged TEST game leaves no settings record (real games keep theirs for ever)
 }
 async function deleteEngagementRows(env: Env, id: string): Promise<void> {
+  { const eg = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(id).first<any>(); if (eg) await keepGameRecord(env.DB, eg, Date.now()); } // the settings of the game are kept for ever (no personal data in them): written one last time before the game's own rows go
   await keepLegalParty(env.DB, id, Date.now()); // the law keeps payments, invoices, the organizer's invoice details and who paid, for ever: copy them out before the game's own rows go
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM winner WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_t WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM prize WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM life WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM cbl_request WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(id),
-    env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
+    env.DB.prepare("DELETE FROM winner WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_t WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM kv WHERE k >= ? AND k < ?").bind(`wev/${id}/`, prefixEnd(`wev/${id}/`)), env.DB.prepare("DELETE FROM prize WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM life WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM cbl_request WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(id),
+    env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`mailowed/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
     env.DB.prepare("DELETE FROM organizer_key WHERE eid=? AND kind='cohost'").bind(id), env.DB.prepare("DELETE FROM shred WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM eng_key WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM audit_pii WHERE eid=?").bind(id), // erasePersonal above wrote a fresh shred marker
     env.DB.prepare("DELETE FROM engagement WHERE id=?").bind(id),
   ]);
@@ -221,17 +243,17 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
 const bodyFor = (eid: string, d: ReportData, link: string) => [
   `Hello,`, ``,
   `Your game ${eid} has ended. Your complete report is ready: when the game started and ended, the rounds and the press window, how many people took part, every prize and who won it, the invite tree, all statistics, and the name and mobile number of every participant.`, ``,
-  `Open it here (the PDF is built on your own computer or phone, so this link is all we send):`,
+  `Open it here (the PDF is built on your own computer or phone, so this link is all that is sent):`,
   link, ``,
-  `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once ours is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully.`, ``,
+  `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once the system's own copy is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully.`, ``,
   `What happens to the data:`,
-  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's name, mobile number, seat, join record and invite record from our systems.`,
-  `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (the final places, as seat numbers, without names or mobile numbers).`,
-  `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
+  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) every participant's name, mobile number, seat, join record and invite record is permanently deleted from the system.`,
+  `- For 365 days only this is kept: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (the final places, as seat numbers, without names or mobile numbers).`,
+  `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). Billing data is kept for audit and tax reasons.`,
   ``,
-  `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can we.`, ``,
-  `You can ask us to delete everything sooner: press Erase in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
-  `Corporate Luck by Chance is built to follow India's DPDP Act, the EU and UK GDPR and US privacy laws (including CCPA / CPRA): we collect only what is needed to run your game, protect it with encryption, keep it for the shortest time we can, never sell it, and honour every request to see, correct or delete data.`, ``,
+  `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. A winner or a number cannot be chosen or changed by you, or by the owner.`, ``,
+  `Everything can be deleted sooner on your request: press Delete all participant data now in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
+  `Corporate Luck by Chance is built to follow India's DPDP Act, the EU and UK GDPR and US privacy laws (including CCPA / CPRA): only what is needed to run your game is collected, it is protected with encryption, kept for the shortest time possible and never sold, and every request is honoured to see, correct or delete data.`, ``,
   `Sent on ${istFull(d.sentAtMs)} to ${d.organizerEmail}.`,
 ].join("\n");
 
@@ -327,7 +349,7 @@ async function remindReport(env: LifeEnv, e: any, life: any, now: number) {
 // ------------------------------------------------------------------------------------------------ games that did not start
 /**
  * A game that was never paid for (so its first number was never called). Its guests' names and numbers, people lists, waiting requests, personal links and Co-host details are erased
- * 23 hours after its scheduled END (the same end estimate a played game uses), following the NEWEST schedule: a reschedule moves the clock. Organizer and Host data, payments and invoices stay.
+ * 20 hours after its scheduled END (the same end estimate a played game uses), following the NEWEST schedule: a reschedule moves the clock. Organizer and Host data, payments and invoices stay.
  * A published game is then CLOSED (`unplayed_ms`): nobody can join or pay. Six hours before, the Organizer and Hosts get a heads-up (once per erasure time); right after, an "it did not start" mail.
  * A draft nobody published is erased the same way but is not "closed" (it is forgotten after 30 days as before). Safe to repeat.
  */
@@ -362,10 +384,17 @@ export async function unplayedPass(env: LifeEnv, now: number): Promise<number> {
 /** Runs the lifecycle for engagements that still hold personal data. Bounded: at most 25 engagements, one report step each. */
 export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checked: number; reportSteps: number; reportsDone: number; purged: number }> {
   const out = { checked: 0, reportSteps: 0, reportsDone: 0, purged: 0 };
+  try { await demoSweep(env as any, now); } catch { /* the daily demo counters are tidied next time */ }
   // paid (or cancelled) games that still hold personal data: guests, people on a list, waiting requests. A game nobody paid for is the "did not start" pass below.
-  const rows = (await env.DB.prepare("SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.purged_ms IS NULL AND (e.pack IS NOT 0 OR e.cancelled_ms IS NOT NULL) AND (EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) OR EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) OR EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id)) ORDER BY e.start_round LIMIT 25").all<any>()).results ?? [];
+  // 25 games per call, taken round and round by start time (a cursor in kv): when more than 25 games hold personal data at once, no game waits behind the same 25 for ever
+  const SEL = "SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.purged_ms IS NULL AND (e.pack IS NOT 0 OR e.cancelled_ms IS NOT NULL) AND (EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) OR EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) OR EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id))";
+  const cv = String((await env.DB.prepare("SELECT v FROM kv WHERE k='life_cursor'").first<{ v: string }>())?.v ?? ""), cut = cv.indexOf("|"), cursorRound = cut > 0 ? Number(cv.slice(0, cut)) || 0 : Number(cv) || 0, cursorId = cut > 0 ? cv.slice(cut + 1) : ""; // where the last call stopped: (start round, game id), so games that start in the same round are all reached
+  let rows: any[] = (await env.DB.prepare(SEL + " AND (e.start_round > ? OR (e.start_round = ? AND e.id > ?)) ORDER BY e.start_round, e.id LIMIT 25").bind(cursorRound, cursorRound, cursorId).all<any>()).results ?? [];
+  if (rows.length < 25) rows = rows.concat((await env.DB.prepare(SEL + " AND (e.start_round < ? OR (e.start_round = ? AND e.id <= ?)) ORDER BY e.start_round, e.id LIMIT ?").bind(cursorRound, cursorRound, cursorId, 25 - rows.length).all<any>()).results ?? []);
+  if (rows.length) await env.DB.prepare("INSERT INTO kv(k,v) VALUES('life_cursor',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(rows.length >= 25 ? `${rows[rows.length - 1].start_round}|${rows[rows.length - 1].id}` : "0").run();
   for (const e of rows) {
     out.checked++;
+    await keepGameRecord(env.DB, e, now); // the game's settings, kept for ever without any personal data; refreshed at each pass so a later change of a rule is kept too
     try {
       if (e.cancelled_ms) { // a cancelled game: no report; the 23-hour clock runs from the cancel time
         await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'cancel') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms, end_src='cancel' WHERE life.purged_ms IS NULL").bind(e.id, e.cancelled_ms).run();
@@ -378,8 +407,12 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
         await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'schedule') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms WHERE life.end_src='schedule' AND life.purged_ms IS NULL").bind(e.id, end).run();
         life = await env.DB.prepare("SELECT * FROM life WHERE eid=?").bind(e.id).first<any>();
       }
+      if (life && now - roundMs(e.start_round) < 14 * 86_400_000) { // sales funnel (funnel.ts): started and completed, once each
+        if (e.pack && roundMs(e.start_round) <= now) await recordFunnel(env as any, "game_started", e.id, now, { org: e.org });
+        if (e.pack && e.npart && now >= life.end_ms) await recordFunnel(env as any, "game_completed", e.id, now, { org: e.org });
+      }
       if (!life || now < life.end_ms + REPORT_AFTER_MS) continue; // still being played
-      if (!e.npart) { // a game that was played with nobody joined (only a people list): no report to make; the list goes 23 hours after the end like everyone's data
+      if (!e.npart) { // a game that was played with nobody joined (only a people list): no report to make; the list goes 20 hours after the end like everyone's data
         if (now >= personalDeleteAt(life.end_ms) && !(await isHeld(env.DB, e.id))) { await erasePersonal(env, e.id, now, "auto"); out.purged++; await mailDataDeleted(env as any, e, now); }
         continue;
       }
@@ -392,10 +425,16 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
       if (now >= personalDeleteAt(life.end_ms) && !(await isHeld(env.DB, e.id))) { await erasePersonal(env, e.id, now, "auto"); out.purged++; await mailDataDeleted(env as any, e, now); } // an owner-set legal hold suspends this too
     } catch { /* this engagement is tried again at the next tick; the others still run */ }
   }
-  // games that did not start (nobody paid, or still a draft): guest data goes 23 hours after the game was MEANT to end; a published one is then closed ("This game did not start")
+  // the permanent settings record (gamerecord.ts) also for the games the pass above does not look at (free and demo games), and for any game that has no record yet or whose ending is not in its record yet
+  try {
+    await ensureGameRecordTable(env.DB);
+    const more = (await env.DB.prepare("SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN game_record g ON g.eid=e.id LEFT JOIN life l ON l.eid=e.id WHERE e.pack IS NOT NULL AND (g.eid IS NULL OR (g.outcome IS NULL AND l.eid IS NOT NULL)) ORDER BY e.start_round DESC LIMIT 25").all<any>()).results ?? [];
+    for (const e of more) await keepGameRecord(env.DB, e, now);
+  } catch { /* tried again at the next tick */ }
+  // games that did not start (nobody paid, or still a draft): guest data goes 20 hours after the game was MEANT to end; a published one is then closed ("This game did not start")
   try { out.purged += await unplayedPass(env, now); } catch { /* tried again at the next tick */ }
   try { const c = await creditTick(env as any, now); (out as any).creditLapsed = c.lapsed; (out as any).creditMails = c.mailed; } catch { /* tried again at the next tick */ }
-  // a game's Co-hosts (name + mobile) go 23 hours after it ends even when nobody ever joined, so no participant erasure ever ran for it
+  // a game's Co-hosts (name + mobile) go 20 hours after it ends even when nobody ever joined, so no participant erasure ever ran for it
   try {
     const open = (await env.DB.prepare("SELECT DISTINCT eid FROM organizer_key WHERE kind='cohost' AND revoked=0 AND eid IS NOT NULL LIMIT 25").all<{ eid: string }>()).results ?? [];
     for (const k of open) {
@@ -405,7 +444,7 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
       if ((!g || l?.purged_ms || now >= personalDeleteAt(endMs)) && !(await isHeld(env.DB, k.eid))) await env.DB.prepare(eraseCohostsSql).bind(k.eid).run();
     }
   } catch { /* tried again at the next tick */ }
-  // engagements whose participant rows are already gone (organizer erased early, or a hold was lifted since) but whose participants' audit part is still sealed: shred it once the 23 hours are over
+  // engagements whose participant rows are already gone (organizer erased early, or a hold was lifted since) but whose participants' audit part is still sealed: shred it once the 20 hours are over
   try {
     const late = (await env.DB.prepare("SELECT DISTINCT p.eid AS eid FROM audit_pii p JOIN life l ON l.eid=p.eid WHERE l.end_ms + ? <= ? AND NOT EXISTS (SELECT 1 FROM legal_hold h WHERE h.eid=p.eid) LIMIT 25").bind(PURGE_AFTER_MS, now).all<{ eid: string }>()).results ?? [];
     for (const x of late) await shredParticipantAudit(env as any, x.eid, now);

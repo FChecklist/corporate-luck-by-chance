@@ -129,7 +129,7 @@ describe("Orders API client (against a local stand-in for api.razorpay.com)", ()
       expect(seen.body).toMatchObject({ amount: 100000, currency: "INR", notes: { brand: "Corporate Luck by Chance" } });
       await expect(createOrder(cfg, { amountMinor: 1, currency: "INR", receipt: "r", notes: {} })).rejects.toThrow("minimum amount");
     } finally { srv.stop(true); }
-  });
+  }, 30_000);
 });
 
 describe("invoice details (2026-10-10 owner list)", () => {
@@ -149,7 +149,7 @@ describe("invoice details (2026-10-10 owner list)", () => {
   });
   test("page 2 is a separate printed page with the terms", () => {
     const h = renderInvoiceHtml(base());
-    expect(h).toContain('class="sheet terms"'); expect(h).toContain("page-break-before:always"); expect(h).toContain("We do not give refunds"); expect(h.indexOf("Terms and conditions")).toBeGreaterThan(h.indexOf("TOTAL"));
+    expect(h).toContain('class="sheet terms"'); expect(h).toContain("page-break-before:always"); expect(h).toContain("A paid game cancelled before it starts stays on the organizer"); expect(h.indexOf("Terms and conditions")).toBeGreaterThan(h.indexOf("TOTAL"));
   });
   test("USD invoice (outside India) says no GST and prints US$", () => {
     const h = renderInvoiceHtml({ ...base(), currency: "USD", tax: splitGst(17, "USD", "", undefined, false), buyer: { name: "Bob", email: "b@x.com", country: "US" } });

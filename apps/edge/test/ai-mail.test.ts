@@ -25,7 +25,7 @@ const DEDICATED = new Set([AI_SUBJECT, HOST_SUBJECT, HOST_LINK_SUBJECT]); // HOS
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" };
 });
 
 async function organizer() {
@@ -49,7 +49,7 @@ describe("the dedicated mail builders", () => {
     expect(h).toContain(`${ORIGIN}/ai/${KEY}`); // but the text is in the box, to copy
     for (const t of ["ChatGPT", "Claude", "Gemini", "Grok", "DeepSeek", "z.ai"]) { expect(m.text).toContain(t); expect(h).toContain(t); }
     expect(m.text).toMatch(/1\. Copy the box/); expect(m.text).toMatch(/2\. Paste it into any AI chat/); expect(m.text).toMatch(/3\. Answer its questions/); expect(m.text).toMatch(/does the work/);
-    for (const t of [/payment/, /publishing/, /erasing/, /ending a running game/, /Replace my AI link/, /stops at once/]) { expect(m.text).toMatch(t); expect(h).toMatch(t); }
+    for (const t of [/payment/, /publishing/, /deleting data/, /ending a running game/, /Replace my AI link/, /stops at once/]) { expect(m.text).toMatch(t); expect(h).toMatch(t); }
     expect(m.text.split(KEY).length).toBe(2); expect(h.split(KEY).length).toBe(2); // the key appears once, inside the paste
     expect(m.text).toContain("MY OWN Corporate Luck by Chance account");
   });
@@ -77,6 +77,13 @@ describe("the AI link is in the dedicated mails and nowhere else", () => {
     expect(sent[0]!.body.startsWith(AI_WARNING)).toBe(true); expect(sent[0]!.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
     expect(sent[0]!.body).not.toContain(o.ai); expect(sent[0]!.body).not.toContain(o.msg); // the lasting key stays in the console; the mail has its own 24-hour key
     const mk = mailedKey(sent[0]!.body); expect(mk).not.toBe(o.ai); expect((await call("GET", `/ai/${mk}`)).status).toBe(200);
+  });
+  test("with AI_LINK_MAIL_AT_SIGNUP=0 (the live setting) sign-up sends no AI mail at all; the account and the sign-in e-mail (code and link) still work", async () => {
+    (env as any).AI_LINK_MAIL_AT_SIGNUP = "0";
+    const o = await organizer();
+    expect(outbox().length).toBe(0); expect((await call("GET", "/api/whoami", undefined, o.h)).status).toBe(200); // the account exists and the console key works
+    const r = await j(await call("POST", "/api/auth/email", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.2" }));
+    expect(r.ok).toBe(true); const sent = outbox(); expect(sent.length).toBe(1); expect(sent[0]!.subject).not.toBe("[Luck by Chance] " + AI_SUBJECT); expect(sent[0]!.body).toMatch(/\b\d{6}\b/); // one sign-in mail: the 6-digit code
   });
   test("publish, reminder, could-not-begin and every other mail of a full unpaid lifecycle carry no AI link; only the dedicated mails do", async () => {
     const { h } = await organizer();

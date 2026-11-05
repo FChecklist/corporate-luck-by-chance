@@ -1,6 +1,6 @@
 // Credit instead of refunds (docs/ROLES_AND_CONSOLE_SPEC_6.md, product rule 2026-10-08). THERE ARE NO REFUNDS.
 //   - If the Organizer or a Host cancels a PAID game before its start time, what was paid stays with us as CREDIT for that Organizer's account. It can pay for a next game for 365 days
-//     counted from the date of the original payment, until the end of day 365 in India time. Unused credit lapses then (no refund, no credit note). Cancelling an UNPAID game moves no money.
+//     counted from the date of the original payment, until the end of day 365 in India time. Unused credit lapses then (credit is not paid out as money, and no credit note is made). Cancelling an UNPAID game moves no money.
 //   - A cancelled PAID game can be moved to a new date for 30 days after the cancel (cancel.ts reopenGame): its unused credit is then marked 'revived' (never listed, never spendable) and the game keeps its payment.
 //   - A payment that arrives after a game was cancelled (or after it closed as "did not start") is kept the same way: it becomes credit, never a refund.
 //   - Using credit: oldest-expiring first. Credit >= price pays the game with no Razorpay; credit < price is used up and the rest is paid through the normal checkout (same game);
@@ -10,6 +10,7 @@
 //   - E-mails (Organizer + Hosts only, once each per credit): on cancel/arrival, 30 days before the lapse, 3 days before, on use, on lapse.
 // `expires_ms` is the instant the credit lapses: 00:00 IST at the START of day 366 (= the end of day 365 in India time). A credit is usable while now < expires_ms.
 import { PACKS, price } from "../../../packages/shared/src/pricing";
+import { accountEmail } from "./idclean";
 import { fulfil, PAYER, sendMail, type PayEnv } from "./pay";
 import { openText } from "./pii";
 import { orgIsTest, testFlag } from "./mode";
@@ -59,12 +60,12 @@ export async function teamEmails(env: PayEnv, org: string | null, eid: string | 
 export async function mailTeam(env: PayEnv, org: string | null, eid: string | null, subject: string, text: string, now: number): Promise<void> {
   try {
     const tos = await teamEmails(env, org, eid), seen = new Set<string>();
-    for (const to of [tos.organizer, ...tos.hosts]) { const t = (to ?? "").trim().toLowerCase(); if (!t || seen.has(t)) continue; seen.add(t); await sendMail(env, env.DB, t, subject, text, now); }
+    for (const to of [tos.organizer, ...tos.hosts]) { const t = accountEmail(to); if (!t || seen.has(t)) continue; seen.add(t); await sendMail(env, env.DB, t, subject, text, now); }
   } catch { /* a mail is a courtesy; the money records are already written */ }
 }
 
 /** The rule in one sentence, for e-mails and pages. */
-export const NO_REFUND_LINE = "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
+export const NO_REFUND_LINE = "A paid game cancelled before it starts stays with you as credit for your next game, valid for 365 days. Unused credit lapses at the end of day 365.";
 
 // ------------------------------------------------------------------------------------------------ making credit
 /**
@@ -190,7 +191,7 @@ export async function creditTick(env: PayEnv, now: number): Promise<{ lapsed: nu
     const claim = await db.prepare(`UPDATE credit SET ${col}=? WHERE id=? AND ${col} IS NULL`).bind(now, c.id).run();
     if ((claim.meta?.changes ?? 0) === 0) continue;
     if (three && c.mail30_ms === null) await db.prepare("UPDATE credit SET mail30_ms=? WHERE id=? AND mail30_ms IS NULL").bind(now, c.id).run(); // the 3-day mail replaces the 30-day one when we are already that close
-    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it is gone: we do not give refunds.`, now); out.mailed++;
+    await mailTeam(env, c.org, c.eid, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)}`, `Your credit of ${rs(c.remaining_inr, c.currency)} lapses on ${lapseDate(c)} (${three ? "in 3 days" : "in 30 days"}). Use it for your next game before then. After that it lapses, as it stays valid for 365 days only.`, now); out.mailed++;
   }
   return out;
 }
@@ -220,20 +221,20 @@ const PAYER_KINDS = new Set(["master", "host", "cohost"]);
 export async function creditRoute(req: Request, env: PayEnv, now: number, spend: (n: number) => Promise<boolean>, a: CreditAuth): Promise<Response | null> {
   const url = new URL(req.url), p = url.pathname, db = env.DB;
   if (req.method === "GET" && p === "/api/org/credit") {
-    if (!a.org || a.viaLink || (a.kind !== "master" && a.kind !== "host")) return json({ error: a.kind === "cohost" ? "Credit is shown to the Organizer and Hosts." : "Not allowed." }, 403);
+    if (!a.org || a.viaLink || (a.kind !== "master" && a.kind !== "host")) return json({ error: a.kind === "cohost" ? "Credit is shown to the Organizer and Hosts." : "That is not open to this sign-in." }, 403);
     return json(await listCredits(db, a.org, now));
   }
   const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/pay-with-credit$/);
   if (!m || req.method !== "POST") return null;
   if (a.kind === "ai") return json({ error: "Paying is for people to do themselves. Ask the owner to use their credit in the console." }, 403);
-  if (!a.org || a.viaLink || !a.kind || !PAYER_KINDS.has(a.kind)) return json({ error: "Not allowed." }, 403);
+  if (!a.org || a.viaLink || !a.kind || !PAYER_KINDS.has(a.kind)) return json({ error: "That is not open to this sign-in." }, 403);
   const e = await db.prepare("SELECT * FROM engagement WHERE id=?").bind(m[1]!).first<any>();
   if (!e || e.org !== a.org) return json({ error: "No such game." }, 404);
   if (a.kind === "cohost" && a.eid && a.eid !== e.id) return json({ error: "Your Co-host link is for a different game." }, 403);
   if (e.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for.", code: "cancelled" }, 409);
   if (e.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);
   const pack = PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null;
-  if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
+  if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to the support address." }, 400);
   const bodyText = await req.text(); let b: any = {}; try { b = bodyText ? JSON.parse(bodyText) : {}; } catch { b = {}; }
   const cur = b?.currency === "USD" ? "USD" : "INR";
   const total = price(pack, cur).total;
@@ -265,7 +266,7 @@ async function payGameFromCredit(env: PayEnv, e: any, a: CreditAuth, pack: numbe
   const src = first?.pid ? await db.prepare("SELECT meta, email FROM payment WHERE id=?").bind(first.pid).first<{ meta: string; email: string }>() : null;
   let sm: any = {}; try { sm = src ? JSON.parse(src.meta) : {}; } catch { sm = {}; }
   const tos = await teamEmails(env, e.org, e.id);
-  const email = (tos.organizer ?? src?.email ?? "").toLowerCase();
+  const email = accountEmail(tos.organizer ?? src?.email ?? "");
   const test = (await testFlag(env)) === 1 || (await orgIsTest(env, e.org)) ? 1 : 0;
   const meta = { org: sm.org ?? "", name: sm.name || sm.org || "Organizer", country: sm.country ?? "IN", taxId: sm.taxId ?? "", origin: env.PUBLIC_ORIGIN ?? "", orgId: e.org, eid: e.id, paidBy: PAYER[a.kind ?? ""] ?? "organizer", creditInr: usedInr, viaCredit: true, by: a.kind };
   await db.prepare("INSERT OR IGNORE INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid) VALUES(?,?,?,?,?,0,0,NULL,'created',?,?,NULL,NULL,?,?)").bind(id, null, email || "credit@invalid.local", pack, cur, now, JSON.stringify(meta), test, e.id).run();

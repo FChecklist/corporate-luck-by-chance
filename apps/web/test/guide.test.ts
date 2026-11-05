@@ -15,14 +15,15 @@ async function page(html = "pricing.html", url = "/pricing.html") {
   const p = await openPage(w.world, { url: "http://localhost" + url, html, scripts: ["guide.js"] });
   open.push(p); return p;
 }
-/** every `error: "..."` the server can send, with the status written next to it */
+/** every `error: "..."` the server can send, with the status written next to it. price-adjust.ts is left out on purpose: its messages are owner-only and a guide entry would put them in a public script (see price-adjust-secret.test.ts) */
 function serverMessages() {
   const out: { file: string; line: number; status: number; msg: string }[] = [];
-  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts"))) {
+  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts") && x !== "price-adjust.ts")) {
     readFileSync(join(EDGE, f), "utf8").split("\n").forEach((l, i) => {
       for (const m of l.matchAll(/error:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/g)) {
         const st = /\}\s*,\s*(\d{3})\s*\)/.exec(l.slice(m.index! + m[0].length)) ?? /status:\s*(\d{3})/.exec(l);
-        out.push({ file: f, line: i + 1, status: st ? Number(st[1]) : 400, msg: m[1]!.slice(1, -1) });
+        const text = m[1]!.slice(1, -1), status = st ? Number(st[1]) : 400;
+        for (const t of text.includes("${W}") ? ["employee ID", "Email ID"].map((w) => text.replace("${W}", w)) : [text]) out.push({ file: f, line: i + 1, status, msg: t }); // ${W} is idWord(): the two real words a person can see
       }
     });
   }
@@ -147,7 +148,7 @@ describe("the right guide for the right message and the right person", () => {
     const full = p.win.CTG.explain({ status: 409, message: "This engagement is full." });
     expect(full.title).toBe("This game is full"); expect(full.go).toEqual({ none: true });
     expect(full.steps.join(" ")).not.toMatch(/Number of participants|Organizer, raise/i);
-    for (const msg of ["This game was cancelled.", "This link is not valid any more. Please ask the person who invited you to send it again.", "This game did not start and is closed."]) {
+    for (const msg of ["This game was cancelled.", "This link has expired. Please ask the person who invited you to send it again.", "This game did not start and is closed."]) {
       const g = p.win.CTG.explain({ status: 409, message: msg }); expect(g.go.step).toBeUndefined(); expect(String(g.go.href || "")).not.toMatch(/zc/);
     }
     const o = await page("pricing.html", "/zc.html?e=ABCD1234"); expect(o.win.CTG.role()).toBe("organizer");

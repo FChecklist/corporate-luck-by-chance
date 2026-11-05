@@ -37,7 +37,11 @@ export const istDate = (ms: number, tz: string = DEFAULT_TZ) => zoneDate(ms, tz)
 const utcFull = (ms: number) => { const d = new Date(ms); return `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())} UTC`; };
 const hm = (ms: number, tz: string = DEFAULT_TZ) => { const d = zoneParts(ms, tz); return `${p2(d.h)}:${p2(d.mi)}:${p2(d.s)}`; };
 const dur = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 3600)} h ${p2(Math.floor((s % 3600) / 60))} min`; };
-const mob = (p: string | null) => (p ? p.replace(/^(\d{5})(\d{5})$/, "$1 $2") : "-");
+const mob = (p: string | null) => { // a kept number: India as 91 + 10 digits (shown as 98765 43210, as before), any other country as +<code><number>
+  if (!p) return "-";
+  const d = p.replace(/\D/g, "");
+  return p[0] !== "+" && (d.length === 10 || (d.length === 12 && d.startsWith("91"))) ? d.slice(-10).replace(/^(\d{5})(\d{5})$/, "$1 $2") : p;
+};
 const who = (w: { name: string | null; phone: string | null }) => `${w.name || "(no name)"}, ${mob(w.phone)}`;
 
 export function layoutReport(d: ReportData): Uint8Array {
@@ -56,13 +60,13 @@ export function layoutReport(d: ReportData): Uint8Array {
   pdf.box("Sent to you", [
     `E-mail address: ${d.organizerEmail}`,
     `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`,
-    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once we delete ours.",
+    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once the system has deleted its own.",
   ], [0.93, 0.96, 1], NAVY);
 
-  pdf.box("What we keep, and what we delete", [
-    `We have given you ALL the data we hold about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, we permanently delete from our systems every participant's name, mobile number, join record, seat assignment and invite link record. After that nobody at Corporate Luck by Chance, and nothing in our software or database, holds them.`,
-    "We keep, for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); and (2) the winners record: which prize, which place, at what time, and the seat number. The winners record holds no names or numbers.",
-    `Everything about this game, including those two records, is deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. We keep billing data for audit and tax reasons.`,
+  pdf.box("What is kept, and what is deleted", [
+    `You have been given ALL the data held about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, the system permanently deletes every participant's name, mobile number, join record, seat assignment and invite link record. After that nobody at Corporate Luck by Chance, and nothing in the software or database, holds them.`,
+    "Only this is kept, for 365 days: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); and (2) the winners record: which prize, which place, at what time, and the seat number. The winners record holds no names or numbers.",
+    `Everything about this game, including those two records, is deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. Billing data is kept for audit and tax reasons.`,
     "For your next game you can reuse the people list until it is deleted (the reuse button in your console), or upload your own list again afterwards from this report.",
   ]);
 
@@ -92,7 +96,7 @@ export function layoutReport(d: ReportData): Uint8Array {
   for (const pr of d.prizes) {
     pdf.h2(`${pr.label}${pr.text ? `   -   ${pr.text}` : ""}`);
     if (!pr.winners.length) { pdf.para("Not won.", { size: 9, color: [0.4, 0.43, 0.48] }); continue; }
-    pdf.table([{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 24 }, { head: "Mobile", width: 14 }, { head: "Time", width: 9 }, { head: "Role", width: 12 }, { head: "Agreed by", width: 10 }, { head: "Prize given", width: 14 }],
+    pdf.table([{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 22 }, { head: "Mobile", width: 16 }, { head: "Time", width: 9 }, { head: "Role", width: 12 }, { head: "Agreed by", width: 10 }, { head: "Prize given", width: 14 }],
       pr.winners.map((w) => [w.seat === null ? "-" : String(w.seat), w.name || "(no name)", mob(w.phone), w.atMs ? hm(w.atMs, d.tz) : "-", w.role || "participant", w.verified ? "phones" : "-", w.given ? w.given : "not yet"]));
     for (const w of pr.winners) if (w.changedFrom) pdf.para(`Seat ${w.seat === null ? "-" : w.seat}: details changed after the game (${w.changedFrom}).`, { size: 8.5, color: [0.7, 0.15, 0.1] });
   }
@@ -134,19 +138,19 @@ export function layoutReport(d: ReportData): Uint8Array {
     ["Participants' names and mobile numbers, seats, invite links", istFull(d.personalDeleteAtMs, d.tz)],
     ["Organizer / host / co-host details and the winners record", `00:00 hours IST, ${istDate(d.fullDeleteAtMs)}`],
   ]);
-  pdf.para("You can ask us to delete everything sooner: press 'Erase' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail us from your registered address.", { size: 9 });
+  pdf.para("Everything can be deleted sooner on your request: press 'Delete all participant data now' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail from your registered address.", { size: 9 });
 
-  pdf.h1("8. Our commitment to your data");
+  pdf.h1("8. Corporate Luck by Chance's commitment to your data");
   pdf.box("All of it is deleted. Here is exactly what, and when.", [
-    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from our systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that we hold none of it.`,
-    "2. We keep only two things, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
-    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is deleted too. We keep billing data for audit and tax reasons.`,
-    "4. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever built from them.",
+    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from the system within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that none of it is held.`,
+    "2. Only two things are kept, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
+    `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is deleted too. Billing data is kept for audit and tax reasons.`,
+    "4. Names and mobile numbers are stored encrypted while they are held, and only your own game's report is ever built from them.",
   ]);
-  pdf.box("The laws we follow", [
+  pdf.box("The laws followed", [
     "Corporate Luck by Chance is built to follow India's Digital Personal Data Protection Act, 2023 (DPDP Act), the European Union's General Data Protection Regulation (GDPR) and the United Kingdom's equivalent, and the privacy laws of the United States, including state laws such as the California Consumer Privacy Act (CCPA / CPRA).",
-    "In practice this means: we collect only the data needed to run your game; we use it only for that purpose; we protect it with encryption; we keep it for the shortest time we can and tell you exactly how long; we never sell it or use it for advertising; and the people who took part, and you, can ask us to show, correct or delete their data at any time.",
-    "You are the organizer of your game and decide who takes part; we process the data on your behalf. To exercise any right, or to ask us anything, reply to the e-mail this report came with.",
+    "In practice this means: only the data needed to run your game is collected; it is used only for that purpose; it is protected with encryption; it is kept for the shortest time possible, and you are told exactly how long; it is never sold or used for advertising; and the people who took part, and you, can ask for their data to be shown, corrected or deleted at any time.",
+    "You are the organizer of your game and decide who takes part; the data is processed on your behalf. To exercise any right, or to ask anything, reply to the e-mail this report came with.",
   ], [0.93, 0.96, 1], NAVY);
   pdf.para(`Sent on ${istFull(d.sentAtMs, d.tz)} to ${d.organizerEmail}.`, { size: 8.5, color: [0.4, 0.43, 0.48] });
   pdf.para(`${BRAND.name}  |  Questions? Write to ${BRAND.support}  |  Rules, privacy and disclaimer: ${BRAND.defaultOrigin}${BRAND.legalPath}`, { size: 8.5, color: [0.4, 0.43, 0.48] });
@@ -192,7 +196,7 @@ function treeSection(pdf: PdfDoc, people: ReportPerson[]) {
 function listSection(pdf: PdfDoc, people: ReportPerson[], tz?: string) {
   pdf.h1("6. Everyone, with name and mobile number");
   pdf.para(`${people.length} people. 'Joined' is the time they opened the link (${zoneAbbr(people.find((x) => x.joinedMs)?.joinedMs ?? 0, tz)}). Names in scripts other than Latin letters print as ? in this PDF.`, { size: 9, gap: 4 });
-  const cols: Column[] = [{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 24 }, { head: "Mobile", width: 12 }, { head: "Joined", width: 8 }, { head: "Late", width: 4 }, { head: "Role", width: 9 }, { head: "By", width: 5, align: "r" }, { head: "List", width: 4 }];
+  const cols: Column[] = [{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 20 }, { head: "Mobile", width: 16 }, { head: "Joined", width: 8 }, { head: "Late", width: 4 }, { head: "Role", width: 9 }, { head: "By", width: 5, align: "r" }, { head: "List", width: 4 }];
   pdf.table(cols, [...people].sort((a, b) => (a.seat ?? 1e9) - (b.seat ?? 1e9)).map((p) => [p.seat === null ? "-" : String(p.seat), p.name || "(no name)", mob(p.phone), p.joinedMs ? hm(p.joinedMs, tz) : "-", p.late ? "yes" : "", p.role || "", p.invitedBy ? String(p.invitedBy) : "", p.onRoster ? "yes" : ""]), { zebra: true });
 }
 /** One of the extra PDFs of a big game: the invite tree and the list for up to 1,500 people. */
@@ -204,7 +208,7 @@ export function layoutPeoplePart(d: ReportData, people: ReportPerson[], k: numbe
   pdf.para("Corporate Luck by Chance", { font: "F2", size: 11, color: GOLD, gap: 2 });
   pdf.para(`People, part ${k} of ${n}  |  Game ${d.engagementId}`, { font: "F2", size: 16, color: WHITE });
   pdf.y = pdf.H - 70 - 14;
-  pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is deleted from our systems by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
+  pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is deleted from the system by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
   treeSection(pdf, people); listSection(pdf, people, d.tz);
   return pdf.build();
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-15",
+  "version": "2026-11-01",
   "K1": {
     "A": "I have read and agree to the Terms & Conditions, the Privacy Policy and the Refund Policy.",
     "B": "I confirm: players pay nothing to play. I provide and hand over any prize. This game is allowed in my State. I am allowed to invite these guests."
@@ -11,7 +11,7 @@
     "A": "I agree to the Terms and the Refund Policy. I understand there is no refund; my payment stays as credit."
   },
   "K4": {
-    "A": "I agree that my name is used for this game only and deleted within 24 hours after it ends. I know who invited me is recorded until then. The final places are kept for 365 days as seat numbers, without names. We keep billing data for audit and tax reasons. This notice is available in Hindi on request.",
+    "A": "I agree that my name (and my mobile number, employee ID or e-mail address, if this game asks for them) is used for this game only and deleted within 24 hours after it ends. I know who invited me is recorded until then. The final places are kept for 365 days as seat numbers, without names. Billing data is kept for audit and tax reasons. This notice is available in Hindi on request.",
     "B": "I am 18 or older."
   },
   "K5": {

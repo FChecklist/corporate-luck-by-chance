@@ -33,5 +33,5 @@ One switch, kept in the database, lets the owner walk the whole product end to e
 
 * Anything that sends outside `sendMail` / `sendReportMail` (there is nothing else today); a new sender must use them.
 * Visit numbering (`visit_no`) counts test and real sessions of the same browser together.
-* The internal audit log keeps its rows for test tournaments until the normal 365-day rule removes them. The 23-hour deletion of players' names applies to a test tournament in the same way.
+* The internal audit log keeps its rows for test tournaments until the normal 365-day rule removes them. The 20-hour deletion of players' names applies to a test tournament in the same way.
 * There is no live site yet. LIVE is the default of the code, but nothing is deployed, so today every run is local.

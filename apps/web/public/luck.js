@@ -20,41 +20,61 @@
     if (!r.ok) throw Object.assign(new Error(j.error || "http " + r.status), { status: r.status, code: j.code, body: j });
     return j;
   };
-  const head = () => `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b></div>`;
+  const head = () => `<div class="zhead"><b><a class="zlogo" href="/" aria-label="Corporate Luck by Chance home"><img src="/logo-mark.svg" alt="Corporate Luck by Chance logo" width="20" height="20"></a>Corporate Luck by Chance</b>${INFO && INFO.demo ? `<span class="zdemo">Demo</span>` : ""}</div>`;
   const logoOf = (b) => (b && typeof b.logo === "string" && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(b.logo) ? b.logo : "");
   const brand = () => (INFO && INFO.brand && (INFO.brand.name || logoOf(INFO.brand)) ? `<div class="zbrand" data-bg="${esc(INFO.brand.color || "#0B5D5B")}" data-fg="#ffffff">${logoOf(INFO.brand) ? `<img class="zblogo" alt="" src="${esc(logoOf(INFO.brand))}">` : ""}${INFO.brand.name ? `<b>${esc(INFO.brand.name)}</b>` : ""}</div>` : "");
   const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
   const set = (html) => { $app.innerHTML = html; paintBrand(); };
   
-  // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
-  let tb = null, NICK = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
+  // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; one agreement line, nothing to tick (no tick-boxes since 1 Nov 2026); the server still refuses a join without the version ----------
+  let tb = null, NICK = "", EMP = "", PHONE = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
   const joinView = () => {
+    const isEmail = !!(INFO && INFO.idKind === "email" && INFO.verify === "id"), vm = (INFO && INFO.verify) || "mobile", needId = vm !== "mobile", needPhone = vm === "both" || vm === "id" || !!(INFO && INFO.joinPhone); // the organizer chose what a person gives to get in
     set(`${brand()}${head()}<div class="zcard zform"><h2>Join the game</h2>
-      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
+      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Only a nickname is asked for. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
+      ${needId ? `${isEmail ? `<label for="emp">Your Email ID</label><input id="emp" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" disabled>` : `<label for="emp">Your employee ID</label><input id="emp" autocomplete="off" autocapitalize="characters" maxlength="60" disabled>`}<div id="emphint" class="zsmall" aria-live="polite"></div>` : ""}
+      ${needPhone ? `<label for="ph">${needId && vm === "id" ? (isEmail ? "Your mobile number (only if you have no Email ID)" : "Your mobile number (only if you have no employee ID)") : "Your mobile number"}</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" disabled>` : ""}
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
     const nm = document.getElementById("nm"), go = document.getElementById("go");
-    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2; go.setAttribute("aria-disabled", String(go.disabled)); };
+    const emp = document.getElementById("emp"), ph = document.getElementById("ph");
+    const hintEmp = () => { const h = document.getElementById("emphint"); if (h && emp && window.IDCLEAN) h.textContent = isEmail ? IDCLEAN.emailHint(emp.value) : IDCLEAN.empHint(emp.value, !!(INFO && INFO.empClean)); }; if (emp) emp.addEventListener("input", hintEmp);
+    if (emp) emp.value = EMP; hintEmp(); if (emp) emp.value = EMP; if (ph) ph.value = PHONE;
+    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (ph) ph.disabled = !ok; const idOk = !emp || vm === "id" ? true : emp.value.trim().length > 0, phOk = !ph || (vm === "id" ? true : vm === "both" || !!(INFO && INFO.joinPhone) ? ph.value.replace(/\D/g, "").length >= 10 : true), anyOk = vm !== "id" || (emp.value.trim() || ph.value.trim()); go.disabled = !ok || nm.value.trim().length < 2 || !idOk || !phOk || !anyOk; go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
-    nm.addEventListener("input", sync);
+    nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (ph) ph.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
-    go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = ""; NICK = nm.value.trim();
-      try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
-        pid = r.pid; ls.set(pidKey(), pid);
-        start();
-      } catch (e) {
-        if (e.code === "waiting" && e.body && e.body.wid) { waitFor(e.body.wid, e.message); return; }
-        if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
-        joinMsg = e.message || "Could not join. Please try again."; joinView();
-      }
-    });
+    go.addEventListener("click", () => { go.disabled = true; joinMsg = ""; NICK = nm.value.trim(); EMP = emp ? emp.value.trim() : ""; PHONE = ph ? ph.value.trim() : ""; busyTries = 0; doJoin(); });
   };
+  // A join that gets no answer at all (a lost connection, a call that timed out) or a busy answer (a whole office joins from one address) is asked again by itself:
+  // joining is safe to repeat, the same device gets the same seat. The person sees one calm screen instead of an error, and can stop it and try by hand.
+  const BUSY_TRIES = 15;
+  let busyTries = 0, busyTimer = 0;
+  const busyView = () => {
+    set(`${brand()}${head()}<div class="zcard zwait" role="status"><h2>Many people are joining right now</h2><p class="zwait-p">Your request is safe. It is trying again for you every few seconds. Keep this page open.</p><p class="zsmall zwait-n">Try ${busyTries} of ${BUSY_TRIES}.</p></div><div class="zagain"><button class="zbtn s alt" id="again" type="button">Stop and try myself</button></div>`);
+    const a = document.getElementById("again"); if (a) a.addEventListener("click", () => { clearTimeout(busyTimer); busyTries = 0; tb = null; joinView(); });
+  };
+  async function doJoin() {
+    try {
+      const r = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+      clearTimeout(busyTimer); busyTries = 0;
+      pid = r.pid; ls.set(pidKey(), pid);
+      start();
+    } catch (e) {
+      if (e.code === "waiting" && e.body && e.body.wid) { clearTimeout(busyTimer); busyTries = 0; waitFor(e.body.wid, e.message); return; }
+      if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
+      if ((e.code === "busy" || !e.status) && busyTries < BUSY_TRIES) { // no answer at all (no status) or a busy answer: ask again by itself, a little later each time
+        busyTries++; busyView(); clearTimeout(busyTimer);
+        busyTimer = setTimeout(doJoin, Math.round((4 + Math.min(26, busyTries * 2)) * 1000 * (0.7 + (((busyTries * 37) + (parseInt(String(device).slice(-2), 16) || 0)) % 61) / 100)));
+        return;
+      }
+      busyTries = 0; joinMsg = e.message || "Could not join. Please try again."; joinView();
+    }
+  }
 
   // ---------- the waiting room: a game by invitation lets a person in once the host approves; the page asks again by itself ----------
   const waitFor = (wid, note) => {
@@ -62,7 +82,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined, ...(EMP ? { empId: EMP } : {}), ...(PHONE ? { phone: PHONE } : {}) }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);
@@ -84,6 +104,8 @@
   const prizeFor = (settings, which, place) => { const t = which === "overall" ? settings.prizes.overall : settings.prizes.rounds[which - 1]; return (t && t[place - 1]) || ""; };
   document.addEventListener("keydown", (e) => { if (e.key === "Tab" || e.key === "Enter" || e.key === " ") usedKeys = true; });
   document.addEventListener("pointerdown", () => { usedKeys = false; });
+  /* Reaction pack hook: only for new-flow games, only when the shared reaction script is on the page; the ids are in game-core LUCK_REACTIONS. */
+  const react = (id) => { try { if (window.ctzReact) window.ctzReact(id); } catch (e) { /* a reaction never stops the game */ } };
   const keyOf = (v) => { const p = RUN.phase(), gi = p.g !== undefined ? p.g : -1; return [p.kind, gi, p.afterRound || 0, gi >= 0 && pressed[gi] ? 1 : 0, RUN.game ? RUN.game.done : 0, RUN.game ? RUN.game.finished : 0, RUN.targets[gi] || 0, RUN.error ? 1 : 0, v.agreed ? 1 : 0].join("|"); };
   // the dice rounds of the round that dice round gi belongs to, as small chips; only those BEFORE index `upTo` (the one that is landing now is added when it has landed)
   const chipsOf = (g, s, seat, gi, upTo) => { const first = (LE.roundOf(s, gi) - 1) * s.diceRounds, out = []; for (let i = first; i < upTo; i++) { const r = g.results[i]; if (!r) continue; const d = r.dice[seat]; out.push({ no: LE.diceNoOf(s, i), t: r.target, d, hit: d === r.target, pts: r.points[seat] || 0 }); } return out; };
@@ -127,6 +149,7 @@
               if (pressed[gi]) return; pressed[gi] = true; LD.vibrate(40);
               pb.disabled = true; pb.textContent = "Rolling..."; pb.classList.add("tap");
               ctl.roll();
+              if (s.newFlow && pid) { fetch("/api/z/" + EID + "/luck/press", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pid, device, g: gi }) }).catch(() => {}); }
               const vd = document.getElementById("lt-verdict"); if (vd) vd.textContent = "Pressed. Your dice lands when the timer ends.";
               const st = document.getElementById("lt-stage"); if (st && usedKeys) st.focus({ preventScroll: true }); // the button is now off: keep the keyboard place on the dice
               LD.announce("Rolling. Your dice lands when the timer ends.");
@@ -136,7 +159,7 @@
         } else if (!r || dv < 1) { ctl.roll(); }
         else {
           const chip = { no: LE.diceNoOf(s, gi), t: r.target, d: dv, hit: dv === r.target, pts: gain };
-          const fill = (fresh) => { if (RUN.phase().g !== gi) return; LD.showResult({ target: r.target, dice: dv, total: me ? me.points : 0, seg: LE.diceNoOf(s, gi) - 1, chip, fresh }); const pb2 = document.getElementById("press"); if (pb2) pb2.textContent = "Next dice round soon"; const t10 = document.getElementById("lt-top10"); if (t10) t10.hidden = false; };
+          const fill = (fresh) => { if (RUN.phase().g !== gi) return; if (fresh && s.newFlow && pressed[gi]) { const dd = Math.abs(r.target - dv); react(dd === 0 ? "boom" : dd === 1 ? "nice" : "oops"); } LD.showResult({ target: r.target, dice: dv, total: me ? me.points : 0, seg: LE.diceNoOf(s, gi) - 1, chip, fresh }); const pb2 = document.getElementById("press"); if (pb2) pb2.textContent = "Next dice round soon"; const t10 = document.getElementById("lt-top10"); if (t10) t10.hidden = false; };
           if (landedAlready) { ctl.show(dv); fill(false); }
           else {
             const sinceReveal = RUN.now() - (p.endsMs - s.revealSecs * 1000);
@@ -156,7 +179,8 @@
         const top5 = fr.overall.slice(0, 5).map((x) => { const pz = s.prizeMode !== "rounds" ? prizeFor(s, "overall", x.place) : ""; return `<li${x.seat === seat ? ' class="me"' : ""}><b>${ord(x.place)}: ${esc(RUN.nameOf(x.seat))}</b> <span class="lt-pts">${x.points} pts</span>${pz ? `<span class="lt-prize">${esc(pz)}</span>` : ""}${x.line ? `<small>How this was decided: ${esc(x.line)}</small>` : ""}</li>`; }).join("");
         const rest = fr.overall.slice(5);
         const rounds = s.prizeMode !== "overall" ? fr.rounds.map((l, i) => `<details><summary>Round ${i + 1} winners</summary>${l.slice(0, 5).map((x) => `<p class="zsmall"><b>${ord(x.place)}</b> ${esc(RUN.nameOf(x.seat))} (${x.points} pts)${prizeFor(s, i + 1, x.place) ? " - " + esc(prizeFor(s, i + 1, x.place)) : ""}${x.line ? "<br>" + esc(x.line) : ""}</p>`).join("")}</details>`).join("") : "";
-        body = `<div class="zcard" role="status"><h2>The game is over</h2>${me ? `<p class="lt-fin">You scored <b>${me.points}</b> points. ${standing(seat)}</p>` : ""}<ol class="trank lt-list lt-final">${top5}</ol>${rest.length ? `<h3>Places 6 to 10</h3>${listHtml(rest, seat)}` : ""}</div>${rounds ? `<div class="zcard">${rounds}</div>` : ""}
+        const won = s.newFlow ? fr.overall.slice(0, 5).find((x) => x.seat === seat) : null; if (won) react("ta_da");
+        body = `<div class="zcard" role="status"><h2>The game is over</h2>${won ? `<p class="lt-fin"><b>You won</b> ${ord(won.place)} place.</p>` : ""}${me ? `<p class="lt-fin">You scored <b>${me.points}</b> points. ${standing(seat)}</p>` : ""}<ol class="trank lt-list lt-final">${top5}</ol>${rest.length ? `<h3>Places 6 to 10</h3>${listHtml(rest, seat)}` : ""}</div>${rounds ? `<div class="zcard">${rounds}</div>` : ""}
           <p class="zsmall tcen">Every phone worked this out from the same public numbers. The result is published when enough phones agree.</p>`;
       }
     }
@@ -193,6 +217,6 @@
   cdTimer = setInterval(tickCd, 250);
   const start = () => { if (!pid) joinView(); else tick(); };
   if (!EID) { set(`${head()}<div class="zcard"><h2>Open your game link</h2><p class="zsmall">Ask your organizer for the link to this game.</p></div>`); return; }
-  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>We could not find this game</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
+  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>This game could not be found</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
   void cdTimer;
 })();

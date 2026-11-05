@@ -1,4 +1,4 @@
-# Help Desk layer (owner order 2026-10-19)
+# Help Desk layer (request 2026-10-19)
 
 Anyone can become a **Help Desk person** (like Refer and earn), reach out to an Organizer, prepare the game for them, and the Organizer publishes it with one tap. Nothing in the game's own rules changes: this layer only uses the roles and routes the game already has.
 

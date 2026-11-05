@@ -101,7 +101,7 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
       const lines = `Here is how it will play: a dice game of pure luck, 10 rounds by default (you choose the rounds and the press window on the day). ${j ? "Invite-only." : "Open to anyone with the link."} ${v ? `Guests may invite up to ${v} more people each.` : "Guests may not invite others."}`;
       return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [j ? "Open to anyone with the link" : "Invite-only (only people on my list)", L("play", { j: j ? "o" : "c" })], [v ? "Guests may not invite others" : "Let each guest invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
     }
-    case "prizes": return { say: "Which prizes do you want to run? (You give the prizes; we only provide the software. You name each prize afterwards.)", choices: choices(Object.entries(BUNDLES).map(([k, b]) => [b.label, L("review", { p: k }), k === "c"] as [string, string, boolean?])), ifWrong: WRONG };
+    case "prizes": return { say: "Which prizes do you want to run? (You give the prizes; the software is all that is provided. You name each prize afterwards.)", choices: choices(Object.entries(BUNDLES).map(([k, b]) => [b.label, L("review", { p: k }), k === "c"] as [string, string, boolean?])), ifWrong: WRONG };
     case "extras": return goScreen(ctx, "review", q); // an old link from the days of the lucky draw step
     case "review": {
       if (!validDay(q.get("d")) || !validTime(q.get("t")) || !q.get("c")) return goScreen(ctx, "new", q);
@@ -160,13 +160,13 @@ async function gameStep(ctx: GoCtx, step: string, q: URLSearchParams): Promise<S
   if (step === "say") { if (!published) return { say: "Messages can be sent only after you publish: nobody can see a draft.", choices: choices([["Publish: the organizer taps once", consoleOf(ctx, id, "publish")], ["Back", `${ctx.base}/go/game?id=${id}`]]) }; return { say: "Which message should go to every guest's phone (it is shown in a strip at the top of every phone and of the big screen)?", choices: choices(PRESET_MESSAGES.map((m, i) => [m, link(ctx, "say2", q, { id, m: String(i + 1) })] as [string, string])) }; }
   if (step === "say2") { const i = Number(q.get("m")) - 1, text = PRESET_MESSAGES[i]; if (!text) return goScreen(ctx, "say", q); const r = await ctx.api("POST", `z/${id}/announce`, { text }); return { done: r.status === 200, say: r.status === 200 ? `Sent to every guest: "${text}"` : `I could not send it: ${r.json?.error ?? "error"}. ${r.json?.next ?? ""}`.trim(), choices: choices([["Back to this game", `${ctx.base}/go/game?id=${id}`]]) }; }
   if (step === "helper") {
-    return { done: true, say: `A Host needs a name, an e-mail address and a mobile number, and only the owner enters those, in the console (Your team). Ask the organizer to add the Host there; I cannot. A Host looks after the game with them but cannot change the account or add another Host.`, choices: choices([["Back to this game", `${ctx.base}/go/game?id=${id}`]]) };
+    return { done: true, say: `A Host needs a name and a mobile number or an e-mail address (or both), and only the owner enters those, in the console (Your team). Ask the organizer to add the Host there; I cannot. A Host looks after the game with them but cannot change the account or add another Host.`, choices: choices([["Back to this game", `${ctx.base}/go/game?id=${id}`]]) };
   }
   // the game menu
   const rows: [string, string, boolean?][] = [["Change the day or time", `${ctx.base}/go/gtime?id=${id}`], ["Show the links", `${ctx.base}/go/links?id=${id}`], ["How many have joined", `${ctx.base}/go/who?id=${id}`], ["Create a Host link", `${ctx.base}/go/helper?id=${id}`]];
   if (published) rows.splice(2, 0, ["Send a message to every guest", `${ctx.base}/go/say?id=${id}`]);
   if (draft) rows.unshift(["Publish (free): the organizer taps once", consoleOf(ctx, id, "publish"), true]);
-  rows.push(["Erase all guest data now: the organizer confirms", consoleOf(ctx, id, "erase")], ["End the game: the organizer taps once", consoleOf(ctx, id, "end")]);
+  rows.push(["Delete all guest data now: the organizer confirms", consoleOf(ctx, id, "erase")], ["End the game: the organizer taps once", consoleOf(ctx, id, "end")]);
   return { say: [`Game ${id}: ${s.status}. Starts ${s.startsAtIST}. Up to ${s.limit} people, ${s.participants} joined.`, ...(unpaid && s.payBefore ? [`Payment is due before ${s.payBefore} (the organizer pays; I never do).`] : []), "What would you like to do?"].join("\n"), choices: choices(rows), ifWrong: WRONG };
 }
 
