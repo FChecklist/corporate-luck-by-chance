@@ -11,6 +11,13 @@ const ROOT = new URL("../../../", import.meta.url).pathname.replace(/^\/([A-Za-z
 const SKIP_DIR = new Set(["node_modules", "vendor", ".git", "fonts", "img", ".wrangler"]);
 const TEXT = /\.(html|js|css|txt|xml|json|webmanifest|md|toml|py|mjs|ts|sql)$|^_headers$|^_routes\.json$/;
 
+// The ONE exemption: the vendored console pack names the class of its "not ready" card `todo` (CSS `.zf-ready.todo`, JS `(ok ? "ok" : "todo")`). It is not a note, and the pack is not edited here.
+// Only that exact class text, only in the pack's zc-flow.css / zc-flow.js (source and built copy). Any other TODO or note, anywhere, still fails.
+export const PACK_FLOW = /(^|[\\/])public[\\/]pack[\\/]zc-flow\.(css|js)$/;
+export const PACK_TODO_CLASS = /\.zf-ready\.todo\b|\(\s*ok\s*\?\s*"ok"\s*:\s*"todo"\s*\)/g;
+export const withoutPackClass = (file: string, text: string) => (PACK_FLOW.test(file) ? text.replace(PACK_TODO_CLASS, "") : text);
+const hasNote = (f: string) => PATTERN.test(withoutPackClass(f, readFileSync(f, "utf8")));
+
 function walk(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out;
   for (const n of readdirSync(dir)) {
@@ -25,7 +32,7 @@ describe("no internal notes in what is deployed", () => {
   test("every file of the deployed pages (source and built copy) is free of internal notes", () => {
     const files = [...walk(join(ROOT, "apps/web/public")), ...walk(join(ROOT, "pages"))];
     expect(files.length).toBeGreaterThan(30);
-    const bad = files.filter((f) => PATTERN.test(readFileSync(f, "utf8"))).map((f) => f.slice(ROOT.length));
+    const bad = files.filter(hasNote).map((f) => f.slice(ROOT.length));
     expect(bad).toEqual([]);
   });
   test("the legal pages do not use the word draft", () => {
@@ -41,5 +48,15 @@ describe("no internal notes in what is deployed", () => {
   test("the pattern itself catches what it should (so the scan is not asleep)", () => {
     for (const s of ["pending legal review", "ask the lawyer", "COUNSEL to confirm", "owner's instruction", "TODO", "under review", "[●]"]) expect([s, PATTERN.test(s)]).toEqual([s, true]);
     for (const s of ["Terms and Conditions", "Grievance Officer", "unpublished game"]) expect([s, PATTERN.test(s)]).toEqual([s, false]);
+  });
+  test("the pack exemption is narrow: only the exact class text in the pack's two flow files; a real TODO next to it, or the class anywhere else, still fails", () => {
+    const css = ".zf-ready.todo { color: red; }", js = 'class: "zf-ready " + (ok ? "ok" : "todo"), id: "x"';
+    for (const f of ["/r/apps/web/public/pack/zc-flow.css", "/r/pages/public/pack/zc-flow.css"]) expect([f, PATTERN.test(withoutPackClass(f, css))]).toEqual([f, false]);
+    for (const f of ["/r/apps/web/public/pack/zc-flow.js", "/r/pages/public/pack/zc-flow.js"]) expect([f, PATTERN.test(withoutPackClass(f, js))]).toEqual([f, false]);
+    expect(PATTERN.test(withoutPackClass("/r/apps/web/public/pack/zc-flow.js", js + " // TODO fix"))).toBe(true);   // a real note in the same file
+    expect(PATTERN.test(withoutPackClass("/r/apps/web/public/pack/zc-flow.css", css + " /* todo later */"))).toBe(true);
+    expect(PATTERN.test(withoutPackClass("/r/apps/web/public/pack/other.js", js))).toBe(true);                       // another pack file
+    expect(PATTERN.test(withoutPackClass("/r/apps/web/public/zc.js", js))).toBe(true);                               // our own code
+    expect(PATTERN.test(withoutPackClass("/r/apps/web/public/pack/zc-flow.js", 'x = "todo"'))).toBe(true);           // the word in any other shape
   });
 });
