@@ -5,6 +5,6 @@
  "builtAt": "set at build",
  "note": "Version history before this file was not recorded (git history shows 1.4.x); 1.5.0 is the first number kept here. Not deployed.",
  "changes": [
-  { "id": "console-pay-step", "what": "Game side of the console Pay step, dark: payInfo/markPaid for the organizer's game, PAY_VIA_CONSOLE switch (off = old Pay now unchanged), descriptor, page rules for the payment window and the console. Not deployed, no switch set.", "where": "apps/edge/src/console-pay.ts, apps/edge/src/console-bridge/ and apps/edge/test/console-contract/ and apps/web/public/pack/ (vendored), apps/web/public/zc-pay-game.js, config/console-pay.json, pages/build.mjs (/zc header), pages/functions/_middleware.ts, apps/edge/src/worker.ts (handleCore); organizer page /zc header only", "pr": "TBD" }
+  { "id": "console-pay-step", "what": "Game side of the console Pay step, dark: payInfo/markPaid for the organizer's game, PAY_VIA_CONSOLE switch (off = old Pay now unchanged), descriptor, page rules for the payment window and the console. Not deployed, no switch set.", "where": "apps/edge/src/console-pay.ts, apps/edge/src/console-bridge/ and apps/edge/test/console-contract/ and apps/web/public/pack/ (vendored), apps/web/public/zc-pay-game.js, config/console-pay.json, pages/build.mjs (/zc header), pages/functions/_middleware.ts, apps/edge/src/worker.ts (handleCore); organizer page /zc header only", "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12" }
  ]
 }
