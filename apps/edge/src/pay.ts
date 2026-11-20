@@ -29,6 +29,8 @@ import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, 
 export interface PayEnv extends Env, Pick<ModeEnv, "OWNER_EMAIL" | "TEST_MAIL_ALLOW"> {
   RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RAZORPAY_BASE_URL?: string; RAZORPAY_INTERNATIONAL?: string;
   PARTNER_COMMISSION_RATE?: string; TEST_MODE?: string; COMPANY_JSON?: string; RESEND_API_KEY?: string; FREE_LAUNCH?: string; MAIL_FROM?: string; MAIL_REPLY_TO?: string; PUBLIC_ORIGIN?: string; PAY_HOP_URL?: string; PAY_SERVICE_KEY?: string; PAY_SERVICE_URL?: string; PAY_SITE?: string;
+  /** "1" = the old Pay now pages and routes answer 302 to the console (console-pay.ts). Anything else = the old payment works exactly as before. Set only by the owner. */
+  PAY_VIA_CONSOLE?: string;
 }
 
 export const PAY_SCHEMA = [
