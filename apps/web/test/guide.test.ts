@@ -22,7 +22,10 @@ function serverMessages() {
     readFileSync(join(EDGE, f), "utf8").split("\n").forEach((l, i) => {
       for (const m of l.matchAll(/error:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/g)) {
         const st = /\}\s*,\s*(\d{3})\s*\)/.exec(l.slice(m.index! + m[0].length)) ?? /status:\s*(\d{3})/.exec(l);
-        out.push({ file: f, line: i + 1, status: st ? Number(st[1]) : 400, msg: m[1]!.slice(1, -1) });
+        const msg = m[1]!.slice(1, -1), status = st ? Number(st[1]) : 400;
+        // `${W}` is the word for the game's kind of ID (idWord in people.ts): the Worker sends BOTH spellings, so both are checked (a placeholder is never real text a person is sent)
+        if (msg.includes("${W}")) { for (const w of ["employee ID", "Email ID"]) out.push({ file: f, line: i + 1, status, msg: msg.split("${W}").join(w) }); }
+        else out.push({ file: f, line: i + 1, status, msg });
       }
     });
   }
