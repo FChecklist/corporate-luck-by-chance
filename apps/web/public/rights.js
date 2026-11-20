@@ -67,7 +67,7 @@
 
   function leaveDialog() {
     const who = WHO(); if (!who) return;
-    const d = open('<h2 id="rt-title">Leave this game?</h2><p>Your name and your place are deleted from our system now. You cannot undo this.</p><p class="rt-err" id="rt-err" role="alert"></p>' +
+    const d = open('<h2 id="rt-title">Leave this game?</h2><p>Your name is deleted from our system now. If the game has started, your place stays in the list without a name, so the results stay the same for everyone. You cannot undo this.</p><p class="rt-err" id="rt-err" role="alert"></p>' +
       '<div class="rt-row"><button class="rt-b bad" id="rt-yes" type="button">Yes, leave the game</button><button class="rt-b alt" id="rt-no" type="button" autofocus>No, stay</button></div>');
     d.querySelector("#rt-no").onclick = close;
     d.querySelector("#rt-yes").onclick = async () => {
