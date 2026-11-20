@@ -47,18 +47,22 @@ export const markPaid: NonNullable<Adapter<Env>["markPaid"]> = async (env, o) =>
   // a game held because it was not paid at its start time begins 2 minutes after the payment (the same rule as pay.ts fulfil); otherwise the start time stays as it is
   const late = roundMs(g.start_round) <= o.nowMs;
   const restart = late ? Math.floor((o.nowMs / 1000 - GENESIS_S) / 3) + 2 + LATE_PAY_LEAD_ROUNDS - GRACE_ROUNDS : g.start_round;
+  // The size was worked out from g.cap. The owner can change the limit at any moment, so EVERY write below only happens while the game is still exactly what we checked:
+  // unpaid, open, and at that same limit (cap=?). If the limit moved in between, nothing is written and the size is looked at again by the repeat of the call.
+  const same = "EXISTS (SELECT 1 FROM engagement WHERE id=? AND org=? AND pack=0 AND cap=? AND cancelled_ms IS NULL AND unplayed_ms IS NULL)";
+  const g4 = [o.eid, g.org, g.cap];
   const r = await env.DB.batch([
     // paying also publishes; the order is kept with the game record. These come FIRST and are harmless if the call dies here: the game is still unpaid and the console repeats the call.
-    env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`pub/${o.eid}`, String(o.nowMs)),
-    env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`paidby/${o.eid}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console" })),
-    env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`payref/${o.eid}`, o.orderRef),
-    // the unlock: the LAST write, and only while the game is still unpaid and open
-    env.DB.prepare("UPDATE engagement SET pack=?, start_round=? WHERE id=? AND org=? AND pack=0 AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(Number(size), restart, o.eid, g.org),
+    env.DB.prepare(`INSERT OR IGNORE INTO kv(k,v) SELECT ?,? WHERE ${same}`).bind(`pub/${o.eid}`, String(o.nowMs), ...g4),
+    env.DB.prepare(`INSERT OR IGNORE INTO kv(k,v) SELECT ?,? WHERE ${same}`).bind(`paidby/${o.eid}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console" }), ...g4),
+    env.DB.prepare(`INSERT INTO kv(k,v) SELECT ?,? WHERE ${same} ON CONFLICT(k) DO UPDATE SET v=excluded.v`).bind(`payref/${o.eid}`, o.orderRef, ...g4),
+    // the unlock: the LAST write, and only while the game is still unpaid, open and at the limit the size was worked out from
+    env.DB.prepare("UPDATE engagement SET pack=?, start_round=? WHERE id=? AND org=? AND pack=0 AND cap=? AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(Number(size), restart, o.eid, g.org, g.cap),
   ]);
   if ((r[3]?.meta?.changes ?? 0) === 1) return;
   const now = await rowOf(env, o.eid); // someone else changed the game between our look and our write: paid meanwhile is fine, anything else is a refusal
   if (now?.pack) return;
-  throw refuse("This game can no longer be paid for.");
+  throw refuse("This game can no longer be paid for (its size or state changed while paying).");
 };
 
 /** the game's own old payment routes that START a payment (Razorpay's notice, the buyer's return check and read-only views are NOT here: money already paid must still be recorded) */

@@ -106,6 +106,22 @@ describe("markPaid", () => {
     await pay("CP-1", sub.organizer, "500", ref("CP-1"), late + 3_600_000);
     expect(row("CP-1")).toEqual(r1);
   });
+  test("the limit is raised right after the size was checked (a race): the old size is NOT unlocked and nothing is written", async () => {
+    const { master, sub } = await team(); // CP-1: limit 300, so the size is 500
+    const real = env.DB; let raced = 0;
+    // the owner changes the limit in the gap between markPaid's look at the game and its write (the batch is where the writes start)
+    const racing: any = { prepare: (s: string) => real.prepare(s), batch: async (xs: any[]) => { raced++; raw.run("UPDATE engagement SET cap=5000 WHERE id='CP-1'"); return real.batch(xs); } };
+    const before = snapshot();
+    const e = await refusal(markPaid({ ...env, DB: racing } as Env, { eid: "CP-1", sub: sub.organizer, item: "500", orderRef: ref("CP-1"), nowMs: T }));
+    expect(raced).toBe(1); expect(e.definite).toBe(true);
+    expect(row("CP-1").pack).toBe(0); // a 5000-person game is not unlocked by a 500 payment
+    expect(kvOf("payref/CP-1")).toBeNull(); expect(kvOf("pub/CP-1")).toBeNull(); expect(kvOf("paidby/CP-1")).toBeNull(); // and no half-record is left behind
+    expect(snapshot()).not.toBe(before); // (only the owner's own limit change differs)
+    expect(raw.query("SELECT cap FROM engagement WHERE id='CP-1'").get()).toEqual({ cap: 5000 });
+    expect(await payInfo(env as Env, { eid: "CP-1", sub: sub.organizer })).toMatchObject({ owner: true, paid: false });
+    expect((await refusal(pay("CP-1", sub.organizer, "500"))).definite).toBe(true); // the repeat sees the new limit: 500 is no longer the size
+    void master;
+  });
   test("a half-done call (it dies before the unlock) leaves the game unpaid, and the same call run again finishes it", async () => {
     const { sub } = await team();
     const real = env.DB; let died = 0;

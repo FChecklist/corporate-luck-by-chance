@@ -89,6 +89,6 @@ test("the config file holds only the four things it is for (no number of any kin
 test("the unlock is one write, the last one of markPaid, and it is only while the game is unpaid and open", () => {
   const src = read("apps/edge/src/console-pay.ts"), at = src.indexOf("UPDATE engagement SET pack=");
   expect(at).toBeGreaterThan(0); expect(src.indexOf("UPDATE engagement SET pack=", at + 1)).toBe(-1);
-  expect(src.slice(at, at + 220)).toContain("pack=0 AND cancelled_ms IS NULL AND unplayed_ms IS NULL");
+  expect(src.slice(at, at + 220)).toContain("pack=0 AND cap=? AND cancelled_ms IS NULL AND unplayed_ms IS NULL"); // the limit the size was worked out from is part of the guard
   expect(src.indexOf("payref/")).toBeLessThan(at); expect(src.indexOf("pub/")).toBeLessThan(at);
 });
