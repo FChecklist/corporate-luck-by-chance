@@ -104,7 +104,7 @@
   const both = (p, f = 1) => money(p[1] * f) + " / " + usd(p[2] * f); // rupees and US dollars side by side
   const table = document.getElementById("earn-table");
   if (table && packs.length) {
-    table.innerHTML = `<div class="rrow rh" role="row"><span>Pack</span><span>Software price</span><span>You earn, first purchase (50%)</span></div>` + packs.map((p, i) => `<div class="rrow${i === 2 ? " hot" : ""}" role="row"><span>Up to <b>${p[0].toLocaleString("en-IN")}</b> people</span><span>${both(p)}</span><span><b class="e">${both(p, RATE)}</b> per sale</span></div>`).join("");
+    table.innerHTML = `<div class="rrow rh" role="row"><span role="columnheader">Pack</span><span role="columnheader">Software price</span><span role="columnheader">You earn, first purchase (50%)</span></div>` + packs.map((p, i) => `<div class="rrow${i === 2 ? " hot" : ""}" role="row"><span role="cell">Up to <b>${p[0].toLocaleString("en-IN")}</b> people</span><span role="cell">${both(p)}</span><span role="cell"><b class="e">${both(p, RATE)}</b> per sale</span></div>`).join("");
     const top = document.getElementById("top-earn"); if (top) top.textContent = money(Math.floor(packs[packs.length - 1][1] * RATE)) + " / " + usd(Math.floor(packs[packs.length - 1][2] * RATE));
     const sel = document.getElementById("calc-pack"), n = document.getElementById("calc-n"), out = document.getElementById("calc-out"), nv = document.getElementById("calc-nv");
     sel.innerHTML = packs.map((p, i) => `<option value="${i}"${i === 2 ? " selected" : ""}>Up to ${p[0].toLocaleString("en-IN")} people (${both(p)})</option>`).join("");

@@ -91,9 +91,17 @@
     {
       "id": "theme",
       "store": "localStorage",
-      "say": "The colour choice.",
+      "say": "The colour choice of the header and buttons.",
       "keys": [
-        "cb-theme"
+        "ct-theme"
+      ]
+    },
+    {
+      "id": "mode",
+      "store": "localStorage",
+      "say": "Your choice of light or dark.",
+      "keys": [
+        "cg-theme"
       ]
     },
     {
