@@ -1,5 +1,5 @@
 // Phase 3/4 headers (pages/build.mjs): Google's script, frames and connections are allowed ONLY on the pages that show "Continue with Google"
-// (signin, index with its "/" rule, zc), and the pay-link page gets the Razorpay rules like pay.html. Read from the source, as the other header tests do.
+// (signin, index with its "/" rule, and zc, which uses ZCCSP: the Google rules plus the console and its payment window, see console-pay-static.test.ts), and the pay-link page gets the Razorpay rules like pay.html. Read from the source, as the other header tests do.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
@@ -9,10 +9,11 @@ const GOOGLE_HOSTS = ["accounts.google.com/gsi/client", "accounts.google.com/gsi
 test("only signin, index, zc (and the home '/') use the Google rules; every other page keeps the plain or game rules", () => {
   const pages = [...src.matchAll(/\["(\/[a-z0-9-]*)", (\w+CSP), (true|false)\]/g)].map((m) => [m[1]!, m[2]!] as const);
   const google = pages.filter(([, c]) => c === "GOOGLECSP").map(([p]) => p).sort();
-  expect(google).toEqual(["/index", "/signin", "/zc"]);
+  expect(google).toEqual(["/index", "/signin"]);
+  expect(pages.filter(([, c]) => c === "ZCCSP").map(([p]) => p)).toEqual(["/zc"]); // zc = the Google rules + the console Pay step (frame-src payment window, connect-src console)
   expect(src).toContain('rules += "/" + hdr(GOOGLECSP)');
   expect(pages.length).toBeGreaterThan(15);
-  for (const [p, c] of pages) if (!["/index", "/signin", "/zc"].includes(p)) expect([p, c === "GOOGLECSP"]).toEqual([p, false]);
+  for (const [p, c] of pages) if (!["/index", "/signin", "/zc"].includes(p)) expect([p, c === "GOOGLECSP" || c === "ZCCSP"]).toEqual([p, false]);
 });
 
 test("the Google rules allow Google's sign-in script, frame, connection and style - and only those", () => {

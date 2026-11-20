@@ -1,0 +1,6 @@
+{
+ "_about": "What this game needs to know about the console's Pay step (docs/GAME_PAY_CONTRACT.md in the console repo). payGame = the game's id as the console and Moneypenny list it. consoleOrigin = the console's address (the game page may talk to it). payframeOrigins = where the secure payment window comes from; copy it from the console's config/games.json (payframeOrigins.live) and keep it the same. No price or amount is kept here: every number comes from the console / Moneypenny.",
+ "payGame": "luckbychance",
+ "consoleOrigin": "https://console.corporatetambola.com",
+ "payframeOrigins": ["https://itservices-rajat-agarwal.pages.dev"]
+}
