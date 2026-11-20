@@ -51,4 +51,5 @@ Where things are set:
 | `ANALYZE_AI_URL` | Optional chat endpoint the owner's analyze route may send masked totals to | Optional Pages variable | setting |
 | `ANALYZE_AI_KEY` | Key for that endpoint | Optional Pages secret | secret |
 | `ANALYZE_AI_MODEL` | Model name for that endpoint | Optional Pages variable | setting |
+| `PAY_VIA_CONSOLE` | "1" sends the old Pay now pages and routes to the console (console-pay.ts); anything else, or unset, keeps the old payment exactly as it was. Set only by the owner. | Optional Pages variable | setting |
 | `TARGET` | The scheduled job: the web address it calls | `apps/cron/wrangler.toml` | setting |

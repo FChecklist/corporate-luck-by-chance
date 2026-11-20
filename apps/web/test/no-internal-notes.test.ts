@@ -5,6 +5,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const PATTERN = /COUNSEL|\[●\]|legal(ly)?\s+(review|pending|sign-?off)|review\s+pending|pending\s+(legal|review|approval)|awaiting\s+(legal|counsel|lawyer|approval|review)|\blawyer\b|\badvocate\b|owner'?s?\s+(told|instruction|order|directive|decision)|\bTODO\b|\bFIXME\b|under review|not yet (reviewed|approved)/i;
+// The console's game pack (public/pack, copied byte for byte, never edited here) names a CSS state "todo"; that is a class name, not a note. Everything else in it is still scanned.
+const readClean = (f: string) => { const t = readFileSync(f, "utf8"); return /[\\/]pack[\\/]/.test(f) ? t.replace(/\btodo\b/g, "") : t; };
 const LEGAL_ONLY = /draft/i; // on the legal pages only: the bare word is fine elsewhere (a draft game)
 const LEGAL_PAGES = ["terms.html", "privacy.html", "legal.html", "refund-policy.html", "about.html", "contact.html", "pricing.html", "dpa.html", "subprocessors.html", "partner-terms.html"];
 const ROOT = new URL("../../../", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -25,7 +27,7 @@ describe("no internal notes in what is deployed", () => {
   test("every file of the deployed pages (source and built copy) is free of internal notes", () => {
     const files = [...walk(join(ROOT, "apps/web/public")), ...walk(join(ROOT, "pages"))];
     expect(files.length).toBeGreaterThan(30);
-    const bad = files.filter((f) => PATTERN.test(readFileSync(f, "utf8"))).map((f) => f.slice(ROOT.length));
+    const bad = files.filter((f) => PATTERN.test(readClean(f))).map((f) => f.slice(ROOT.length));
     expect(bad).toEqual([]);
   });
   test("the legal pages do not use the word draft", () => {
@@ -35,7 +37,7 @@ describe("no internal notes in what is deployed", () => {
     const files = ["apps/edge/src/consent.ts", "apps/edge/src/consent-text.json", "apps/edge/src/luck.ts", "apps/edge/migrations/0022_consent.sql", "apps/edge/test/consent.test.ts", "docs/RULES.md", "docs/GATES.md", "docs/PRIVACY_AND_LIFECYCLE.md", "docs/GAME.md", "README.md"]
       .map((f) => join(ROOT, f)).filter((f) => existsSync(f));
     expect(files.length).toBeGreaterThan(4);
-    const bad = files.filter((f) => PATTERN.test(readFileSync(f, "utf8"))).map((f) => f.slice(ROOT.length));
+    const bad = files.filter((f) => PATTERN.test(readClean(f))).map((f) => f.slice(ROOT.length));
     expect(bad).toEqual([]);
   });
   test("the pattern itself catches what it should (so the scan is not asleep)", () => {
