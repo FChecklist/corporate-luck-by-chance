@@ -44,6 +44,8 @@ const PLANTS: [string, string, (d: Buffer) => Buffer][] = [
   ["service worker stops saving the console style sheet (verifier R07)", "zsw.js", sub('"/zc.js", "/zc.css", "/big.js"', '"/zc.js", "/big.js"')],
   ["a dead internal link in a footer (verifier R08)", "dpa.html", sub('href="/refund-policy.html">Refund policy', 'href="/refund-policyy.html">Refund policy')],
   ["a link to console.corporatetambola.com (verifier R08 and R13)", "about.html", sub("Online games for company events, for the people you invite.", 'Online games for company events, for the people you invite. <a href="https://console.corporatetambola.com/">Console</a>')],
+  ["the dark console-pay settings loaded by a page (verifier R13)", "about.html", sub("</head>", '<script src="/zc-pay-game.js"></script></head>')],
+  ["a shipped script mentions the console address (verifier R13)", "pwa.js", (d) => Buffer.concat([d, Buffer.from('\n// https://console.corporatetambola.com\n')])],
   ["the footer stops naming Razorpay (verifier R10)", "pricing.html", sub("All payments are taken only by IT Services by Rajat Agarwal, through Razorpay.", "Payments are collected by IT Services by Rajat Agarwal.")],
   ["another payment gateway named in the pay screen (verifier R10)", "pay.js", (d) => Buffer.concat([d, Buffer.from("\n// pay with Stripe too\n")])],
   ["the privacy page names the payee by half its name (verifier R10)", "privacy.html", sub("The payment service of IT Services by Rajat Agarwal", "The IT Services payment service")],

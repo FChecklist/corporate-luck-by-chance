@@ -204,9 +204,15 @@ export function verifySite(opts: { skipBuild?: boolean } = {}): { problems: Prob
     for (const [what, bytes] of [["report", layoutReport(data)], ["people part", layoutPeoplePart(data, [], 1, 1)]] as const) { const t = Buffer.from(bytes).toString("latin1"); if (!t.includes("0.42 0.17 0.85 rg") || !t.includes("1 0.79 0.24 rg")) bad("R12", what + " PDF", "no badge or kit marigold"); if (!t.startsWith("%PDF-") || !/\/Type \/Pages[^\n]*\/Count [1-9]/.test(t)) bad("R12", what + " PDF", "not a readable PDF"); }
   });
 
-  rule("R13", "no file of the repository mentions console.corporatetambola.com (that address does not exist yet)", () => {
-    const g = Bun.spawnSync(["git", "grep", "-l", "console\\.corporatetambola\\.com", "--", "apps", "site", "pages/build.mjs", "packages", "config", "tools", ":!tools/site-brand/verify-site.ts", ":!tools/site-brand/plant_check.ts", ":!apps/web/test"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+  rule("R13", "nothing the site sends to a visitor mentions console.corporatetambola.com (that address does not exist yet); the dark console-pay settings stay out of the build and out of every page", () => {
+    // the Pay-step settings of the console-pay work name the console's address on purpose (docs/CONSOLE_PAY.md: dark, nothing deployed); they may stay in the repository, never in what a visitor receives
+    const DARK = ["config/console-pay.json", "apps/web/public/zc-pay-game.js", "apps/edge/test/console-pay-static.test.ts"];
+    const g = Bun.spawnSync(["git", "grep", "-l", "console\\.corporatetambola\\.com", "--", "apps", "site", "pages/build.mjs", "packages", "config", "tools", ":!tools/site-brand/verify-site.ts", ":!tools/site-brand/plant_check.ts", ":!apps/web/test", ...DARK.map((f) => ":!" + f)], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
     for (const f of g.stdout.toString().split("\n").filter(Boolean)) bad("R13", f, "mentions console.corporatetambola.com");
+    const build = readFileSync(join(ROOT, "pages/build.mjs"), "utf8");
+    for (const f of ["zc-pay-game.js", "console-pay.json"]) if (build.includes(`"${f}"`)) bad("R13", "pages/build.mjs", f + " would be shipped to visitors");
+    for (const p of pages) if (/zc-pay-game\.js|console-pay\.json/.test(rd(PUB, p + ".html"))) bad("R13", p, "loads the dark console-pay settings");
+    for (const f of readdirSync(PUB).filter((x) => x.endsWith(".js") && x !== "zc-pay-game.js")) if (/console\.corporatetambola\.com/.test(rd(PUB, f))) bad("R13", f, "a script that is shipped mentions console.corporatetambola.com");
   });
 
   rule("R14", "no leftovers of a bad text replacement ($1, undefined, NaN, [object Object]) and every <details> has its <summary>", () => {
