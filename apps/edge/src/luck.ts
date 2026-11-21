@@ -131,6 +131,7 @@ export const scheduledMsOf = (e: { start_round: number }): number => (GENESIS + 
 /** The way this game starts: "auto" (by itself at the start time) or "manual" (the Organizer or a Host presses Start). Manual is the default and what every game did before 1.5.2. */
 export const startModeOf = (e: { config?: string | null }): "auto" | "manual" => { try { return (e.config ? JSON.parse(e.config) : {}).start === "auto" ? "auto" : "manual"; } catch { return "manual"; } };
 const planKey = (eid: string) => `luck-plan/${eid}`;
+const autoLockKey = (eid: string) => `luck-auto/${eid}`;
 /** The choices a game that starts by itself plays with: what the Organizer saved (rounds, press window, prizes), else the defaults (10 rounds, 10 seconds, no prize text). */
 export async function planOf(env: Env, eid: string): Promise<LuckSettings> {
   const r = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(planKey(eid)).first<{ v: string }>();
@@ -148,7 +149,8 @@ async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: number, 
   const startMs = now + delaySecs * 1000, endMs = gameEndMs(s, startMs);
   const seed = await seedOf(t.secret!, t.eid, players.map((p) => p.pid));
   const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, t.eid)];
-  players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) VALUES(?,?,?,?)").bind(t.eid, p.pid, i, p.name)));
+  // the seats go in only while THIS start is the one that won (same seed): two phones that look at the same instant must never mix their lists
+  players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM luck_t WHERE eid=? AND state='running' AND seed=?)").bind(t.eid, p.pid, i, p.name, t.eid, seed)));
   for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
   return { ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s) };
 }
@@ -156,6 +158,11 @@ async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: number, 
 export async function maybeAutoStart(env: Env, e: any, t: TRow, now: number, spend: (n: number) => Promise<boolean> = async () => true): Promise<TRow> {
   if (t.state !== "open" || startModeOf(e) !== "auto" || !(e.pack > 0) || e.cancelled_ms || e.unplayed_ms) return t;
   if (now < scheduledMsOf(e)) return t;
+  const have = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(t.eid).first<{ c: number }>())?.c ?? 0;
+  if (have < 2) return t; // nobody (or one person) yet: it waits, and a look costs almost nothing
+  // one starter at a time: at the start time every phone looks at once, and only the first needs to do the work
+  const lock = await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v WHERE CAST(kv.v AS INTEGER) < ?").bind(autoLockKey(t.eid), String(now), now - 20_000).run();
+  if ((lock.meta?.changes ?? 0) === 0) return (await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(t.eid).first<TRow>()) ?? t;
   const r = await beginGame(env, t, await planOf(env, t.eid), AUTO_LEAD_SECS, now, spend);
   if (!r.ok) return t; // fewer than 2 players, or a busy moment: it waits and tries again at the next look or tick
   return (await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(t.eid).first<TRow>()) ?? t;

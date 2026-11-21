@@ -8,6 +8,7 @@ import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
 import { makeD1 } from "./d1-sqlite";
 import { AUTO_LEAD_SECS, luckTick } from "../src/luck";
+import { lifecycleTick } from "../src/lifecycle";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0);
 const GEN = 1692803367;
@@ -136,3 +137,27 @@ describe("R75: it never starts a game it should not", () => {
     expect(after.start_ms).toBe(first); expect(first).toBe(T + 20_000);
   });
 });
+
+describe("R74: many phones looking at the same instant start it once", () => {
+  test("six phones read the game at the start time together: one start, one list of seats, no seat twice", async () => {
+    const h = await game("ST-14"); await setStart(h, "ST-14", "auto"); await call("POST", "/api/z/ST-14/luck/plan", PLAN, h); await join("ST-14", 4);
+    const views = await Promise.all(Array.from({ length: 6 }, () => view("ST-14", AT + 1000)));
+    expect(views.every((v) => v.state === "running" || v.state === "open")).toBe(true);
+    const row = raw.query("SELECT state, players, start_ms FROM luck_t WHERE eid='ST-14'").get() as any;
+    expect(row).toMatchObject({ state: "running", players: 4, start_ms: AT + 1000 + AUTO_LEAD_SECS * 1000 });
+    const seats = raw.query("SELECT seat FROM luck_p WHERE eid='ST-14' ORDER BY seat").all() as any[];
+    expect(seats.map((x) => x.seat)).toEqual([0, 1, 2, 3]);
+    const again = await view("ST-14", AT + 2000); expect(again.state).toBe("running"); expect(again.startMs).toBe(row.start_ms);
+  });
+});
+
+describe("R83: what the plan and the start leave behind is deleted with the game", () => {
+  test("the saved plan and the start marker are gone after the 23-hour clock", async () => {
+    const h = await game("ST-15"); await setStart(h, "ST-15", "auto"); await call("POST", "/api/z/ST-15/luck/plan", PLAN, h); await join("ST-15", 2);
+    await view("ST-15", AT + 1000);
+    expect(raw.query("SELECT COUNT(*) c FROM kv WHERE k IN ('luck-plan/ST-15','luck-auto/ST-15')").get()).toEqual({ c: 2 });
+    await lifecycleTick(env as any, AT + 48 * 3_600_000);
+    expect(raw.query("SELECT COUNT(*) c FROM kv WHERE k IN ('luck-plan/ST-15','luck-auto/ST-15')").get()).toEqual({ c: 0 });
+  });
+});
+
