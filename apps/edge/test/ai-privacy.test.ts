@@ -17,17 +17,17 @@ const j = async (r: Response) => (await r.json()) as any;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" }; });
 
-const PLANTED = [{ name: "Plantina Zyxwvu", phone: "9123456789" }, { name: "Rosterio Quuxbar", phone: "9345678901" }, { name: "Winnerella Blorptag", phone: "9456789012" }];
-const needles = () => PLANTED.flatMap((p) => [p.name, p.name.split(" ")[0]!, p.phone, p.phone.slice(-4), "XXXXXXXX" + p.phone.slice(-2), p.phone.replace(/(\d{5})(\d{5})/, "$1 $2")]);
+const PLANTED = [{ name: "Plantina Zyxwvu", id: "PLZX9123456789" }, { name: "Rosterio Quuxbar", id: "ROQB9345678901" }, { name: "Winnerella Blorptag", id: "WIBT9456789012" }];
+const needles = () => PLANTED.flatMap((p) => [p.name, p.name.split(" ")[0]!, p.id, p.id.slice(-6), p.id.replace(/^(\w{4})(\w+)$/, "$1-$2")]);
 
 async function setup() {
   const x = await j(await call("POST", "/api/start", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.1" }));
   const h = { "x-organizer": x.token as string };
   await call("POST", "/api/z", { id: "PLANT-1", startRound: roundAt(T) + 1200, callSeconds: 6, cap: 100 }, h);
   await call("POST", "/api/z/PLANT-1/publish", { email: "boss@acme.com", phone: "98765 43210" }, h);
-  await call("POST", "/api/z/PLANT-1/join", { phone: PLANTED[0]!.phone, name: PLANTED[0]!.name });
-  await call("POST", "/api/z/PLANT-1/roster", { people: [PLANTED[1]] }, h); // the owner loads a list in the console
-  const sealed = await sealPii(env as any, { phone: PLANTED[2]!.phone, name: PLANTED[2]!.name });
+  await call("POST", "/api/z/PLANT-1/join", { id: PLANTED[0]!.id, name: PLANTED[0]!.name });
+  await call("POST", "/api/z/PLANT-1/roster", { people: [{ id: PLANTED[1]!.id }] }, h); // the owner loads a list in the console
+  const sealed = await sealPii(env as any, { phone: "", id: PLANTED[2]!.id, name: PLANTED[2]!.name });
   raw.prepare("INSERT INTO prize(eid,round,pattern,ordinal,seat,pii,orig,trail,confirmed_ms) VALUES('PLANT-1',1,'blackout',1,1,?,?,?,?)").run(sealed, sealed, null, T);
   const host = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, h));
   return { h, ai: x.aiKey as string, host: host.hostKey as string };
@@ -55,7 +55,7 @@ describe("no AI-readable route returns a name or a mobile number", () => {
   });
   test("an AI cannot send names or numbers either: roster, and mark/unbind by mobile number, are refused with a plain explanation", async () => {
     const o = await setup();
-    for (const [m, p, b] of [["POST", "/z/PLANT-1/roster", { people: [{ phone: "9000000000", name: "Z" }] }], ["POST", "/z/PLANT-1/mark", { phone: PLANTED[0]!.phone, role: "host" }], ["POST", "/z/PLANT-1/unbind", { phone: PLANTED[0]!.phone }]] as const) {
+    for (const [m, p, b] of [["POST", "/z/PLANT-1/roster", { people: [{ id: "9000000000" }] }], ["POST", "/z/PLANT-1/mark", { id: PLANTED[0]!.id, role: "host" }], ["POST", "/z/PLANT-1/unbind", { id: PLANTED[0]!.id }]] as const) {
       const r = await call(m, `/ai/${o.ai}${p}`, b); expect(r.status).toBe(403); expect(await r.text()).toMatch(/console/);
     }
     expect((raw.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid='PLANT-1'").get() as any).c).toBe(2); // nothing was added
@@ -64,7 +64,7 @@ describe("no AI-readable route returns a name or a mobile number", () => {
   });
   test("the manual tells the AI that the owner loads the list in the console, and still teaches the same conversation", () => {
     const t = manualText(ORIGIN, "cba_" + "a".repeat(48), "ai", T);
-    expect(t).toMatch(/the owner loads their list in the Participants card/); expect(t).toMatch(/names and mobile numbers never pass through you/); expect(t).not.toMatch(/roster\?_method|ask them to paste lines like/);
+    expect(t).toMatch(/the owner loads their list in the Participants card/); expect(t).toMatch(/the list of IDs never passes through you/); expect(t).not.toMatch(/roster\?_method|ask them to paste lines like/);
     for (const step of ["A. Greet the owner", "2. THE CONVERSATION", "11. When they say it is ready", "12. Afterwards"]) expect(t).toContain(step);
   });
 });
@@ -74,19 +74,19 @@ describe("a player asks to see or delete their own data (console only)", () => {
     const o = await setup();
     const prize = () => raw.prepare("SELECT pii, orig FROM prize WHERE eid='PLANT-1'").get() as any;
     raw.prepare("UPDATE prize SET seat=(SELECT seq FROM seat WHERE eid='PLANT-1' AND ph IS NOT NULL ORDER BY seq LIMIT 1) WHERE eid='PLANT-1'").run();
-    const see = await j(await call("POST", "/api/z/PLANT-1/person", { phone: PLANTED[0]!.phone }, o.h, T + 40 * 86_400_000));
+    const see = await j(await call("POST", "/api/z/PLANT-1/person", { id: PLANTED[0]!.id }, o.h, T + 40 * 86_400_000));
     expect(see).toMatchObject({ ok: true, name: PLANTED[0]!.name }); expect(see.seat).toBeGreaterThan(0);
-    for (const hdr of <Record<string, string>[]>[{ "x-organizer": o.ai }, { "x-organizer": o.host, "x-cb-link": "1" }, { "x-organizer": ((await j(await call("POST", "/api/org/cohost", {}, o.h))).cohostKey) }, {}]) for (const act of ["person", "forget"]) expect((await call("POST", `/api/z/PLANT-1/${act}`, { phone: PLANTED[0]!.phone }, hdr, T + 40 * 86_400_000)).status).toBe(403);
-    expect((await call("POST", `/ai/${o.ai}/z/PLANT-1/forget`, { phone: PLANTED[0]!.phone })).status).toBe(403);
+    for (const hdr of <Record<string, string>[]>[{ "x-organizer": o.ai }, { "x-organizer": o.host, "x-cb-link": "1" }, { "x-organizer": ((await j(await call("POST", "/api/org/cohost", {}, o.h))).cohostKey) }, {}]) for (const act of ["person", "forget"]) expect((await call("POST", `/api/z/PLANT-1/${act}`, { id: PLANTED[0]!.id }, hdr, T + 40 * 86_400_000)).status).toBe(403);
+    expect((await call("POST", `/ai/${o.ai}/z/PLANT-1/forget`, { id: PLANTED[0]!.id })).status).toBe(403);
     expect(prize().pii).toBeTruthy();
-    const del = await call("POST", "/api/z/PLANT-1/forget", { phone: PLANTED[0]!.phone }, o.h, T + 40 * 86_400_000); expect(del.status).toBe(200);
-    expect((await call("POST", "/api/z/PLANT-1/person", { phone: PLANTED[0]!.phone }, o.h, T + 40 * 86_400_000)).status).toBe(404);
+    const del = await call("POST", "/api/z/PLANT-1/forget", { id: PLANTED[0]!.id }, o.h, T + 40 * 86_400_000); expect(del.status).toBe(200);
+    expect((await call("POST", "/api/z/PLANT-1/person", { id: PLANTED[0]!.id }, o.h, T + 40 * 86_400_000)).status).toBe(404);
     expect((raw.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid='PLANT-1'").get() as any).c).toBe(1); // the other person is untouched
     expect(prize()).toMatchObject({ pii: null, orig: null });
-    expect((await call("POST", "/api/z/PLANT-1/forget", { phone: "123" }, o.h)).status).toBe(400);
+    expect((await call("POST", "/api/z/PLANT-1/forget", { id: "!!!" }, o.h)).status).toBe(400);
   });
   test("while the game is running a person cannot be deleted (it would change the game)", async () => {
     const o = await setup(); const run = T + 1200 * 3000 + 5 * 60_000; // five minutes after the first number
-    expect((await call("POST", "/api/z/PLANT-1/forget", { phone: PLANTED[0]!.phone }, o.h, run)).status).toBe(409);
+    expect((await call("POST", "/api/z/PLANT-1/forget", { id: PLANTED[0]!.id }, o.h, run)).status).toBe(409);
   });
 });

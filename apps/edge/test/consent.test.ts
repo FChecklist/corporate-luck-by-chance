@@ -142,8 +142,8 @@ describe("tests 1-4 at every point", () => {
   });
   test("K4: the notice says who invited me is recorded; 24 hours after the game that row, the seat and the invitation record are gone, the organizer's rows stay", async () => {
     const h = await published("CON-4"); expect(boxesOf("K4")[0]![1]).toContain("who invited me is recorded until then");
-    expect((await call("POST", "/api/z/CON-4/people", { people: [{ name: "Ravi", phone: "9876500001" }] }, h)).status).toBe(400); // K6 needed
-    expect((await call("POST", "/api/z/CON-4/people", { people: [{ name: "Ravi", phone: "9876500001" }], consent: tick("K6") }, h)).status).toBe(200);
+    expect((await call("POST", "/api/z/CON-4/people", { people: [{ id: "9876500001" }] }, h)).status).toBe(400); // K6 needed
+    expect((await call("POST", "/api/z/CON-4/people", { people: [{ id: "9876500001" }], consent: tick("K6") }, h)).status).toBe(200);
     const tok = (await j(await call("GET", "/api/z/CON-4/people", undefined, h))).people[0].link.split("/j/")[1];
     expect((await call("POST", "/api/z/CON-4/join", { token: tok, device: dev(5), name: "Ravi", consent: tick("K4") })).status).toBe(200);
     expect((raw.query("SELECT COUNT(*) c FROM person WHERE eid='CON-4'").get() as any).c).toBe(1);

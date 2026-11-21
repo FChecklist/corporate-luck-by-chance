@@ -49,7 +49,7 @@ export const personalDeleteAt = (endMs: number) => endMs + PURGE_AFTER_MS;
 export const reportLinkUntil = (endMs: number) => endMs + REPORT_LINK_MS;
 
 export function cfgOfRow(e: { tickets?: number; config?: string | null }): EngagementCfg {
-  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, mark: j.mark, join: j.join, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* plain defaults */ }
+  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, mark: j.mark, join: j.join, start: j.start, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* plain defaults */ }
   return (validateCfg({}) as { ok: true; cfg: EngagementCfg }).cfg;
 }
 
@@ -188,7 +188,7 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
       for (const r of rows) {
         const o = await openPii(env, r.pii);
         const joined = r.seq === null || r.dev !== null;
-        people.push({ seat: r.seq ?? null, name: o?.name ?? null, phone: o?.phone ?? null, joinedMs: r.joined_ms ?? null, late: r.jr > 0, role: r.role ?? null, invitedBy: r.inv ?? null, onRoster: r.src === "roster" || r.src === "reuse" || r.src === "list", joined, via: labelOf(r.via), admittedBy: r.appr ? labelOf(r.appr) : null, removed: !!r.rmv });
+        people.push({ seat: r.seq ?? null, name: o?.name ?? null, phone: o?.phone ?? null, id: o?.id ?? null, joinedMs: r.joined_ms ?? null, late: r.jr > 0, role: r.role ?? null, invitedBy: r.inv ?? null, onRoster: r.src === "roster" || r.src === "reuse" || r.src === "list", joined, via: labelOf(r.via), admittedBy: r.appr ? labelOf(r.appr) : null, removed: !!r.rmv });
         if (joined) for (const t of st.tl) if ((r.joined_ms ?? 0) <= t.atMs) { t.present++; if (r.jr > 0) t.late++; }
         const g = st.agg; // totals for the summary, kept as we go so a big game's summary needs no second look at the people
         if (joined) { g.joined++; if (r.jr > 0) g.late++; else { g.joinedInTime++; if (r.joined_ms && (g.firstJoinMs === null || r.joined_ms < g.firstJoinMs)) g.firstJoinMs = r.joined_ms; } }
@@ -225,7 +225,7 @@ const bodyFor = (eid: string, d: ReportData, link: string) => [
   link, ``,
   `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once ours is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully.`, ``,
   `What happens to the data:`,
-  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's name, mobile number, seat, join record and invite record from our systems.`,
+  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's nickname, invite ID, seat, join record and invite record from our systems.`,
   `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (the final places, as seat numbers, without names or mobile numbers).`,
   `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,

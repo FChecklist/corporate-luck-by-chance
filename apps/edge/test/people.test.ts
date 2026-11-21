@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
-import { cleanPhone, parseFrom, fromCodeOf, COHOST_FROM, HOST_FROM, ORG_FROM, phoneHashOf } from "../src/people";
+import { parseFrom, fromCodeOf, COHOST_FROM, HOST_FROM, ORG_FROM } from "../src/people";
+import { cleanInviteId, idHashOf, normalizeId } from "../src/invite-id";
 import { makeD1 } from "./d1-sqlite";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0);
@@ -20,7 +21,7 @@ const j = async (r: Response) => (await r.json()) as any;
 const mob = (i: number) => "9" + String(100000000 + i); // 9100000001 ...
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
 const join = (id: string, body: Record<string, unknown>, now = T) => call("POST", `/api/z/${id}/join`, body, undefined, now);
-const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { phone: mob(i), name: "G" + i, device: dev(i), ...extra }, now);
+const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { id: mob(i), name: "G" + i, device: dev(i), ...extra }, now);
 
 async function setup(opts: { closed?: boolean; cap?: number; invites?: unknown } = {}) {
   const st = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `7.7.7.${++ipN}` }, body: JSON.stringify({ email: `o${ipN}@acme.com` }) }), env as Env, T));
@@ -40,11 +41,13 @@ const rowsOf = (sql: string, ...v: unknown[]) => raw.prepare(sql).all(...(v as a
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
 afterEach(() => { globalThis.fetch = realFetch; });
 
-describe("cleaning numbers", () => {
-  test("spaces, dashes, +91, 0 and 00 go; Indian mobiles start 6 to 9; other country codes are kept; garbage is refused", () => {
-    for (const raw of ["98765 43210", "98765-43210", "+91 98765 43210", "09876543210", "0091 98765 43210", "(98765) 43210"]) expect(cleanPhone(raw)).toMatchObject({ ok: true, digits: "919876543210", last10: "9876543210" });
-    expect(cleanPhone("+971 50 123 4567")).toMatchObject({ ok: true, digits: "971501234567" });
-    for (const bad of ["", "abc", "12345", "5876543210", "+91 5876543210", "91987654321", "1234567890123456"]) expect(cleanPhone(bad).ok).toBe(false);
+describe("cleaning IDs", () => {
+  test("every character that is not a letter or a digit goes and the rest is upper case: A-1101, A 1101, a/1101 and A.1101 are one ID", () => {
+    for (const raw of ["A-1101", "A 1101", "a/1101", "A.1101", " a_1101 ", "(A)1101", "A\t1101"]) expect(cleanInviteId(raw)).toEqual({ ok: true, id: "A1101" });
+    expect(normalizeId("emp-007")).toBe("EMP007");
+    expect(cleanInviteId(9876543210)).toEqual({ ok: true, id: "9876543210" }); // a number typed into a spreadsheet cell is an ID like any other
+    for (const bad of ["", "   ", "---", "###", "A".repeat(41), undefined, null, {}, ["A1"]]) expect(cleanInviteId(bad as any).ok).toBe(false);
+    expect(cleanInviteId("A".repeat(40)).ok).toBe(true);
   });
   test("link codes: the Organizer, Hosts, Co-hosts and a guest's seat never collide", () => {
     expect(parseFrom(ORG_FROM)).toEqual({ kind: "org" });
@@ -53,28 +56,41 @@ describe("cleaning numbers", () => {
     expect(parseFrom(7)).toEqual({ kind: "guest", seq: 7 });
     expect(fromCodeOf("h:00000ff")).toBe(HOST_FROM + 255); expect(fromCodeOf("c:00000ff")).toBe(COHOST_FROM + 255); expect(fromCodeOf("o")).toBe(ORG_FROM); expect(fromCodeOf("s:7")).toBe(7);
   });
-  test("the phone hash used for lists is the one the join route uses", async () => {
-    const t = await setup(); await add(t.master, [{ name: "A", phone: mob(1) }]);
-    expect(rowsOf("SELECT ph FROM person")[0].ph).toBe(await phoneHashOf(env, "91" + mob(1)));
+  test("the hash used for lists is the one the join route uses, and it is the hash of the cleaned ID", async () => {
+    const t = await setup(); await add(t.master, [{ id: "a-" + mob(1) }]);
+    expect(rowsOf("SELECT ph FROM person")[0].ph).toBe(await idHashOf(env, "A" + mob(1)));
   });
 });
 
 describe("adding people", () => {
-  test("a batch is cleaned: good ones added, duplicates inside the batch dropped, wrong ones listed", async () => {
+  test("a batch is cleaned: good ones added, duplicates inside the batch dropped (any spelling), wrong ones listed", async () => {
     const t = await setup();
-    const r = await j(await add(t.master, [{ name: "Asha", phone: "98765 43210" }, { name: "Asha again", phone: "+91-9876543210" }, { name: "Bala", phone: "12345" }, { name: "Cara", phone: mob(3) }, { name: "Dev" }]));
-    expect(r.added).toBe(2); expect(r.duplicates).toBe(1); expect(r.invalid).toHaveLength(2);
-    expect(r.invalid[0]).toMatchObject({ raw: expect.stringContaining("Bala"), why: expect.any(String) });
-    expect(r.people[0]).toMatchObject({ name: "Asha", maskedPhone: "******3210", status: "invited" });
+    const r = await j(await add(t.master, [{ id: "A-1101" }, { id: "a 1101" }, { id: "---" }, { id: mob(3) }, "B/22", { id: "x".repeat(60) }]));
+    expect(r.added).toBe(3); expect(r.duplicates).toBe(1); expect(r.invalid).toHaveLength(2);
+    expect(r.invalid[0]).toMatchObject({ raw: "---", why: expect.any(String) });
+    expect(r.people[0]).toMatchObject({ listId: "A1101", status: "invited" });
+    expect(r.people[0].name).toBeUndefined(); expect(r.people[0].maskedPhone).toBeUndefined(); expect(r.people[0].waLink).toBeUndefined();
     expect(r.people[0].link).toMatch(/^https:\/\/bingo\.test\/j\/[a-z0-9]{10}$/);
-    expect(r.people[0].waLink).toStartWith("https://wa.me/919876543210?text=");
-    expect(decodeURIComponent(r.people[0].waLink)).toContain(r.people[0].link);
-    expect(JSON.stringify(rowsOf("SELECT * FROM person"))).not.toContain("9876543210"); // sealed at rest
+    expect(r.people[2].listId).toBe("B22");
+    expect(JSON.stringify(rowsOf("SELECT * FROM person"))).not.toContain("A1101"); // sealed at rest
+  });
+  test("a name or a mobile number is never taken: such an entry is refused with the owner's sentence and nothing is stored", async () => {
+    const t = await setup();
+    const r = await j(await add(t.master, [{ id: "A1101", name: "Asha" }, { id: "A1102", phone: "9876543210" }, { name: "Only a name" }, { phone: "9876543210" }, { id: "A1103" }]));
+    expect(r.added).toBe(1); expect(r.invalid).toHaveLength(4);
+    expect(r.invalid.every((x: any) => /just an ID/i.test(x.why))).toBe(true);
+    expect(rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(1);
+  });
+  test("the console may also send {ids:[...]}", async () => {
+    const t = await setup();
+    const r = await j(await call("POST", "/api/z/PPL-1/people", { ids: ["E-1", "E-2", "e 1"] }, t.master));
+    expect(r).toMatchObject({ added: 2, duplicates: 1 });
+    expect((await call("POST", "/api/z/PPL-1/people", { ids: [] }, t.master)).status).toBe(400);
   });
   test("first list wins across inviters; a second add is a duplicate", async () => {
     const t = await setup();
-    expect((await j(await add(t.host, [{ name: "Asha", phone: mob(1) }]))).added).toBe(1);
-    const again = await j(await add(t.master, [{ name: "Asha", phone: mob(1) }, { name: "Bala", phone: mob(2) }]));
+    expect((await j(await add(t.host, [{ id: mob(1) }]))).added).toBe(1);
+    const again = await j(await add(t.master, [{ id: mob(1) }, { id: mob(2) }]));
     expect(again).toMatchObject({ added: 1, duplicates: 1 });
     expect(rowsOf("SELECT inviter FROM person ORDER BY added_ms, id").map((x) => x.inviter[0]).sort()).toEqual(["h", "o"]);
   });
@@ -83,23 +99,23 @@ describe("adding people", () => {
     expect((await call("PATCH", "/api/z/PPL-1/settings", { coHostLimit: 5 }, t.master)).status).toBe(400);
     expect((await call("PATCH", "/api/z/PPL-1/settings", { coHostLimit: 1001 }, t.master)).status).toBe(400);
     expect((await call("PATCH", "/api/z/PPL-1/settings", { coHostLimit: 10 }, t.master)).status).toBe(200);
-    const nine = Array.from({ length: 9 }, (_, i) => ({ name: "P" + i, phone: mob(10 + i) }));
+    const nine = Array.from({ length: 9 }, (_, i) => ({ id: mob(10 + i) }));
     expect((await j(await add(t.cohost, nine))).added).toBe(9);
-    const over = await add(t.cohost, [{ name: "X", phone: mob(30) }, { name: "Y", phone: mob(31) }]);
+    const over = await add(t.cohost, [{ id: mob(30) }, { id: mob(31) }]);
     expect(over.status).toBe(409); expect((await j(over)).code).toBe("over-limit");
     expect(rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(9); // all or nothing
     const l = await list(t.cohost); expect(l).toMatchObject({ limit: 10, used: 9 });
     expect((await call("POST", `/api/z/PPL-1/people/${l.people[0].id}/remove`, {}, t.cohost)).status).toBe(200);
-    expect((await j(await add(t.cohost, [{ name: "X", phone: mob(30) }, { name: "Y", phone: mob(31) }]))).added).toBe(2);
+    expect((await j(await add(t.cohost, [{ id: mob(30) }, { id: mob(31) }]))).added).toBe(2);
   });
   test("the number of people on all lists never passes the size bought", async () => {
     const t = await setup({ cap: 3 });
-    const r = await add(t.master, Array.from({ length: 4 }, (_, i) => ({ name: "P" + i, phone: mob(i + 1) })));
+    const r = await add(t.master, Array.from({ length: 4 }, (_, i) => ({ id: mob(i + 1) })));
     expect(r.status).toBe(409); expect((await j(r)).code).toBe("over-cap");
   });
   test("a Co-host sees only their own list; the Organizer and Host see everything with who invited", async () => {
     const t = await setup();
-    await add(t.cohost, [{ name: "C1", phone: mob(1) }]); await add(t.host, [{ name: "H1", phone: mob(2) }]); await add(t.master, [{ name: "O1", phone: mob(3) }]);
+    await add(t.cohost, [{ id: mob(1) }]); await add(t.host, [{ id: mob(2) }]); await add(t.master, [{ id: mob(3) }]);
     const co = await list(t.cohost); expect(co.people).toHaveLength(1); expect(co.people[0].inviter).toBeUndefined(); expect(co.canExport).toBe(false);
     const all = await list(t.master); expect(all.people).toHaveLength(3); expect(all.total).toBe(3);
     expect(all.people.map((p: any) => p.inviter).sort()).toEqual(["Co-host Ravi", "Host Priya", "Organizer"]);
@@ -109,8 +125,8 @@ describe("adding people", () => {
 
 describe("who may call", () => {
   test("an AI key and an AI work link get 403 on every people and waiting route", async () => {
-    const t = await setup(); await add(t.master, [{ name: "A", phone: mob(1) }]);
-    for (const [m, p, b] of [["GET", "/api/z/PPL-1/people"], ["POST", "/api/z/PPL-1/people", { people: [{ name: "B", phone: mob(2) }] }], ["GET", "/api/z/PPL-1/people/export"], ["GET", "/api/z/PPL-1/waiting"], ["POST", "/api/z/PPL-1/waiting/all", { decision: "admit" }]] as [string, string, unknown?][]) {
+    const t = await setup(); await add(t.master, [{ id: mob(1) }]);
+    for (const [m, p, b] of [["GET", "/api/z/PPL-1/people"], ["POST", "/api/z/PPL-1/people", { people: [{ id: mob(2) }] }], ["GET", "/api/z/PPL-1/people/export"], ["GET", "/api/z/PPL-1/waiting"], ["POST", "/api/z/PPL-1/waiting/all", { decision: "admit" }]] as [string, string, unknown?][]) {
       expect((await call(m, p, b, t.ai)).status).toBe(403);
       expect((await call(m, p, b, t.master, T, { "x-cb-link": "1" })).status).toBe(403);
     }
@@ -123,7 +139,7 @@ describe("who may call", () => {
     expect((await call("GET", "/api/z/PPL-1/people", undefined, other.master)).status).toBe(403);
   });
   test("a Co-host cannot export; the Organizer and a Host can", async () => {
-    const t = await setup(); await add(t.master, [{ name: "A", phone: mob(1) }]);
+    const t = await setup(); await add(t.master, [{ id: mob(1) }]);
     expect((await call("GET", "/api/z/PPL-1/people/export", undefined, t.cohost)).status).toBe(403);
     expect((await call("GET", "/api/z/PPL-1/people/export", undefined, t.host)).status).toBe(200);
   });
@@ -132,9 +148,9 @@ describe("who may call", () => {
     const a = await j(await joinAs("PPL-1", 1)); const b = await j(await joinAs("PPL-1", 2, { from: 1 })); // seat 1 is level 1, seat 2 was invited by it
     const q = (pid: string) => `?me=${pid}`;
     expect(await j(await call("GET", `/api/z/PPL-1/people${q(a.pid)}`))).toMatchObject({ limit: 2, used: 1 }); // the guest who joined through their link is on their list
-    const r = await call("POST", `/api/z/PPL-1/people${q(a.pid)}`, { people: [{ name: "F1", phone: mob(11) }] });
+    const r = await call("POST", `/api/z/PPL-1/people${q(a.pid)}`, { people: [{ id: mob(11) }] });
     expect((await j(r)).added).toBe(1);
-    const full = await call("POST", `/api/z/PPL-1/people${q(a.pid)}`, { people: [{ name: "F2", phone: mob(12) }] });
+    const full = await call("POST", `/api/z/PPL-1/people${q(a.pid)}`, { people: [{ id: mob(12) }] });
     expect(full.status).toBe(409);
     expect((await call("GET", `/api/z/PPL-1/people${q(b.pid)}`)).status).toBe(403);
     expect((await call("GET", `/api/z/PPL-1/people${q("nope")}`)).status).toBe(403);
@@ -156,7 +172,7 @@ describe("who may call", () => {
 
 describe("personal links", () => {
   test("a listed person opens their link and types nothing; the link binds to the first phone", async () => {
-    const t = await setup(); const added = (await j(await add(t.host, [{ name: "Asha", phone: mob(1) }]))).people[0];
+    const t = await setup(); const added = (await j(await add(t.host, [{ id: mob(1) }]))).people[0];
     const tok = tokenOf(added.link);
     const ok = await join("PPL-1", { token: tok, device: dev(1) });
     expect(ok.status).toBe(200); const body = await j(ok); expect(body.pid).toBeTruthy();
@@ -164,10 +180,10 @@ describe("personal links", () => {
     expect(rowsOf("SELECT src FROM seat")[0].src).toBe("ho:" + rowsOf("SELECT inviter FROM person")[0].inviter.slice(2));
     expect((await join("PPL-1", { token: tok, device: dev(1) })).status).toBe(200); // same phone again
     const other = await join("PPL-1", { token: tok, device: dev(2) });
-    expect(other.status).toBe(423); expect((await j(other)).needPhone).toBe(true);
+    expect(other.status).toBe(423); expect((await j(other)).needId).toBe(true);
   });
   test("send again rotates the link, kills the old one and unlocks the ticket for a new phone", async () => {
-    const t = await setup(); const added = (await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).people[0];
+    const t = await setup(); const added = (await j(await add(t.master, [{ id: mob(1) }]))).people[0];
     await join("PPL-1", { token: tokenOf(added.link), device: dev(1) });
     const re = await j(await call("POST", `/api/z/PPL-1/people/${added.id}/resend`, {}, t.master));
     expect(re.link).not.toBe(added.link); expect(re.unlocked).toBe(true);
@@ -175,29 +191,29 @@ describe("personal links", () => {
     expect((await join("PPL-1", { token: tokenOf(re.link), device: dev(2) })).status).toBe(200);
     expect((await join("PPL-1", { token: tokenOf(re.link), device: dev(1) })).status).toBe(423);
   });
-  test("send again can give someone who has not joined a new number, but not one already taken", async () => {
-    const t = await setup(); const [a, b] = (await j(await add(t.master, [{ name: "A", phone: mob(1) }, { name: "B", phone: mob(2) }]))).people;
-    expect((await call("POST", `/api/z/PPL-1/people/${a.id}/resend`, { phone: mob(2) }, t.master)).status).toBe(409);
-    const re = await j(await call("POST", `/api/z/PPL-1/people/${a.id}/resend`, { phone: mob(5) }, t.master));
-    expect(re.waLink).toContain("91" + mob(5));
-    expect(rowsOf("SELECT id FROM person WHERE ph=?", await phoneHashOf(env, "91" + mob(1)))).toHaveLength(0); // the old number is gone from the list
-    expect((await join("PPL-1", { token: tokenOf(re.link), device: dev(5) })).status).toBe(200); // the new link opens the ticket with no number typed
+  test("send again can give someone who has not joined a corrected ID, but not one already taken", async () => {
+    const t = await setup(); const [a, b] = (await j(await add(t.master, [{ id: mob(1) }, { id: mob(2) }]))).people;
+    expect((await call("POST", `/api/z/PPL-1/people/${a.id}/resend`, { id: mob(2) }, t.master)).status).toBe(409);
+    const re = await j(await call("POST", `/api/z/PPL-1/people/${a.id}/resend`, { id: mob(5) }, t.master));
+    expect(re.waLink).toBeUndefined(); expect(re.message).toContain(re.link);
+    expect(rowsOf("SELECT id FROM person WHERE ph=?", await idHashOf(env, mob(1)))).toHaveLength(0); // the old ID is gone from the list
+    expect((await join("PPL-1", { token: tokenOf(re.link), device: dev(5) })).status).toBe(200); // the new link opens the ticket with no ID typed
     expect(rowsOf("SELECT COUNT(*) c FROM person WHERE id=?", b.id)[0].c).toBe(1);
   });
-  test("a different number on a personal link asks the link owner's chain, and the link owner can admit them", async () => {
-    const t = await setup({ closed: true }); const added = (await j(await add(t.cohost, [{ name: "Asha", phone: mob(1) }]))).people[0];
+  test("a different ID on a personal link asks the link owner's chain, and the link owner can admit them", async () => {
+    const t = await setup({ closed: true }); const added = (await j(await add(t.cohost, [{ id: mob(1) }]))).people[0];
     await join("PPL-1", { token: tokenOf(added.link), device: dev(1) });
-    const stranger = await join("PPL-1", { token: tokenOf(added.link), phone: mob(9), name: "Zed", device: dev(9) });
+    const stranger = await join("PPL-1", { token: tokenOf(added.link), id: mob(9), name: "Zed", device: dev(9) });
     expect(stranger.status).toBe(403); const sb = await j(stranger); expect(sb.waiting).toBe(true);
     const w = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting;
-    expect(w).toHaveLength(1); expect(w[0]).toMatchObject({ firstName: "Zed", last4: mob(9).slice(-4), via: "personal-link" });
+    expect(w).toHaveLength(1); expect(w[0]).toMatchObject({ nickname: "Zed", listId: mob(9), via: "personal-link" });
   });
   test("/j/<token> is a page with Open Graph tags and a way on to the game; a removed or wrong token is a calm 404", async () => {
     const t = await setup(); await call("PATCH", "/api/z/PPL-1/settings", { name: "Diwali Bingo" }, t.master);
-    const added = (await j(await add(t.master, [{ name: "Asha Rao", phone: mob(1) }]))).people[0];
+    const added = (await j(await add(t.master, [{ id: mob(1) }]))).people[0];
     const page = await call("GET", `/j/${tokenOf(added.link)}`);
     const html = await page.text();
-    expect(page.status).toBe(200); expect(html).toContain('property="og:title" content="You are invited to Diwali Bingo"'); expect(html).toContain("Asha, tap"); expect(html).toContain(`/z.html?e=PPL-1&amp;t=${tokenOf(added.link)}`);
+    expect(page.status).toBe(200); expect(html).toContain('property="og:title" content="You are invited to Diwali Bingo"'); expect(html).toContain("Tap to open your game"); expect(html).not.toContain("Asha"); expect(html).toContain(`/z.html?e=PPL-1&amp;t=${tokenOf(added.link)}`);
     expect(page.headers.get("content-security-policy")).toContain("default-src 'none'");
     expect((await call("GET", "/j/zzzzzzzzzz")).status).toBe(404);
     await call("POST", `/api/z/PPL-1/people/${added.id}/remove`, {}, t.master);
@@ -205,10 +221,11 @@ describe("personal links", () => {
   });
   test("an Organizer's or Host's own play seat is made through a personal link and is flagged automatically", async () => {
     const t = await setup();
-    const mine = await j(await call("POST", "/api/z/PPL-1/people/me", {}, t.master)); // the publish step already gave the Organizer's mobile
-    expect(mine.role).toBe("organizer"); expect(mine.person.link).toContain("/j/");
-    const h = await j(await call("POST", "/api/z/PPL-1/people/me", {}, t.host)); expect(h.role).toBe("host");
-    const c = await j(await call("POST", "/api/z/PPL-1/people/me", {}, t.cohost)); expect(c.role).toBe("co-host");
+    const none = await call("POST", "/api/z/PPL-1/people/me", {}, t.master); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-id"); // your own seat is matched by an ID too: it has to be typed
+    const mine = await j(await call("POST", "/api/z/PPL-1/people/me", { id: "org-1" }, t.master));
+    expect(mine.role).toBe("organizer"); expect(mine.person.link).toContain("/j/"); expect(mine.person.listId).toBe("ORG1");
+    const h = await j(await call("POST", "/api/z/PPL-1/people/me", { id: "HOST-1" }, t.host)); expect(h.role).toBe("host");
+    const c = await j(await call("POST", "/api/z/PPL-1/people/me", { id: "CO-1" }, t.cohost)); expect(c.role).toBe("co-host");
     const r = await j(await join("PPL-1", { token: tokenOf(mine.person.link), device: dev(1) }));
     expect(r.role).toBe("organizer");
     await join("PPL-1", { token: tokenOf(h.person.link), device: dev(2) }); await join("PPL-1", { token: tokenOf(c.person.link), device: dev(3) });
@@ -220,7 +237,7 @@ describe("personal links", () => {
 
 describe("the common link and who can join", () => {
   test("a number on a list is recognised even through another inviter's link, and stays under its real inviter", async () => {
-    const t = await setup(); await add(t.host, [{ name: "Asha", phone: mob(1) }]);
+    const t = await setup(); await add(t.host, [{ id: mob(1) }]);
     const hostCode = fromCodeOf("h:" + rowsOf("SELECT inviter FROM person")[0].inviter.slice(2))!;
     expect((await joinAs("PPL-1", 1, { from: ORG_FROM })).status).toBe(200);
     expect(rowsOf("SELECT inviter, status FROM person")).toEqual([{ inviter: "h:" + rowsOf("SELECT inviter FROM person")[0].inviter.slice(2), status: "joined" }]);
@@ -263,7 +280,7 @@ describe("the waiting room", () => {
     await wait(t, 2, ORG_FROM); await wait(t, 0); await joinAs("PPL-1", 70, { from: ch });
     expect((await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting).toHaveLength(3);
     expect((await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.host))).waiting).toHaveLength(3);
-    const mine = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.cohost))).waiting; expect(mine).toHaveLength(1); expect(mine[0].last4).toBe(mob(70).slice(-4));
+    const mine = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.cohost))).waiting; expect(mine).toHaveLength(1); expect(mine[0].listId).toBe(mob(70));
     const orgOnly = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting.find((x: any) => x.last4 !== mob(70).slice(-4));
     expect((await call("POST", `/api/z/PPL-1/waiting/${orgOnly.id}`, { decision: "admit" }, t.cohost)).status).toBe(404); // not theirs
     expect((await call("POST", `/api/z/PPL-1/waiting/${mine[0].id}`, { decision: "maybe" }, t.cohost)).status).toBe(400);
@@ -271,7 +288,7 @@ describe("the waiting room", () => {
   test("admit records who approved and when; the person is then recognised and joins; decline keeps them out", async () => {
     const t = await setup({ closed: true }); await joinAs("PPL-1", 1, { from: ORG_FROM }); await joinAs("PPL-1", 2, { from: ORG_FROM });
     const ws = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.host))).waiting;
-    const w1 = ws.find((x: any) => x.last4 === mob(1).slice(-4)), w2 = ws.find((x: any) => x.last4 === mob(2).slice(-4));
+    const w1 = ws.find((x: any) => x.listId === mob(1)), w2 = ws.find((x: any) => x.listId === mob(2));
     const pid = (await j(await call("GET", `/api/z/PPL-1/me?wid=${w1.id}`))).state; expect(pid).toBe("waiting");
     const ad = await j(await call("POST", `/api/z/PPL-1/waiting/${w1.id}`, { decision: "admit" }, t.host, T + 5000));
     expect(ad.admitted).toBe(true);
@@ -286,11 +303,11 @@ describe("the waiting room", () => {
     const t = await setup({ closed: true, cap: 3 });
     expect((await joinAs("PPL-1", 3, { from: ORG_FROM })).status).toBe(403);
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c + rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(0);
-    expect((await j(await add(t.host, [{ name: "C", phone: mob(3) }]))).added).toBe(1);
+    expect((await j(await add(t.host, [{ id: mob(3) }]))).added).toBe(1);
     expect(rowsOf("SELECT status, decided_by FROM waiting")[0]).toMatchObject({ status: "admitted" });
     expect(rowsOf("SELECT decided_by FROM waiting")[0].decided_by).toMatch(/^h:/);
     expect((await joinAs("PPL-1", 3, { from: ORG_FROM })).status).toBe(200);
-    await add(t.master, [{ name: "A", phone: mob(1) }, { name: "B", phone: mob(2) }]); await joinAs("PPL-1", 1); await joinAs("PPL-1", 2);
+    await add(t.master, [{ id: mob(1) }, { id: mob(2) }]); await joinAs("PPL-1", 1); await joinAs("PPL-1", 2);
     const full = await joinAs("PPL-1", 4, { from: ORG_FROM }); expect(full.status).toBe(409); // all 3 places are taken
     expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(0);
   });
@@ -329,9 +346,9 @@ describe("the waiting room", () => {
 describe("removing people", () => {
   test("before the game: the place is freed, the link stops, the same phone cannot come back; this person only, or with everyone they invited", async () => {
     const t = await setup({ invites: { on: true, per: 4 } });
-    const p = (await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).people[0];
+    const p = (await j(await add(t.master, [{ id: mob(1) }]))).people[0];
     const asha = await j(await join("PPL-1", { token: tokenOf(p.link), device: dev(1) }));
-    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}`, { people: [{ name: "Kid", phone: mob(2) }] });
+    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}`, { people: [{ id: mob(2) }] });
     await joinAs("PPL-1", 2);
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c).toBe(2);
     const only = await j(await call("POST", `/api/z/PPL-1/people/${p.id}/remove`, {}, t.master));
@@ -341,20 +358,20 @@ describe("removing people", () => {
     const back = await joinAs("PPL-1", 1); expect(back.status).toBe(403); expect((await j(back)).code).toBe("removed");
     expect((await list(t.master)).people.find((x: any) => x.id === p.id)).toMatchObject({ status: "removed", link: null });
     // an Organizer may put them back
-    expect((await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).added).toBe(1);
+    expect((await j(await add(t.master, [{ id: mob(1) }]))).added).toBe(1);
     expect((await joinAs("PPL-1", 1)).status).toBe(200);
   });
   test("with everyone they invited", async () => {
     const t = await setup({ invites: { on: true, per: 4 } });
-    const p = (await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).people[0];
+    const p = (await j(await add(t.master, [{ id: mob(1) }]))).people[0];
     const asha = await j(await join("PPL-1", { token: tokenOf(p.link), device: dev(1) }));
-    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}`, { people: [{ name: "Kid", phone: mob(2) }] });
+    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}`, { people: [{ id: mob(2) }] });
     const r = await j(await call("POST", `/api/z/PPL-1/people/${p.id}/remove`, { withTheirPeople: true }, t.master));
     expect(r.removed).toBe(2); expect(rowsOf("SELECT COUNT(*) c FROM person WHERE status<>'removed'")[0].c).toBe(0);
   });
   test("a Co-host and a guest can remove only their own people; a Host's removal mails the Organizer", async () => {
     const t = await setup();
-    const own = (await j(await add(t.cohost, [{ name: "C", phone: mob(1) }]))).people[0], theirs = (await j(await add(t.master, [{ name: "O", phone: mob(2) }]))).people[0];
+    const own = (await j(await add(t.cohost, [{ id: mob(1) }]))).people[0], theirs = (await j(await add(t.master, [{ id: mob(2) }]))).people[0];
     expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.cohost)).status).toBe(404);
     expect((await call("POST", `/api/z/PPL-1/people/${own.id}/remove`, {}, t.cohost)).status).toBe(200);
     expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.host)).status).toBe(200);
@@ -363,12 +380,12 @@ describe("removing people", () => {
   });
   test("during the game only the Organizer and Host can remove; the seat STAYS in the public seat list, the phone stops, the prize is marked not given", async () => {
     const t = await setup({ invites: { on: true, per: 4 } });
-    const p = (await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).people[0];
+    const p = (await j(await add(t.master, [{ id: mob(1) }]))).people[0];
     const asha = await j(await join("PPL-1", { token: tokenOf(p.link), device: dev(1) })); await joinAs("PPL-1", 2);
     const seatsBefore = await j(await call("GET", "/api/z/PPL-1/seats", undefined, undefined, DURING));
     expect(seatsBefore.seats).toHaveLength(2);
     // a guest cannot remove during the game
-    const mine = (await j(await add(t.cohost, [{ name: "C", phone: mob(3) }]))).people[0];
+    const mine = (await j(await add(t.cohost, [{ id: mob(3) }]))).people[0];
     expect((await call("POST", `/api/z/PPL-1/people/${mine.id}/remove`, {}, t.cohost, DURING)).status).toBe(403);
     expect((await call("POST", `/api/z/PPL-1/people/${p.id}/remove`, {}, t.master, DURING)).status).toBe(200);
     const seatsAfter = await j(await call("GET", "/api/z/PPL-1/seats", undefined, undefined, DURING));
@@ -387,14 +404,15 @@ describe("removing people", () => {
 });
 
 describe("export, privacy and cleanup", () => {
-  test("the CSV has name, mobile, personal link, WhatsApp link and status, and a name cannot start a spreadsheet formula", async () => {
-    const t = await setup(); await add(t.master, [{ name: "=HYPERLINK(1)", phone: mob(1) }, { name: "Bala", phone: mob(2) }]);
+  test("the CSV has the ID, the personal link and the status, and nothing else about a person", async () => {
+    const t = await setup(); await add(t.master, [{ id: mob(1) }, { id: mob(2) }]);
     const r = await call("GET", "/api/z/PPL-1/people/export", undefined, t.master);
     expect(r.headers.get("content-type")).toContain("text/csv"); const csv = await r.text();
-    expect(csv).toContain("Name,Mobile,Personal link,WhatsApp link,Status"); expect(csv).toContain("'=HYPERLINK(1),91" + mob(1)); expect(csv).toContain("https://bingo.test/j/"); expect(csv).toContain(",Invited");
+    expect(csv.split("\r\n")[0]).toBe("ID,Personal link,Status"); expect(csv).toContain(mob(1) + ",https://bingo.test/j/"); expect(csv).toContain(",Invited"); expect(csv).not.toMatch(/wa\.me|Mobile|Name/);
+    await add(t.master, [{ id: "=HYPERLINK(1)" }]); const csv2 = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv2).toContain("HYPERLINK1,"); expect(csv2).not.toContain("=HYPERLINK"); // a spreadsheet formula cannot be smuggled in: only letters and digits survive
   });
   test("deleting the guests' data (the 23-hour rule or on request) deletes people and waiting rows too", async () => {
-    const t = await setup({ closed: true }); await add(t.master, [{ name: "A", phone: mob(1) }]); await joinAs("PPL-1", 5, { from: ORG_FROM });
+    const t = await setup({ closed: true }); await add(t.master, [{ id: mob(1) }]); await joinAs("PPL-1", 5, { from: ORG_FROM });
     expect(rowsOf("SELECT COUNT(*) c FROM person")[0].c + rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(2);
     expect((await call("POST", "/api/z/PPL-1/erase", {}, t.master)).status).toBe(200);
     expect(rowsOf("SELECT COUNT(*) c FROM person")[0].c + rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(0);

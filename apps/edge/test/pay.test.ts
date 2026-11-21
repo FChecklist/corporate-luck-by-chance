@@ -401,14 +401,14 @@ describe("paying to publish a draft", () => {
   test("the payment is bound to the signed-in organizer and publishes their draft", async () => {
     const key = await start("boss@acme.com", "1.1.1.1");
     await call("POST", "/api/z", { id: "PAYD-1", startRound: FAR_START, callSeconds: 9, cap: 300 }, { "x-organizer": key });
-    expect((await call("POST", "/api/z/PAYD-1/join", { phone: "9876543210" })).status).toBe(403); // a draft: closed to participants
+    expect((await call("POST", "/api/z/PAYD-1/join", { id: "9876543210" })).status).toBe(403); // a draft: closed to participants
     const c = await (await pay(key, "PAYD-1", { pack: 100000 })).json() as any; // the client's pack is ignored: the draft decides
     expect(c.mode).toBe("razorpay"); expect(rz.orders[0].amount).toBe(1 * rz.orders[0].amount); expect(c.razorpay.notes.participants).toBe("500"); expect(c.razorpay.description).toBe("(close group dice game software) | owned and made by IT Services by Rajat Agarwal");
     const v = await (await complete(c.paymentId, c.razorpay.orderId)).json() as any;
     expect(v.published).toBe(true); expect(v.eid).toBe("PAYD-1"); expect(v.organizerKey).toBeNull(); // no new organizer: it is theirs
     expect(raw.query("SELECT pack FROM engagement WHERE id='PAYD-1'").get()).toEqual({ pack: 500 });
     expect(raw.query("SELECT eid FROM entitlement").get()).toEqual({ eid: "PAYD-1" });
-    expect((await call("POST", "/api/z/PAYD-1/join", { phone: "9876543210" })).status).toBe(200); // now open to participants
+    expect((await call("POST", "/api/z/PAYD-1/join", { id: "9876543210" })).status).toBe(200); // now open to participants
   });
   test("nobody can pay for, or publish, someone else's draft; a published one is not paid for twice", async () => {
     const a = await start("a@acme.com", "1.1.1.1"), b = await start("b@other.com", "2.2.2.2");
