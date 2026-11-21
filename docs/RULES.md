@@ -52,7 +52,7 @@ Fate mode only. In Fate mode the dice is rolled for everybody when the press win
 - R33 Every hit is recorded exactly: the points, the best hit, the number of hits and the dice round of the last hit.
 
 ## G. The server (it does almost nothing)
-- R34 Only the Organizer or a Host can start the game, never the AI helper; at least 2 players are needed; wrong settings are refused with a plain sentence.
+- R34 Only the Organizer or a Host can start the game by hand, never the AI helper; at least 2 players are needed; wrong settings are refused with a plain sentence. (A game set to start by itself begins at its start time, R74.)
 - R35 The fingerprint of the sealed draw is public from the first look. The secret is shown only after the game is over, because with it anybody could compute every future number. Then anybody can check the seed.
 - R36 The list of players closes when the game starts (registration closes before the first dice round). A player who was in can open the link again; a new phone is told the game is running.
 - R37 A beacon value is sent only from the moment it is due. The dice value of a dice round does not exist while its press window is open.
@@ -62,20 +62,38 @@ Fate mode only. In Fate mode the dice is rolled for everybody when the press win
 - R41 Whole game: phones play with the real engine, the agreed result has a strict 1st to 5th, and the podium goes to the winners record as seat numbers.
 - R42 If the phones never agree, the game is closed after ten minutes without a published result.
 - R43 Nothing is ever taken from a player: there is no entry-fee field or payment code on any player route, and the game ignores any fee sent to it.
-- R44 24 hours after the end every nickname and every vote is gone; the agreed result keeps only seat numbers until the retention date.
+- R44 23 hours after the end (inside the 24 hours every page promises) every nickname, every invite ID and every vote is gone; the agreed result keeps only seat numbers until the retention date.
 - R45 A game never reads or writes another game's rows.
 - R58 The server computes nothing about the game: it imports only the timeline, the settings checks and the hash from the game package, never the engine (test: `apps/edge/test/server-computes-nothing.test.ts`). The phones compute targets, dice, scores, rankings and prizes; the server stores, validates, schedules and tallies votes.
 - R46 A player sees their own seat and nickname from their own phone only.
 
 ## H. Product rules (wording and money)
 - R47 Players never pay and never stake money. There are no cash prizes and no betting. Any gift is supplied by the organizer, outside this product. Adults (18+) only; a company event.
-- R48 A nickname only is asked of a player; the boxes with the short privacy notice come before the nickname field (tests: `apps/edge/test/consent.test.ts`, `apps/web/test/luck-page.test.ts`).
+- R48 A player is asked for a nickname and, when the game asks for it (the console always does), the ONE invite ID (R78); no name and no mobile number is asked. The boxes with the short privacy notice come before the ID and nickname fields (tests: `apps/edge/test/consent.test.ts`, `apps/web/test/luck-page.test.ts`).
 - R49 The Terms boxes (K1 to K6) are enforced by the server and recorded in `consent_log` (tests: `apps/edge/test/consent.test.ts`).
 - R50 A paid game can be moved within 365 days of the payment day; there is no refund, a cancelled game becomes credit (tests: `apps/edge/test/reschedule-window.test.ts`, `credit.test.ts`, `cancel.test.ts`).
 
 ## I. Ending the game
 - R51 The Organizer or a Host can end a running game from the game page. The round being played is finished and counted, then the game is over for everybody: the game simply has fewer rounds from then on. A running game cannot be paused: every player follows one fixed clock. Tests: `packages/luck/test/engine.test.ts` (R51), `apps/edge/test/luck-end.test.ts`, `apps/web/test/host-end.test.ts`.
 - R52 The console saves only what players see: the company name, colour and logo, and the prizes. Opening and closing messages, messages between rounds and lucky draws do not exist in this game; a request that carries them is refused with a plain sentence (test: `apps/edge/test/luck-end.test.ts`, R52).
+
+## K. Owner rules v1.1 (20 Nov 2026, in this repo from 1.5.2; the owner's text is `docs/SUITE_RULES.md`)
+Voice and start:
+- R71 The organizer's screens (the console, the run-the-game page and the AI-link page) speak to the organizer as "you" and never say "I", "my" or "me" (test: `apps/web/test/console-voice.test.ts`).
+- R72 There are two ways to start and no more: "You start the game" (the default: the Organizer or a Host presses Start) and "The game starts by itself" (the setting `start: auto`). The choice is made on step 1 of the console and can be changed until the game starts (tests: `apps/edge/test/start-options.test.ts`, `apps/web/test/pages.test.ts`, `apps/web/test/host-start.test.ts`).
+- R73 For a game that starts by itself, the Organizer or a Host saves a plan (rounds, press window, prizes) on the run-the-game page; with no plan saved it plays with the defaults (10 rounds, a 10 second window, no prize text). Only the Organizer or a Host can save it, and only before the game starts. A prize is still a gift: money words are refused.
+- R74 A paid game that starts by itself begins at its start time: on the first look of any phone, or the next scheduled tick, the server freezes the list of players and sets the clock to 10 seconds later (the list closes as in R36).
+- R75 It never starts by itself when the game is set to "You start the game", is not paid, is cancelled or did not start, or has fewer than 2 players (it waits and begins when the second player is in). A game cannot be started twice.
+Invite by ID:
+- R76 An ID is ONE alphanumeric field. Every character that is not a letter or a digit is removed and the rest is upper case, so A-1101, A 1101 and A/1101 are all A1101, the same way at upload, join, approval and matching (test: `apps/edge/test/invite-id.test.ts`, `people.test.ts`).
+- R77 A person whose ID is on the list joins and plays. A person whose ID is not on the list waits (no place is used) until the Organizer, a Host or the person who invited them says yes or no; the organizer sees the ID and the nickname they typed. In the console the list is always "only people on your list".
+- R78 The join form has ONE ID box (before the nickname box) and a nickname box; a personal link needs no ID box. A mobile number is not a way to join (tests: `apps/web/test/luck-page.test.ts`, `invite-id.test.ts`).
+- R79 The list holds IDs only. An entry with a name, a mobile number or an e-mail is refused with "Invite people with just an ID" and nothing of it is kept. The list a Host downloads is `ID, Personal link, Status`. The owner's five lines about inviting by ID are on the console screen word for word.
+- R80 Every ID (on the list, waiting, on a seat) is deleted with the rest of the guests' data 23 hours after the end (R44), inside the "within 24 hours" the owner's rule and every page promise. Only the Organizer and Hosts see the whole list, the invite chain and the log.
+Wording that is true in code:
+- R81 No page says that we or the software cannot know a number. The owner's line "No one knows the next number: not the organizer, not the host, not even the software" is not used because it is not true here: the server draws the secret and holds it until the game is over (see Known limits). The pages say: no player, organizer or host can see a number early, and anyone can re-check every number afterwards (test: `apps/edge/test/honest-wording.test.ts`).
+- R82 Every page that gives the length of a default game says 24 minutes 40 seconds (R30); the older, longer figure is gone.
+- R83 Personal data goes at 23 hours (R44, R67), which is inside the 24 hours every page promises.
 
 ## Known limits (stated, not hidden)
 - The server draws the secret and publishes the beacon values at their due time. The server is therefore trusted to draw the secret fairly and not to look; afterwards anybody can re-check every number. A public beacon from outside (the other Corporate Games use drand) is not wired into this build; the phone reads the game's own feed.
