@@ -49,7 +49,7 @@ export const personalDeleteAt = (endMs: number) => endMs + PURGE_AFTER_MS;
 export const reportLinkUntil = (endMs: number) => endMs + REPORT_LINK_MS;
 
 export function cfgOfRow(e: { tickets?: number; config?: string | null }): EngagementCfg {
-  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, mark: j.mark, join: j.join, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* plain defaults */ }
+  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, mark: j.mark, join: j.join, start: j.start, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* plain defaults */ }
   return (validateCfg({}) as { ok: true; cfg: EngagementCfg }).cfg;
 }
 
@@ -130,7 +130,7 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
     env.DB.prepare("DELETE FROM claim WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM settled WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rcand WHERE eid=?").bind(eid),
     env.DB.prepare("DELETE FROM participant WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM seat WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM person WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM waiting WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM overvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM consent_log WHERE ref=? AND kind='K4'").bind(eid), // the join ticks (K4) go with the person; the organizer's ticks stay as the contract record
     env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(eid), // the nicknames and the phones' result votes go with the other personal data
-    env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR k LIKE ? OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/%`, `seats-blk/${eid}`),
+    env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR k LIKE ? OR k=? OR k=? OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/%`, `seats-blk/${eid}`, `luck-plan/${eid}`, `luck-auto/${eid}`),
     env.DB.prepare(eraseCohostsSql).bind(eid), // the game's Co-hosts: name, mobile number and key go with the participants' data
     env.DB.prepare("INSERT INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?, 'organizer', ?, ?) ON CONFLICT(eid) DO UPDATE SET purged_ms=?, report_state=COALESCE(life.report_state, ?)").bind(eid, now, now, by, now, by),
   ]);
@@ -152,7 +152,7 @@ async function deleteEngagementRows(env: Env, id: string): Promise<void> {
   await keepLegalParty(env.DB, id, Date.now()); // the law keeps payments, invoices, the organizer's invoice details and who paid, for ever: copy them out before the game's own rows go
   await env.DB.batch([
     env.DB.prepare("DELETE FROM winner WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM luck_t WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM prize WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM life WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM cbl_request WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(id),
-    env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
+    env.DB.prepare("DELETE FROM kv WHERE k=? OR k=?").bind(`luck-plan/${id}`, `luck-auto/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
     env.DB.prepare("DELETE FROM organizer_key WHERE eid=? AND kind='cohost'").bind(id), env.DB.prepare("DELETE FROM shred WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM eng_key WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM audit_pii WHERE eid=?").bind(id), // erasePersonal above wrote a fresh shred marker
     env.DB.prepare("DELETE FROM engagement WHERE id=?").bind(id),
   ]);
@@ -188,7 +188,7 @@ async function reportStep(env: LifeEnv, e: any, life: { end_ms: number }, now: n
       for (const r of rows) {
         const o = await openPii(env, r.pii);
         const joined = r.seq === null || r.dev !== null;
-        people.push({ seat: r.seq ?? null, name: o?.name ?? null, phone: o?.phone ?? null, joinedMs: r.joined_ms ?? null, late: r.jr > 0, role: r.role ?? null, invitedBy: r.inv ?? null, onRoster: r.src === "roster" || r.src === "reuse" || r.src === "list", joined, via: labelOf(r.via), admittedBy: r.appr ? labelOf(r.appr) : null, removed: !!r.rmv });
+        people.push({ seat: r.seq ?? null, name: o?.name ?? null, phone: o?.phone ?? null, id: o?.id ?? null, joinedMs: r.joined_ms ?? null, late: r.jr > 0, role: r.role ?? null, invitedBy: r.inv ?? null, onRoster: r.src === "roster" || r.src === "reuse" || r.src === "list", joined, via: labelOf(r.via), admittedBy: r.appr ? labelOf(r.appr) : null, removed: !!r.rmv });
         if (joined) for (const t of st.tl) if ((r.joined_ms ?? 0) <= t.atMs) { t.present++; if (r.jr > 0) t.late++; }
         const g = st.agg; // totals for the summary, kept as we go so a big game's summary needs no second look at the people
         if (joined) { g.joined++; if (r.jr > 0) g.late++; else { g.joinedInTime++; if (r.joined_ms && (g.firstJoinMs === null || r.joined_ms < g.firstJoinMs)) g.firstJoinMs = r.joined_ms; } }
@@ -225,7 +225,7 @@ const bodyFor = (eid: string, d: ReportData, link: string) => [
   link, ``,
   `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once ours is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully.`, ``,
   `What happens to the data:`,
-  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's name, mobile number, seat, join record and invite record from our systems.`,
+  `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's nickname, invite ID, seat, join record and invite record from our systems.`,
   `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (the final places, as seat numbers, without names or mobile numbers).`,
   `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,

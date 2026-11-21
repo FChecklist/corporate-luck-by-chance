@@ -23,7 +23,7 @@ const tick = (now: number) => lifecycleTick(env as any, now);
 /** An engagement whose game is long over at T (it began 2 hours before). */
 const create = (id = "PRV-1", over: Record<string, unknown> = {}) => call("POST", "/api/z", { id, startRound: roundOf(T - 2 * 3_600_000), callSeconds: 6, cap: 5000, ...over }, org);
 const setContact = (id: string, email = "boss@acme.com") => env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?)").bind(`contact/${id}`, JSON.stringify({ email, phone: "9811122233" })).run();
-const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => call("POST", `/api/z/${id}/join`, { phone: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now);
+const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => call("POST", `/api/z/${id}/join`, { id: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now);
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
@@ -35,7 +35,7 @@ describe("names and numbers are sealed", () => {
   test("the database never holds a name or a mobile number in the clear, and every record is sealed differently", async () => {
     await create();
     await joinAs(1, "Asha Verma"); await joinAs(2, "Asha Verma");
-    expect((await call("POST", "/api/z/PRV-1/roster", { people: [{ phone: "9876543210", name: "Roster Rani" }] }, org, T - 3 * 3_600_000)).status).toBe(200);
+    expect((await call("POST", "/api/z/PRV-1/roster", { people: [{ id: "9876543210" }] }, org, T - 3 * 3_600_000)).status).toBe(200);
     const dump = JSON.stringify([raw.query("SELECT * FROM participant").all(), raw.query("SELECT * FROM seat").all(), raw.query("SELECT * FROM kv").all(), raw.query("SELECT * FROM outbox").all()]);
     for (const secret of ["Asha", "Verma", "Roster", "Rani", "9876500001", "9876500002", "9876543210", "987654321"]) expect(dump).not.toContain(secret);
     const rows = raw.query("SELECT name, pii FROM participant ORDER BY pid").all() as any[];
@@ -63,11 +63,11 @@ describe("names and numbers are sealed", () => {
   });
   test("people on the invitation list get seats too (collision-free tickets, one device), and the first device to open the link takes the seat", async () => {
     await create();
-    await call("POST", "/api/z/PRV-1/roster", { people: [{ phone: "9876543210", name: "Rani" }] }, org, T - 3 * 3_600_000);
+    await call("POST", "/api/z/PRV-1/roster", { people: [{ id: "9876543210" }] }, org, T - 3 * 3_600_000);
     const seat = raw.query("SELECT seq, pid, dev, src FROM seat").get() as any; expect(seat.pid).toMatch(/^1x[0-9a-f]{12}$/); expect(seat.dev).toBeNull(); expect(seat.src).toBe("roster");
-    const r = await j(await call("POST", "/api/z/PRV-1/join", { phone: "98765 43210", device: "a".repeat(32) }, {}, T - 3 * 3_600_000 + 60_000));
+    const r = await j(await call("POST", "/api/z/PRV-1/join", { id: "98765 43210", device: "a".repeat(32) }, {}, T - 3 * 3_600_000 + 60_000));
     expect(r.pid).toBe(seat.pid);
-    expect((await call("POST", "/api/z/PRV-1/join", { phone: "9876543210", device: "b".repeat(32) }, {}, T - 3 * 3_600_000 + 90_000)).status).toBe(423);
+    expect((await call("POST", "/api/z/PRV-1/join", { id: "9876543210", device: "b".repeat(32) }, {}, T - 3 * 3_600_000 + 90_000)).status).toBe(423);
   });
   test("reuse copies the earlier list as sealed records, and says so plainly when that list has already been deleted", async () => {
     await create("PRV-OLD"); await create("PRV-NEW");
@@ -120,11 +120,11 @@ describe("invitations", () => {
   test("the organizer, hosts and co-hosts can invite any number of people, and their seats are flagged", async () => {
     await create(); await withInvites("PRV-1", { on: true, per: 2, cats: ["family"] });
     await joinAs(1, "Boss"); await joinAs(2, "Host");
-    expect((await call("POST", "/api/z/PRV-1/mark", { phone: "9876500001", role: "organizer" })).status).toBe(403); // only the organizer can mark
-    expect((await call("POST", "/api/z/PRV-1/mark", { phone: "9876500001", role: "organizer" }, org, T - 4 * 3_600_000)).status).toBe(200);
-    expect((await call("POST", "/api/z/PRV-1/mark", { phone: "9876500002", role: "co-host" }, org, T - 4 * 3_600_000)).status).toBe(200);
-    expect((await call("POST", "/api/z/PRV-1/mark", { phone: "9876500002", role: "king" }, org, T - 4 * 3_600_000)).status).toBe(400);
-    expect((await call("POST", "/api/z/PRV-1/mark", { phone: "9000000000", role: "host" }, org, T - 4 * 3_600_000)).status).toBe(404);
+    expect((await call("POST", "/api/z/PRV-1/mark", { id: "9876500001", role: "organizer" })).status).toBe(403); // only the organizer can mark
+    expect((await call("POST", "/api/z/PRV-1/mark", { id: "9876500001", role: "organizer" }, org, T - 4 * 3_600_000)).status).toBe(200);
+    expect((await call("POST", "/api/z/PRV-1/mark", { id: "9876500002", role: "co-host" }, org, T - 4 * 3_600_000)).status).toBe(200);
+    expect((await call("POST", "/api/z/PRV-1/mark", { id: "9876500002", role: "king" }, org, T - 4 * 3_600_000)).status).toBe(400);
+    expect((await call("POST", "/api/z/PRV-1/mark", { id: "9000000000", role: "host" }, org, T - 4 * 3_600_000)).status).toBe(404);
     for (let i = 3; i <= 9; i++) expect((await joinAs(i, "G" + i, "PRV-1", { from: 2, cat: "family" })).status).toBe(200); // seven people from a co-host, quota is 2
     expect(raw.query("SELECT COUNT(*) c FROM seat WHERE inv=2").get()).toEqual({ c: 7 });
     expect(raw.query("SELECT role FROM seat WHERE seq=1").get()).toEqual({ role: "organizer" });
@@ -158,7 +158,7 @@ describe("the report and the deletion", () => {
   const prep = async (n = 6) => {
     await create(); await call("PATCH", "/api/z/PRV-1/settings", { invites: { on: true, per: 4, cats: ["family", "colleagues"] } }, org, T - 4 * 3_600_000);
     await setContact("PRV-1");
-    await joinAs(1, "Organizer Olga"); await call("POST", "/api/z/PRV-1/mark", { phone: "9876500001", role: "organizer" }, org, T - 3 * 3_600_000);
+    await joinAs(1, "Organizer Olga"); await call("POST", "/api/z/PRV-1/mark", { id: "9876500001", role: "organizer" }, org, T - 3 * 3_600_000);
     for (let i = 2; i <= n; i++) await joinAs(i, i === 4 ? "Zed अन" : "Guest " + i, "PRV-1", { from: 1, cat: "family" });
     const pids = (raw.query("SELECT pid FROM seat ORDER BY seq").all() as any[]).map((x) => x.pid);
     await settleByPhones(call, "PRV-1", [{ pattern: "third", idx: 72, pids: [pids[2]!] }, { pattern: "first", idx: 30, pids: [pids[0]!, pids[3]!] }], pids);
@@ -240,7 +240,7 @@ describe("exact deletion dates", () => {
     const at = fullDeleteAt(end); const d = new Date(at + 5.5 * 3_600_000);
     expect([d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]).toEqual([2027, 9, 2, 0, 0, 0]); // 2 Oct 2027, 00:00:00 IST
     expect(at).toBeGreaterThan(end + 365 * 86_400_000); expect(at - (end + 365 * 86_400_000)).toBeLessThanOrEqual(86_400_000);
-    await create(); await call("POST", "/api/z/PRV-1/join", { phone: "9876543210", device: "a".repeat(32) }, {}, T - 3 * 3_600_000);
+    await create(); await call("POST", "/api/z/PRV-1/join", { id: "9876543210", device: "a".repeat(32) }, {}, T - 3 * 3_600_000);
     const e0 = raw.query("SELECT * FROM engagement WHERE id='PRV-1'").get();
     const gameEnd = await endBoundMs(env as any, e0);
     await tick(gameEnd + 3600_000); // life row exists

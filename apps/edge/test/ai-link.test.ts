@@ -130,8 +130,8 @@ describe("GET-only fallback (_method and _body)", () => {
     const c = await call("GET", `/ai/${o.ai}/z?_method=POST&_body=${q(eng("GET-1"))}`); expect(c.status).toBe(200); expect((await j(c)).draft).toBe(true);
     const p = await call("GET", `/ai/${o.ai}/z/GET-1/settings?_method=PATCH&_body=${q({ tickets: 2, rewards: [{ pattern: "third", ordinal: 1, text: "TV" }] })}`); expect(p.status).toBe(200);
     expect((await j(await call("GET", `/ai/${o.ai}/z/GET-1/summary`))).tickets).toBe(2);
-    const people = Array.from({ length: 20 }, (_, i) => ({ phone: "98765" + String(10000 + i), name: "P" + i }));
-    const refused = await call("GET", `/ai/${o.ai}/z/GET-1/roster?_method=POST&_body=${q({ people })}`); expect(refused.status).toBe(403); expect((await refused.text())).toMatch(/console/); // names and numbers never pass through the AI
+    const people = Array.from({ length: 20 }, (_, i) => ({ id: "E98765" + String(10000 + i) }));
+    const refused = await call("GET", `/ai/${o.ai}/z/GET-1/roster?_method=POST&_body=${q({ people })}`); expect(refused.status).toBe(403); expect((await refused.text())).toMatch(/console/); // the list of IDs never passes through the AI
     expect((await j(await call("POST", "/api/z/GET-1/roster", { people }, o.h))).added).toBe(20); // the owner loads them in the console
     expect(auditRows().at(-1)!.method).toBe("POST");
   });
@@ -209,10 +209,10 @@ describe("what the organizer's AI may and may not do now", () => {
   });
   test("it may mark a seat, and move a ticket to a new phone (change of phone)", async () => {
     const o = await liveEngagement("CAP-3");
-    await call("POST", "/api/z/CAP-3/join", { phone: "9876543210", name: "Asha" });
+    await call("POST", "/api/z/CAP-3/join", { id: "9876543210", name: "Asha" });
     expect((await call("POST", `/ai/${o.ai}/z/CAP-3/mark`, { seat: 1, role: "co-host" })).status).toBe(200);
     expect((raw.prepare("SELECT role FROM seat WHERE eid='CAP-3'").get() as any).role).toBe("co-host");
-    expect((await call("POST", `/ai/${o.ai}/z/CAP-3/mark`, { phone: "9876543210", role: "host" })).status).toBe(403); expect((await call("POST", `/ai/${o.ai}/z/CAP-3/unbind`, { phone: "9876543210" })).status).toBe(403); // an AI never names a person by number
+    expect((await call("POST", `/ai/${o.ai}/z/CAP-3/mark`, { id: "9876543210", role: "host" })).status).toBe(403); expect((await call("POST", `/ai/${o.ai}/z/CAP-3/unbind`, { id: "9876543210" })).status).toBe(403); // an AI never names a person by number
     expect((await call("POST", `/ai/${o.ai}/z/CAP-3/unbind`, { seat: 1 })).status).toBe(200);
     expect((raw.prepare("SELECT dev FROM seat WHERE eid='CAP-3'").get() as any).dev).toBeNull();
   });

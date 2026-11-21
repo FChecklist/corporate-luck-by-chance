@@ -1,3 +1,5 @@
+> **1.5.2 (21 Nov 2026): the lists now hold IDs only.** Where this document says name and mobile number for a guest, read: ONE ID (see `SUITE_RULES.md` and R76 to R80 in `RULES.md`). A Host or Co-host still has a name and a mobile number (their own contact, not an invite).
+
 # Phase 2 spec (owner-approved 2026-10-08): people, links and joining
 
 Supersedes items 8 to 10 of `docs/ROLES_AND_CONSOLE_SPEC_2.md`.

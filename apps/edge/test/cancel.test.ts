@@ -58,7 +58,7 @@ const complete = async (c: any, id = "pay_1", now = T, status = "captured") => {
   return call("POST", "/api/payments/verify", { paymentId: c.paymentId, razorpay_order_id: c.razorpay.orderId, razorpay_payment_id: id, razorpay_signature: sign(c, id) }, undefined, now);
 };
 const paidGame = async (t: { master: string }) => { const c = await j(await pay(t.master)); expect((await j(await complete(c))).published).toBe(true); return c; };
-const join = (phone: string, name = "Guest") => call("POST", "/api/z/CAN-1/join", { phone, name });
+const join = (id: string, name = "Guest") => call("POST", "/api/z/CAN-1/join", { id, name });
 const cancelIt = (key: string, now = T, confirmations = 3) => call("POST", "/api/z/CAN-1/cancel", { confirmations }, key, now);
 const paymentRow = () => raw.prepare("SELECT * FROM payment WHERE status='paid'").get() as any;
 
@@ -306,7 +306,7 @@ describe("Co-host: name + mobile (no e-mail), bound to one game", () => {
     expect(h.inviteLink).toContain("from=");
     const from = Number(h.inviteLink.match(/from=(\d+)/)![1]);
     await call("POST", "/api/z", { id: "CAN-2", startRound: START, callSeconds: 9, cap: 100 }, t.master); await call("POST", "/api/z/CAN-2/publish", { email: "boss@acme.com", phone: "9876543210" }, t.master);
-    await call("POST", "/api/z/CAN-1/join", { phone: "9876543210", from }); await call("POST", "/api/z/CAN-2/join", { phone: "9876543211", from });
+    await call("POST", "/api/z/CAN-1/join", { id: "9876543210", from }); await call("POST", "/api/z/CAN-2/join", { id: "9876543211", from });
     expect(raw.prepare("SELECT src FROM seat WHERE eid='CAN-1'").get()).toMatchObject({ src: expect.stringMatching(/^co:/) });
     expect((raw.prepare("SELECT src FROM seat WHERE eid='CAN-2'").get() as any).src).toBe("link"); // not credited to a Co-host of another game
   });

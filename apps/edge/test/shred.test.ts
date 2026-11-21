@@ -30,8 +30,8 @@ async function game() {
   const h = { "x-organizer": x.token as string, "cf-connecting-ip": "203.0.113.9", "user-agent": "OrganizerBrowser/1" };
   expect((await call("POST", "/api/z", { id: "EVT1", startRound: roundAt(T) + 1200, callSeconds: 6, cap: 100 }, h)).status).toBe(200);
   raw.prepare("UPDATE engagement SET pack=100 WHERE id='EVT1'").run();
-  await call("POST", "/api/z/EVT1/join", { phone: PHONE, name: "Asha Rao", device: DEV }, { "cf-connecting-ip": IP, "user-agent": UA }, T);
-  await call("POST", "/api/z/EVT1/join", { phone: "9123456780", name: "Ravi", device: "cd".repeat(16) }, { "cf-connecting-ip": "198.51.100.6", "user-agent": UA }, T);
+  await call("POST", "/api/z/EVT1/join", { id: PHONE, name: "Asha Rao", device: DEV }, { "cf-connecting-ip": IP, "user-agent": UA }, T);
+  await call("POST", "/api/z/EVT1/join", { id: "9123456780", name: "Ravi", device: "cd".repeat(16) }, { "cf-connecting-ip": "198.51.100.6", "user-agent": UA }, T);
   return h;
 }
 const engagementRow = () => raw.prepare("SELECT * FROM engagement WHERE id='EVT1'").get();
@@ -106,7 +106,7 @@ describe("participant crypto-shredding", () => {
   test("a participant row written after the shredding keeps only its non-personal core and no new key is made", async () => {
     await game();
     await shredParticipantAudit(env as any, "EVT1", T + 23 * HOUR);
-    await call("POST", "/api/z/EVT1/join", { phone: "9000000001", name: "Late", device: "ef".repeat(16) }, { "cf-connecting-ip": "198.51.100.77", "user-agent": UA }, T + 24 * HOUR);
+    await call("POST", "/api/z/EVT1/join", { id: "9000000001", name: "Late", device: "ef".repeat(16) }, { "cf-connecting-ip": "198.51.100.77", "user-agent": UA }, T + 24 * HOUR);
     const last = rows("EVT1").at(-1);
     expect(last.actor).toBe("participant"); expect(last.sealed).toBe(""); expect(last.pdig).toBeNull();
     expect(count("SELECT COUNT(*) c FROM eng_key")).toBe(0); expect(count("SELECT COUNT(*) c FROM audit_pii")).toBe(0);

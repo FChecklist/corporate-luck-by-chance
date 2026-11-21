@@ -58,7 +58,7 @@ const complete = async (c: any, id = "pay_1", now = T, status = "captured") => {
   return call("POST", "/api/payments/verify", { paymentId: c.paymentId, razorpay_order_id: c.razorpay.orderId, razorpay_payment_id: id, razorpay_signature: sign(c, id) }, undefined, now);
 };
 const paidGame = async (t: { master: string }) => { const c = await j(await pay(t.master)); expect((await j(await complete(c))).published).toBe(true); return c; };
-const join = (phone: string, name = "Guest") => call("POST", "/api/z/CAN-1/join", { phone, name });
+const join = (id: string, name = "Guest") => call("POST", "/api/z/CAN-1/join", { id, name });
 const cancelIt = (key: string, now = T, confirmations = 3) => call("POST", "/api/z/CAN-1/cancel", { confirmations }, key, now);
 const paymentRow = () => raw.prepare("SELECT * FROM payment WHERE status='paid'").get() as any;
 const DAY = 86_400_000;

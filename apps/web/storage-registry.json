@@ -65,11 +65,10 @@
     {
       "id": "console-progress",
       "store": "localStorage",
-      "say": "In an organizer's browser: which setup steps are done and which messages were sent, for each game.",
+      "say": "In an organizer's browser: which setup steps are done, for each game.",
       "keys": [
         "cbz-prog-*-*",
-        "cbz-cc",
-        "cbz-sent-*"
+        "cbz-cc"
       ]
     },
     {

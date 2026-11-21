@@ -15,3 +15,6 @@
 | `AI_LINK.md`, `AI_WORK_PROMPT_ORGANIZER.md` | The AI work link and its prompt. |
 | `ROLES_AND_CONSOLE_SPEC*.md` | The roles and the organizer console. |
 | `BRANDING.md`, `GLOSSARY.md`, `USE_CASES.md` | Branding, words, use cases. |
+| `SUITE_RULES.md`, `CONSOLE_VOICE.md` | The owner's rules of 20 Nov 2026 (version 1.1) and what this game does about each; the console's voice and the two ways to start. |
+| `KNOWLEDGE.md`, `VERSIONING.md` | What a new session needs to know about this repo, and the versioning work still open. Not published on the website. |
+| `CONSOLE_PAY.md` | The console's Pay step, game side (off until the owner sets the switch). |

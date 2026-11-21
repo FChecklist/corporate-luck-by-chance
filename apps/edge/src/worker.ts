@@ -32,6 +32,7 @@ import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { payRedirect } from "./console-pay";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
+import { ID_ONLY_MSG, carriesPersonalDetails, cleanInviteId, idHashOf } from "./invite-id";
 import { PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
@@ -55,7 +56,7 @@ export interface D1 { prepare(sql: string): D1Stmt; batch(s: D1Stmt[]): Promise<
 export interface R2Like { put(key: string, value: string, opts?: unknown): Promise<unknown>; delete(key: string): Promise<unknown> }
 export interface Env {
   DB: D1; ORGANIZER_SECRET?: string; DAILY_WRITE_BUDGET?: string; PHONE_SALT?: string;
-  /** The secret that seals names and mobile numbers at rest (AES-256-GCM). Never stored in the database. */
+  /** The secret that seals nicknames and invite IDs at rest (AES-256-GCM). Never stored in the database. */
   DATA_KEY?: string;
   /** Optional: the key that hashes network addresses for the public-page visit tracking (visits.ts); when absent it is derived from DATA_KEY. VISIT_DAILY_WRITES caps that tracking's share of the daily write allowance (default 20,000). */
   VISIT_KEY?: string; VISIT_DAILY_WRITES?: string;
@@ -92,8 +93,8 @@ const tracks = (e: { cap: number }) => e.cap <= CLAIM_TRACKING_MAX_CAP;
 /** The part of the settings every phone needs, public by design: how many tickets, what each house wins, and when the brand breaks are. */
 /** The brand strip as phones see it: the full brand (with the logo) from `info`; everywhere else only name and colour (a logo can be 40 KB and a 10,000-person list must not carry it). */
 const brandOut = (c: EngagementCfg, withLogo: boolean) => (c.brand ? { brand: withLogo ? c.brand : { name: c.brand.name, color: c.brand.color, ...(c.brand.logo ? { hasLogo: true } : {}) } } : {});
-const pub = (e: any, withLogo = false) => { const c = cfgOf(e); return { ...(c.mark ? { mark: c.mark } : {}), joinPhone: c.join === "phone", tickets: c.tickets, rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...brandOut(c, withLogo) }; };
-const cfgJson = (c: EngagementCfg) => JSON.stringify({ rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}), ...(c.mark ? { mark: c.mark } : {}), ...(c.join ? { join: c.join } : {}), ...(c.tz ? { tz: c.tz } : {}) });
+const pub = (e: any, withLogo = false) => { const c = cfgOf(e); return { ...(c.mark ? { mark: c.mark } : {}), joinId: c.join === "id", startMode: c.start === "auto" ? "auto" : "manual", tickets: c.tickets, rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...brandOut(c, withLogo) }; };
+const cfgJson = (c: EngagementCfg) => JSON.stringify({ rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}), ...(c.mark ? { mark: c.mark } : {}), ...(c.join ? { join: c.join } : {}), ...(c.start ? { start: c.start } : {}), ...(c.tz ? { tz: c.tz } : {}) });
 
 /** Privacy and lifecycle: sealed personal data, the role / inviter / invite kind / source of a seat, when each game ended, the winners record that outlives the personal data, and the votes that tell us a game is over. */
 export const PRIVACY_SCHEMA: string[] = [
@@ -184,7 +185,7 @@ export const SCHEMA: string[] = [
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
 /** What the organizer set for this engagement (tickets per participant, reward lines, brand breaks); plain defaults when nothing was set. */
 const cfgOf = (e: { tickets?: number; config?: string | null }): EngagementCfg => {
-  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, opening: j.opening, closing: j.closing, name: j.name, brand: j.brand, mark: j.mark, join: j.join, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* fall through */ }
+  try { const j = e.config ? JSON.parse(e.config) : {}; const v = validateCfg({ tickets: e.tickets ?? 1, rewards: j.rewards, breaks: j.breaks, rounds: j.rounds, invites: j.invites, opening: j.opening, closing: j.closing, name: j.name, brand: j.brand, mark: j.mark, join: j.join, start: j.start, tz: j.tz }, undefined, { stored: true }); if (v.ok) return v.cfg; } catch { /* fall through */ }
   return defaultCfg();
 };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -247,7 +248,7 @@ async function spend(env: Env, now: number, n = 1): Promise<boolean> {
   return true;
 }
 /** An AI key (or a Host) never receives or sends names and mobile numbers: the organizer loads the list in the console. */
-const CONSOLE_ONLY = () => json({ error: "Names and mobile numbers are handled by the owner in the console, not by the AI. Ask the owner to paste the list in the Participants card. You can set the limit with settings and refer to people by seat number." }, 403);
+const CONSOLE_ONLY = () => json({ error: "The list of IDs is handled by the owner in the console, not by the AI. Ask the owner to paste the list in the Participants card. You can set the limit with settings and refer to people by seat number." }, 403);
 /** One network address may open only so many NEW seats a day (an office behind one address is far below this): protects the shared daily write budget from a script. */
 const JOIN_PER_IP_DAY = 1500, JOIN_PER_IP_MINUTE = 200;
 async function joinOverLimit(env: Env, req: Request, now: number): Promise<boolean> {
@@ -559,16 +560,16 @@ export const AI_MANIFEST = {
     { do: "Create a game. It is saved as a free draft that players cannot see yet; nothing is paid at this step", call: "POST /api/z {id (4-40 letters, digits, - or _), startRound, callSeconds: 9, cap, closed?, name?}  -> {ok, draft, openUrl}" },
     { do: "When everything is set up, tell the organizer it is ready. Publishing is free but only the organizer can do it (they confirm their e-mail and mobile number), and the game does not begin until it is paid for (pay at any time until the guest data is erased; a late payment starts the game 2 minutes after it is confirmed). This returns a link: give it to the organizer and help them through every step, but never try to publish or pay yourself", call: "POST /api/z/{id}/publish -> {published:false, needsOrganizer:true, consoleUrl} (the organizer opens consoleUrl, confirms their details and presses Publish; afterwards the same call returns payUrl, the payment page, and shareUrl, the link for guests)" },
     { do: "Change start time, the limit of players (cap), invite-only, the time zone, the name of the game, the company brand and the rewards for the top places before the game starts. (The number of rounds, the press window and the prize texts typed on the game page are chosen by the Organizer or a Host on the game page when they press Start; they are not set here.)", call: "PATCH /api/z/{id}/settings {startRound?, cap?, closed?: true|false (invite-only), tz?: an IANA time zone such as Asia/Kolkata, name?, brand?: {name (1-40 characters), color (one of choices.brand_colors), logo? (a small picture as a data URL)}, rewards?: [{pattern: <a place id from choices.rewards>, ordinal?: 1, text}], invites?: {on: true|false, per?: 1-10, cats?: [kinds of guest]}}. IMPORTANT: rewards REPLACE what was saved, they are not merged, so always send the complete list (to change one reward, read the summary, change it, send them all). A reward line is ONE winner of ONE place and every place has exactly one winner, so ordinal is always 1. Places and how each is won are in the manual. Worked example: PATCH /api/z/{id}/settings {startRound: 33146812, cap: 250, closed: true, brand: {name: Acme Ltd, color: #0B3D91}, rewards: [{pattern: first, ordinal: 1, text: Gift hamper}, {pattern: second, ordinal: 1, text: Coffee voucher}, {pattern: third, ordinal: 1, text: Book token}]}" },
-    { do: "Participants: the OWNER loads the invite list in the Participants card of their console. Names and mobile numbers never pass through the AI (a roster call from an AI key answers 403). Set the limit with settings.", call: "(owner, in the console)" },
+    { do: "Participants: the OWNER loads the invite list in the Participants card of their console. The list of IDs never passes through the AI (a roster call from an AI key answers 403). Set the limit with settings.", call: "(owner, in the console)" },
     { do: "Reuse an earlier game's people", call: "POST /api/z/{id}/reuse {from}" },
-    { do: "See who joined (names and ids only, never phone numbers)", call: "GET /api/z/{id}/participants" },
+    { do: "See who joined (seat numbers and nicknames only, never the invite IDs)", call: "GET /api/z/{id}/participants" },
     { do: "See how the game is going, the way everybody sees it (no key needed): whether it has started, how many players, when it started and ends, the rounds and the press window, and whether the phones have agreed on the result", call: "GET /api/z/{id}/luck/view -> {state: open|running|done, joined, startMs, endMs, players, settings, agreed}" },
     { do: "See the winners of the top places, by seat number, once the game has finished", call: "GET /api/z/{id}/results" },
     { do: "Ask the organizer to end a running game (they press End on the game page; the round being played is finished first)", call: "POST /api/z/{id}/control/request {action: end, note}" },
-    { do: "Ask for ALL participant names and mobile numbers of this game to be deleted (nothing is deleted until the organizer confirms in their console)", call: "POST /api/z/{id}/control/request {action: 'erase', note}" },
+    { do: "Ask for ALL participant nicknames and IDs of this game to be deleted (nothing is deleted until the organizer confirms in their console)", call: "POST /api/z/{id}/control/request {action: 'erase', note}" },
     { do: "Send a message to every guest's phone and the big screen (160 characters; empty text clears it; once published)", call: "POST /api/z/{id}/announce {text}" },
-    { do: "See the winners to hand rewards to, by seat number (names and numbers stay in the console), and tick a reward as given", call: "GET /api/z/{id}/prizes ; POST /api/z/{id}/prizegiven {round: 1, pattern: <first|second|third|fourth|fifth>, ordinal: 1, seat, given}" },
-    { do: "Change of phone: let one person move their place to a new phone", call: "POST /api/z/{id}/unbind {seat} (the seat number; the console takes a mobile number, an AI never does)" },
+    { do: "See the winners to hand rewards to, by seat number (nicknames and IDs stay in the console), and tick a reward as given", call: "GET /api/z/{id}/prizes ; POST /api/z/{id}/prizegiven {round: 1, pattern: <first|second|third|fourth|fifth>, ordinal: 1, seat, given}" },
+    { do: "Change of phone: let one person move their place to a new phone", call: "POST /api/z/{id}/unbind {seat} (the seat number; the console takes an ID, an AI never does)" },
     { do: "Flag a seat as Organizer, Host or Co-host", call: "POST /api/z/{id}/mark {seat, role: organizer|host|co-host|none} (the seat number; an AI never names a mobile number)" },
     { do: "Invitations: settle how many people each guest may invite and which kinds of guests, before the start", call: "PATCH /api/z/{id}/settings {invites: {on, per: 1-10, cats}}" },
     { do: "Create a Host key (up to 5 Hosts; through an AI link a Host may only watch, announce and tick prizes given)", call: "POST /api/org/host {label, email?, mobile?} (at least one of email or mobile) -> {hostKey, manualUrl, id, label}. The AI cannot call it (403). A Host must have an e-mail address or a mobile number (the owner gives it); their own one-time console link (7 days) is e-mailed to the Host, or sent by the owner on WhatsApp" },
@@ -1174,7 +1175,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
       return json({ error: "Check the game details." }, 400);
     if (roundMs(b.startRound) > now + MAX_AHEAD_MS) return json({ error: TOO_FAR, code: "too-far" }, 400);
     { const nm = noMoments(b); if (nm) return nm; }
-    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz });
+    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, start: b.start, tz: b.tz });
     if (!vc.ok) return json({ error: vc.error }, 400);
     const have = await env.DB.prepare("SELECT org FROM engagement WHERE id=?").bind(b.id).first<{ org: string | null }>();
     if (have) return json({ ok: true, existed: true }); // creating twice never overwrites (and never reveals whose it is)
@@ -1249,7 +1250,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!a.plat && !(jobSecret.length >= 16 && jobKey.trim() === jobSecret)) return deny(a);
     await adminTick(env.DB, now); // old error counters and old mail events go (admin.ts)
     await remindUnpaid(env, now);
-    let luckClosed = 0; try { luckClosed = await luckTick(env, now); } catch { /* tried again next minute */ } // games whose result never reached agreement
+    let luckClosed = 0; try { luckClosed = await luckTick(env, now, (n) => spend(env, now, n)); } catch { /* tried again next minute */ } // games whose result never reached agreement
     const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
     return json({ ok: true, ...(await lifecycleTick(env as any, now)), purged: await purgeOld(env, now), luckClosed, ledgerC });
   }
@@ -1277,12 +1278,8 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
   const [, eid, action, sub] = m;
   const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(eid).first<any>();
   if (!e) return json({ error: "No such game." }, 404);
-  const digitsOf = (raw: unknown): string | null => { const d = String(raw ?? "").replace(/\D/g, ""); return d.length < 10 || d.length > 15 ? null : d; };
-  const phoneHash = async (raw: unknown): Promise<string | null> => {
-    const d = digitsOf(raw);
-    if (!d) return null;
-    return sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|${d.slice(-10)}`); // +91 98765 43210, 098765 43210 and 9876543210 are the same person; one hash in every engagement so a roster can be reused without storing the number
-  };
+  const idOf = (raw: unknown): string | null => { const r = cleanInviteId(raw); return r.ok ? r.id : null; }; // the ONE invite ID: letters and digits only, upper case (invite-id.ts)
+  const idHash = async (raw: unknown): Promise<string | null> => { const id = idOf(raw); return id ? idHashOf(env, id) : null; }; // the same ID gives the same hash in every spelling: A-1101, A 1101 and A/1101 are one person
   const pidOf = async (ph: string) => (await sha(`${eid}|${ph}`)).slice(0, 16);
   const lateNow = () => { const nr = roundOfMs(now); return nr > e.start_round + GRACE_ROUNDS ? nr : 0; }; // joined after the first number: that round, else 0
   /** Gives a person a seat (and so a collision-free card) and a sealed record of their name and number. The rows go in together, with the head-count and (for a person who joins under a limited inviter: a Co-host or a level-1 guest) that inviter's list limit checked inside the insert, so a crowd arriving at the same instant can never pass a limit or share a seat. `ownerId` also puts the person on the inviter's list (people.ts); roster / reuse give none. */
@@ -1354,26 +1351,27 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const b = await body(req);
     { const mt = consentRequired(b, "K4"); if (mt) return mt; } // K4: the 24-hour notice (with the invite chain) and the 18+ box, ticked BEFORE a name or number is used
     // a personal link (/j/<token>) stands for one listed person: their number is then not typed at all. The strong proof is the secret in the link, a typed number is only matched to a list.
-    let tok: PersonRow | null = null, tokPii: { phone: string; name: string | null } | null = null;
+    let tok: PersonRow | null = null, tokPii: { phone: string; name: string | null; id?: string } | null = null;
     if (typeof b?.token === "string" && b.token) {
       tok = await personByToken(env, eid!, b.token);
       if (!tok || tok.status === "removed") return json({ error: "This link is not valid any more. Please ask the person who invited you to send it again.", code: "link-gone" }, 404);
       tokPii = await openPii(env, tok.pii);
     }
-    const typedGiven = typeof b?.phone === "string" ? b.phone.trim() !== "" : b?.phone != null;
-    const typedDigits = digitsOf(b?.phone), typedPh = await phoneHash(b?.phone);
-    if (typedGiven && !typedPh) return json({ error: "Enter a valid mobile number." }, 400);
-    let digits: string | null = typedDigits ?? tokPii?.phone ?? null;
+    const typedGiven = typeof b?.id === "string" ? b.id.trim() !== "" : b?.id != null;
+    if (!typedGiven && b?.phone != null && String(b.phone).trim() !== "") return json({ error: "Please type your ID. A mobile number is not used to join.", code: "need-id" }, 400); // an old page that still sends a number
+    const typedId = idOf(b?.id), typedPh = await idHash(b?.id);
+    if (typedGiven && !typedPh) return json({ error: (cleanInviteId(b?.id) as { why: string }).why, code: "bad-id" }, 400);
+    let gid: string | null = typedId ?? tokPii?.id ?? null; // the ID this person is known by ("" for a guest who joins with a nickname only)
     let ph = typedPh ?? tok?.ph ?? null;
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
     if (!ph && !tok) { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
-      if (cfgOf(e).join === "phone") return json({ error: "Enter a valid mobile number." }, 400);
+      if (cfgOf(e).join === "id") return json({ error: "Please type your ID.", code: "need-id" }, 400);
       const typedName = cleanName(b?.name)?.replace(/s+/g, " ").trim() ?? "";
       if (typedName.length < 2) return json({ error: "Please type your name." }, 400);
       if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
-      ph = await sha(`nm|${eid}|${dev}`); digits = "";
+      ph = await sha(`nm|${eid}|${dev}`); gid = "";
     }
-    if (!ph || digits === null) return json({ error: "Enter a valid mobile number." }, 400);
+    if (!ph || gid === null) return json({ error: "Please type your ID.", code: "need-id" }, 400);
     const otherNumber = !!(tok && typedPh && typedPh !== tok.ph); // somebody else opened this person's link
     const reply = (pid: string, extra: object = {}) => json({ pid, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), ...pub(e), ...extra });
     const lateRound = lateNow();
@@ -1382,7 +1380,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (have) {
       if (have.blocked) return removedReply();
       if (have.seat && have.dev && have.dev !== dev) {
-        if (tok && !typedPh) return json({ error: "This link was already opened on another phone. If you are someone else, type your own mobile number to ask to join. If it is you on a new phone, ask whoever invited you to send the link again.", code: "link-used", needPhone: true }, 423);
+        if (tok && !typedPh) return json({ error: "This link was already opened on another phone. If you are someone else, type your own ID to ask to join. If it is you on a new phone, ask whoever invited you to send the link again.", code: "link-used", needId: true }, 423);
         return json({ error: "This place is already on another phone. A place plays on one device only. Ask your organizer if you need to move it.", code: "other-phone" }, 423);
       }
       if (have.seat && !have.dev && dev && (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first())) return json({ error: "This phone already holds a place in this game. One phone, one place. Ask the person to open the link on their own phone.", code: "device-used" }, 409);
@@ -1390,11 +1388,12 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
         if (!(await spend(env, now, 2))) return BUSY();
         await env.DB.batch([env.DB.prepare("UPDATE seat SET dev=? WHERE eid=? AND pid=? AND dev IS NULL").bind(dev, eid, have.pid), env.DB.prepare("UPDATE participant SET joined_ms=? WHERE eid=? AND pid=? AND joined_ms<?").bind(now, eid, have.pid, now), env.DB.prepare("UPDATE person SET status='joined', joined_ms=? WHERE eid=? AND ph=? AND status='invited'").bind(now, eid, ph)]);
         const nm = cleanName(b?.name);
-        if (nm) { const old = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(eid, have.pid).first<{ pii: string | null }>(); const o = await openPii(env, old?.pii); if (o && !o.name) await env.DB.prepare("UPDATE participant SET pii=? WHERE eid=? AND pid=?").bind(await sealPii(env, { phone: o.phone, name: nm }), eid, have.pid).run(); }
+        if (nm) { const old = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(eid, have.pid).first<{ pii: string | null }>(); const o = await openPii(env, old?.pii); if (o && !o.name) await env.DB.prepare("UPDATE participant SET pii=? WHERE eid=? AND pid=?").bind(await sealPii(env, { phone: o.phone, name: nm, ...(o.id ? { id: o.id } : {}) }), eid, have.pid).run(); }
       }
       return reply(have.pid, { again: true, jr: have.jr ?? 0, ...(have.role ? { role: have.role } : {}) }); // same number twice = same participant
     }
-    const pr = await personByPhone(env, eid!, ph); // is this number on any list of the game?
+    if (cfgOf(e).join === "id" && (cleanName(b?.name) ?? "").trim().length < 2) return json({ error: "Please choose a nickname. Other players see it on the top-10 list.", code: "need-nickname" }, 400);
+    const pr = await personByPhone(env, eid!, ph); // is this ID on any list of the game?
     if (pr?.status === "removed") return removedReply();
     if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
     if (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first()) return json({ error: "This phone already holds a place in this game. One phone, one place. Others can join from their own phones, using your invitation link if the organizer allowed it.", code: "device-used" }, 409);
@@ -1421,7 +1420,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
       if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
-      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits!, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
+      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, id: gid!, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
       if ("full" in w) return json({ error: "Many people are waiting for an answer right now. Please try again a little later.", code: "waiting-full" }, 429);
       if (w.status === "declined") return json({ error: "This game could not add you. Please talk to whoever invited you.", code: "declined", declined: true, wid: w.id }, 403);
       const who = await waitingWho({ env, e, eid: eid! }, overlimit ? "o" : target);
@@ -1431,13 +1430,13 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
         : json({ error: `This game is by invitation. ${msg}`, code: "waiting", waiting: true, wid: w.id, with: who }, 403);
     };
     let inviter: string | null = null, role: string | null = null, guardId: string | null = null, guardLimit: number | null = null, pii: string;
-    if (pr) { inviter = pr.inviter; role = pr.role; const pp = await openPii(env, pr.pii); digits = pp?.phone || digits; pii = lateName && pp && !pp.name ? await sealPii(env, { phone: pp.phone, name: lateName }) : pr.pii; }
+    if (pr) { inviter = pr.inviter; role = pr.role; const pp = await openPii(env, pr.pii); gid = pp?.id || gid; pii = lateName && pp && !pp.name ? await sealPii(env, { phone: pp.phone, name: lateName, ...(pp.id ? { id: pp.id } : {}) }) : pr.pii; }
     else {
       if (e.closed) return wait(false, null); // "Only people on a list": everyone else waits for an answer
       const limit = await limitOfInviter({ env, eid: eid!, e, invites: inviteCfg ?? { on: false, per: 4 } }, target);
       if (limit !== null && (await listCount(env.DB, eid!, target)) >= limit) return wait(true, limit);
       inviter = target; if (limit !== null) { guardId = target; guardLimit = limit; }
-      pii = await sealPii(env, { phone: digits, name: lateName || tokPii?.name || null });
+      pii = await sealPii(env, { phone: "", name: lateName || tokPii?.name || null, ...(gid ? { id: gid } : {}) });
     }
     if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
     if (!(await spend(env, now, 3))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
@@ -1479,10 +1478,10 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!can(a, e, true)) return deny(a);
     const b = await body(req);
     const seatNo = Number.isInteger(b?.seat) && b.seat > 0 ? (b.seat as number) : 0; // a guest who joined with a name only has no number: the console names the card by its number
-    const ph = seatNo ? "" : await phoneHash(b?.phone);
-    if (!seatNo && !ph) return json({ error: "Enter a valid mobile number or the seat number." }, 400);
+    const ph = seatNo ? "" : await idHash(b?.id);
+    if (!seatNo && !ph) return json({ error: "Enter a valid ID or the seat number." }, 400);
     const seat = seatNo ? await env.DB.prepare("SELECT seq, pid, role FROM seat WHERE eid=? AND seq=?").bind(eid, seatNo).first<{ seq: number; pid: string; role: string | null }>() : await env.DB.prepare("SELECT seq, pid, role FROM seat WHERE eid=? AND ph=?").bind(eid, ph).first<{ seq: number; pid: string; role: string | null }>();
-    if (!seat) return json({ error: seatNo ? "That seat number has not joined this game." : "That number has not joined this game." }, 404);
+    if (!seat) return json({ error: seatNo ? "That seat number has not joined this game." : "That ID has not joined this game." }, 404);
     if (action === "person") {
       const row = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(eid, seat.pid).first<{ pii: string | null }>();
       const who = await openPii(env as any, row?.pii);
@@ -1502,12 +1501,12 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!canAi(a, e)) return deny(a);
     const b = await body(req);
     const seatNo = Number.isInteger(b?.seat) && b.seat > 0 ? (b.seat as number) : 0;
-    if (a.kind === "ai" && !seatNo) return CONSOLE_ONLY(); // an AI names the card by its number, never by a mobile number
-    const ph = seatNo ? "" : await phoneHash(b?.phone);
-    if (!seatNo && !ph) return json({ error: "Enter a valid mobile number." }, 400);
+    if (a.kind === "ai" && !seatNo) return CONSOLE_ONLY(); // an AI names the card by its seat number, never by an ID
+    const ph = seatNo ? "" : await idHash(b?.id);
+    if (!seatNo && !ph) return json({ error: "Enter a valid ID." }, 400);
     if (!(await spend(env, now))) return BUSY();
     const r = seatNo ? await env.DB.prepare("UPDATE seat SET dev=NULL WHERE eid=? AND seq=?").bind(eid, seatNo).run() : await env.DB.prepare("UPDATE seat SET dev=NULL WHERE eid=? AND ph=?").bind(eid, ph).run();
-    return (r.meta?.changes ?? 0) > 0 ? json({ ok: true }) : json({ error: "That number has not joined this game." }, 404);
+    return (r.meta?.changes ?? 0) > 0 ? json({ ok: true }) : json({ error: "That ID has not joined this game." }, 404);
   }
   if (action === "claims" && req.method === "POST") {
     const b = await body(req);
@@ -1630,13 +1629,13 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const b = await body(req);
     const seatNo = Number.isInteger(b?.seat) && b.seat > 0 ? (b.seat as number) : 0;
     if (a.kind === "ai" && !seatNo) return CONSOLE_ONLY();
-    const ph = seatNo ? "" : await phoneHash(b?.phone);
+    const ph = seatNo ? "" : await idHash(b?.id);
     const role = b?.role === "none" ? null : ["organizer", "host", "co-host"].includes(b?.role) ? b.role : undefined;
-    if ((!ph && !seatNo) || role === undefined) return json({ error: "Give the seat number (or the mobile number) and a role (organizer, host, co-host or none)." }, 400);
+    if ((!ph && !seatNo) || role === undefined) return json({ error: "Give the seat number (or the ID) and a role (organizer, host, co-host or none)." }, 400);
     if (now >= roundMs(e.start_round + GRACE_ROUNDS)) return json({ error: "Flag your own team before the game begins. The list of players is fixed when the game starts, so it cannot change after that." }, 409);
     if (!(await spend(env, now))) return BUSY();
     const r = seatNo ? await env.DB.prepare("UPDATE seat SET role=? WHERE eid=? AND seq=?").bind(role, eid, seatNo).run() : await env.DB.prepare("UPDATE seat SET role=? WHERE eid=? AND ph=?").bind(role, eid, ph).run();
-    return (r.meta?.changes ?? 0) > 0 ? json({ ok: true }) : json({ error: "That number has not joined yet. Ask them to open the game link first." }, 404);
+    return (r.meta?.changes ?? 0) > 0 ? json({ ok: true }) : json({ error: "That ID has not joined yet. Ask them to open the game link first." }, 404);
   }
   if (action === "invites" && req.method === "GET") { // how many people this participant has invited so far (their own id is the key to ask)
     const pid = url.searchParams.get("pid") ?? "";
@@ -1705,19 +1704,19 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!can(a, e)) return deny(a);
     if (a.kind === "ai") return CONSOLE_ONLY();
     const b = await body(req, 32_768);
-    if (!b || !Array.isArray(b.people) || b.people.length < 1 || b.people.length > 100) return json({ error: "Send between 1 and 100 people at a time." }, 400);
-    { const mt = consentRequired(b, "K6"); if (mt) return mt; } // K6: "I am allowed to use these names and numbers for this game. The people have been told."
+    if (!b || !Array.isArray(b.people) || b.people.length < 1 || b.people.length > 100) return json({ error: "Send between 1 and 100 IDs at a time." }, 400);
+    { const mt = consentRequired(b, "K6"); if (mt) return mt; } // K6 (its wording is fixed by the Terms version)
     await recordConsent(env.DB, { subject: a.org ?? "platform", kind: "K6", ref: eid!, now });
     const have = await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>();
     let room = e.cap - (have?.c ?? 0);
-    const todo: { ph: string; digits: string; name: string | null }[] = []; let invalid = 0;
-    for (const x of b.people) { const ph = await phoneHash(x?.phone), digits = digitsOf(x?.phone); if (!ph || !digits) { invalid++; continue; } todo.push({ ph, digits, name: cleanName(x?.name) }); }
+    const todo: { ph: string; id: string }[] = []; let invalid = 0;
+    for (const x of b.people) { const typed = x !== null && typeof x === "object" ? x.id : x; const id = carriesPersonalDetails(x) ? null : idOf(typed), ph = id ? await idHashOf(env, id) : null; if (!ph || !id) { invalid++; continue; } todo.push({ ph, id }); } // IDs only: an entry with a name or a mobile number is refused, not stored
     if (!(await spend(env, now, todo.length * 2))) return BUSY();
     let added = 0, skipped = 0; const jr = lateNow();
     for (const t of todo) {
       if (room <= 0) { skipped++; continue; }
       if (await env.DB.prepare("SELECT 1 AS x FROM participant WHERE eid=? AND phone_hash=?").bind(eid, t.ph).first()) { skipped++; continue; }
-      await addSeat(t.ph, await sealPii(env, { phone: t.digits, name: t.name }), null, jr, { src: "roster" });
+      await addSeat(t.ph, await sealPii(env, { phone: "", name: null, id: t.id }), null, jr, { src: "roster" });
       added++; room--;
     }
     return json({ ok: true, added, skipped, invalid });
@@ -1730,7 +1729,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (b.whoCanJoin !== undefined && b.whoCanJoin !== "list" && b.whoCanJoin !== "anyone") return json({ error: "Who can join: choose \"list\" (only people on a list) or \"anyone\" (anyone with the link)." }, 400);
     if (b.coHostLimit !== undefined && (!Number.isInteger(b.coHostLimit) || b.coHostLimit < COHOST_LIMIT_MIN || b.coHostLimit > COHOST_LIMIT_MAX)) return json({ error: `A Co-host can list ${COHOST_LIMIT_MIN} to ${COHOST_LIMIT_MAX} people.` }, 400);
     { const nm = noMoments(b); if (nm) return nm; }
-    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, invites: b.invites !== undefined ? b.invites : b.guestInvites, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz }, cfgOf(e)); // guestInvites is the console's name for invites
+    const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, invites: b.invites !== undefined ? b.invites : b.guestInvites, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, start: b.start, tz: b.tz }, cfgOf(e)); // guestInvites is the console's name for invites
     if (!vc.ok) return json({ error: vc.error }, 400);
     const next = { start_round: b.startRound ?? e.start_round, call_seconds: b.callSeconds ?? e.call_seconds, cap: b.cap ?? e.cap, closed: b.whoCanJoin !== undefined ? (b.whoCanJoin === "list" ? 1 : 0) : b.closed === undefined ? e.closed : b.closed ? 1 : 0, cohost_limit: b.coHostLimit ?? e.cohost_limit ?? null }; // whoCanJoin "list" is the same switch as the older `closed`
     if (Number.isInteger(next.call_seconds) && !GAPS.includes(next.call_seconds)) return json({ error: GAP_MSG }, 400);
@@ -1754,7 +1753,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
         try { await env.CONTROL_R2?.delete(controlKey(eid!)); } catch { /* the object expires with its engagement anyway */ }
       }
     }
-    return json({ ok: true, startRound: next.start_round, callSeconds: next.call_seconds, cap: next.cap, closed: !!next.closed, whoCanJoin: next.closed ? "list" : "anyone", coHostLimit: next.cohost_limit ?? COHOST_LIMIT_DEFAULT, guestInvites: vc.cfg.invites, tickets: vc.cfg.tickets, rewards: vc.cfg.rewards, breaks: vc.cfg.breaks, opening: vc.cfg.opening, closing: vc.cfg.closing, ...(vc.cfg.name ? { name: vc.cfg.name } : {}), ...(vc.cfg.brand ? { brand: vc.cfg.brand } : {}), rounds: vc.cfg.rounds, invites: vc.cfg.invites });
+    return json({ ok: true, startRound: next.start_round, callSeconds: next.call_seconds, cap: next.cap, closed: !!next.closed, whoCanJoin: next.closed ? "list" : "anyone", startMode: vc.cfg.start === "auto" ? "auto" : "manual", join: vc.cfg.join ?? "name", coHostLimit: next.cohost_limit ?? COHOST_LIMIT_DEFAULT, guestInvites: vc.cfg.invites, tickets: vc.cfg.tickets, rewards: vc.cfg.rewards, breaks: vc.cfg.breaks, opening: vc.cfg.opening, closing: vc.cfg.closing, ...(vc.cfg.name ? { name: vc.cfg.name } : {}), ...(vc.cfg.brand ? { brand: vc.cfg.brand } : {}), rounds: vc.cfg.rounds, invites: vc.cfg.invites });
   }
   return json({ error: "Not found" }, 404);
 }

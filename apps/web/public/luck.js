@@ -1,4 +1,4 @@
-/* Corporate Luck by Chance, the player's page (z.html). Phone first. Joins with a nickname only, then shows the waiting room, the target, the dice, the result and the top-10 list.
+/* Corporate Luck by Chance, the player's page (z.html). Phone first. Joins with ONE ID (when the game asks for it) and a nickname, then shows the waiting room, the target, the dice, the result and the top-10 list.
    Nothing is decided on the server: this phone plays the whole game from the public beacon values with the engine (luck-engine.js), exactly like every other phone (docs/RULES.md). */
 (function () {
   const $app = document.getElementById("app");
@@ -27,25 +27,30 @@
   const set = (html) => { $app.innerHTML = html; paintBrand(); };
   
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
-  let tb = null, NICK = ""; // NICK: the nickname typed on the join form, sent again when the organizer lets a waiting person in
+  let tb = null, NICK = "", IDV = ""; // NICK and IDV: the nickname and the ID typed on the join form, sent again when the organizer lets a waiting person in
   const joinView = () => {
+    const needId = !!(INFO && INFO.joinId) && !TOKEN; // a personal link already knows who it is for; everyone else types the ONE invite ID
     set(`${brand()}${head()}<div class="zcard zform"><h2>Join the game</h2>
-      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
+      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. ${needId ? "We ask for your ID and a nickname. Other players see only your nickname on the top-10 list. Your organizer sees your ID and your nickname." : "We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give."}</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
+      ${needId ? `<label for="gid">Your ID</label><input id="gid" autocomplete="off" maxlength="60" disabled><p class="zsmall">Type the ID your organizer gave you: employee ID, associate ID, vendor ID or customer ID. If it is on the list, you join at once. If it is not, the organizer decides.</p>` : ""}
       <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
-    const nm = document.getElementById("nm"), go = document.getElementById("go");
-    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2; go.setAttribute("aria-disabled", String(go.disabled)); };
+    const nm = document.getElementById("nm"), go = document.getElementById("go"), gid = document.getElementById("gid");
+    if (gid) gid.value = IDV;
+    nm.value = NICK;
+    const idOk = () => !gid || /[A-Za-z0-9]/.test(gid.value);
+    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (gid) gid.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2 || !idOk(); go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
-    nm.addEventListener("input", sync);
+    nm.addEventListener("input", sync); if (gid) gid.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
     go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = ""; NICK = nm.value.trim();
+      go.disabled = true; joinMsg = ""; NICK = nm.value.trim(); IDV = gid ? gid.value.trim() : "";
       try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), ...(gid ? { id: IDV } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
         start();
       } catch (e) {
@@ -62,7 +67,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: NICK, ...(IDV ? { id: IDV } : {}), device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);
@@ -101,7 +106,7 @@
     const totals = me ? `<p class="lt-totals">This round <b>${roundTotal}</b> &middot; Total <b>${me.points}</b>${g.done ? ` &middot; ${standing(seat)}` : ""}</p>` : "";
     const noise = RUN.error ? `<p class="zsmall tcen" role="status">Connecting again...</p>` : "";
     let body = "", after = null;
-    if (p.kind === "before") body = `<div class="zcard lt-play" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><div class="lt-count"><span>The game starts in</span><b id="cd" data-until="${v.startMs}">${secsTo(v.startMs)}</b><span>s</span></div><p>${s.rounds} ${s.rounds === 1 ? "round" : "rounds"} of ${s.diceRounds} dice rounds. Each dice round shows a target number. Press the dice. Roll the target and you score that many points. Any other number scores 0. Pure luck: nobody can know a result in advance.</p><p class="zsmall">Keep this page open.</p></div>`;
+    if (p.kind === "before") body = `<div class="zcard lt-play" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><div class="lt-count"><span>The game starts in</span><b id="cd" data-until="${v.startMs}">${secsTo(v.startMs)}</b><span>s</span></div><p>${s.rounds} ${s.rounds === 1 ? "round" : "rounds"} of ${s.diceRounds} dice rounds. Each dice round shows a target number. Press the dice. Roll the target and you score that many points. Any other number scores 0. Pure luck: no player, organizer or host can know a result in advance.</p><p class="zsmall">Keep this page open.</p></div>`;
     else if (p.kind === "window" || p.kind === "reveal") {
       const inWindow = p.kind === "window", t = RUN.targets[gi] || 0, r = inWindow ? null : g.results[gi], dv = r && seat >= 0 ? r.dice[seat] : 0;
       const dieKey = "g" + gi, pk = LD.peek(dieKey), landedAlready = !!(pk && pk.landed);
@@ -173,7 +178,7 @@
       const v = await RUN.fetchView({ pid, device });
       stateNow = v.state;
       if (v.state === "open") {
-        set(`${brand()}${head()}<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>You are in</h2><p>Waiting for the host to start the game.</p>${v.joined ? `<p><span class="lt-pill">${esc(v.joined)} joined so far</span></p>` : ""}<p class="zsmall">Nobody can know the targets or the dice in advance: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
+        set(`${brand()}${head()}<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>You are in</h2><p>Waiting for the host to start the game.</p>${v.joined ? `<p><span class="lt-pill">${esc(v.joined)} joined so far</span></p>` : ""}<p class="zsmall">No player, organizer or host can see a target or a dice early: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
       } else if (v.phase === "watching") {
         set(`${head()}<div class="zcard" role="status"><h2>${esc(v.message)}</h2><p><a href="/big.html?e=${encodeURIComponent(EID)}">Open the big screen view</a></p></div>`);
       } else {
