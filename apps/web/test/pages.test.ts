@@ -246,7 +246,7 @@ describe("console (organizer page)", () => {
   test("a Co-host sees three steps (today's game, invite people, payment), the guest-invite note, and nothing that changes the game", async () => {
     const o = await organizer(); await make(o, "UI-COH"); await publish(o, "UI-COH"); const ck = await cohostKey(o);
     const from = COHOST_FROM + parseInt(keyId(ck).slice(0, 7), 16); // somebody joins through this Co-host's own link
-    expect((await o.api("POST", "/api/z/UI-COH/join", { id: "9811100001", device: "a".repeat(32), from })).status).toBe(200);
+    expect((await o.api("POST", "/api/z/UI-COH/join", { id: "E9811100001", device: "a".repeat(32), from })).status).toBe(200);
     const p = await consolePage(o, "UI-COH", ck);
     await p.waitFor((x) => /Hi\. Here is the game/.test(x));
     expect(sections(p)).toEqual(["Today's game", "Invite people", "Payment"]);
@@ -424,14 +424,14 @@ describe("payment page", () => {
 
 test("'Change of phone': the organizer enters a number, and the next device that joins with it keeps the card", async () => {
     const o = await organizer(); await make(o, "UI-MOVE"); await publish(o, "UI-MOVE");
-    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "9855555555", device: "1".repeat(32) })).status).toBe(200);
-    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "9855555555", device: "2".repeat(32) })).status).toBe(423);
+    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "E9855555555", device: "1".repeat(32) })).status).toBe(200);
+    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "E9855555555", device: "2".repeat(32) })).status).toBe(423);
     const p = await consolePage(o, "UI-MOVE");
     await p.waitFor((x) => /Your game|Last step/i.test(x)); openStep(p, 6); await p.waitFor((x) => /Change of phone/.test(x));
-    (p.$("#ubph") as any).value = "98555 55555"; p.click("#unbind");
+    (p.$("#ubph") as any).value = "E98555 55555"; p.click("#unbind");
     await p.waitFor((x) => /next phone they join with keeps their seat/i.test(x));
-    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "9855555555", device: "2".repeat(32) })).status).toBe(200);
-    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "9855555555", device: "1".repeat(32) })).status).toBe(423);
+    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "E9855555555", device: "2".repeat(32) })).status).toBe(200);
+    expect((await o.api("POST", "/api/z/UI-MOVE/join", { id: "E9855555555", device: "1".repeat(32) })).status).toBe(423);
   }, 60_000);
 
 describe("Refer & Earn page", () => {
@@ -495,8 +495,8 @@ describe("the console for an AI that works in the browser", () => {
 
   test("AI helper mode: no guest ID or nickname is on the page, the guest-list and look-up blocks are replaced by one notice, the organizer's own e-mail and mobile are not prefilled; switching it off brings them back", async () => {
     const o = await organizer(); await make(o, "UI-SHD1"); await publish(o, "UI-SHD1");
-    expect((await o.api("POST", "/api/z/UI-SHD1/roster", { people: [{ id: "9876501234" }] }, o.token)).status).toBe(200);
-    expect((await o.api("POST", "/api/z/UI-SHD1/join", { id: "9811122233", name: "Meera Shah", device: "a".repeat(32) })).status).toBe(200);
+    expect((await o.api("POST", "/api/z/UI-SHD1/roster", { people: [{ id: "E9876501234" }] }, o.token)).status).toBe(200);
+    expect((await o.api("POST", "/api/z/UI-SHD1/join", { id: "E9811122233", name: "Meera Shah", device: "a".repeat(32) })).status).toBe(200);
     const on = await consolePage(o, "UI-SHD1", o.token, { "cbz-shield": "1", "cbz-phone": "9000011111" }); await on.waitFor((x) => /Your AI works in your web browser/.test(x) && /Last step|Your game/i.test(x)); openStep(on, 6); await on.waitFor((x) => /Guest IDs are hidden/.test(x));
     for (const n of [6, 7, 8, 9, 10]) { openStep(on, n); const t = on.text(); for (const secret of ["Ravi", "Kulkarni", "Meera", "Shah", "9876501234", "9811122233", "9000011111", "boss@acme.com"]) expect([n, secret, t.includes(secret)]).toEqual([n, secret, false]); }
     for (const id of ["#roster", "#rosterTxt", "#pdph", "#ubph", "#mkph", "#rptopen", "#rptnew"]) expect(on.$(id)).toBeNull(); // the blocks that take or show guest data are gone
@@ -697,7 +697,7 @@ describe("console round 2 (cancel, confirming, team, e-mail rule, AI switch)", (
 });
 
 const tickAgree = (p: Page) => { const c = p.$("#cancelagree") as any; c.checked = true; c.dispatchEvent(new p.win.Event("change", { bubbles: true })); };
-const jn = (o: O, id: string, i: number, extra: Record<string, unknown> = {}) => o.api("POST", `/api/z/${id}/join`, { id: "98765" + String(10000 + i), name: "Guest" + i + " Kumar", device: String(i).padStart(2, "0") + "d".repeat(30), ...extra });
+const jn = (o: O, id: string, i: number, extra: Record<string, unknown> = {}) => o.api("POST", `/api/z/${id}/join`, { id: "E98765" + String(10000 + i), name: "Guest" + i + " Kumar", device: String(i).padStart(2, "0") + "d".repeat(30), ...extra });
 const listOf = async (o: O, id: string, key = o.token) => o.json(await o.api("GET", `/api/z/${id}/people`, undefined, key));
 const waitOf = async (o: O, id: string, key = o.token) => (await o.json(await o.api("GET", `/api/z/${id}/waiting`, undefined, key))).waiting as any[];
 const fakeWin = () => { const w: any = { location: { href: "" }, opener: 1, closed: false, close() { w.closed = true; } }; return w; };
@@ -771,9 +771,9 @@ describe("console phase 2: wording fixes, Your people, waiting room, remove, pla
 
   test("Remove: 'only this person' or 'this person and everyone they invited', asked before the game; during the game the confirm says the win stands and the prize is marked not given", async () => {
     const o = await organizer(); await make(o, "UI-RM"); await publish(o, "UI-RM"); const w = spy();
-    await o.api("POST", "/api/z/UI-RM/people", { people: [{ id: "9876543210" }, { id: "9876543211" }, { id: "9876543212" }] }, o.token);
+    await o.api("POST", "/api/z/UI-RM/people", { people: [{ id: "E9876543210" }, { id: "E9876543211" }, { id: "E9876543212" }] }, o.token);
     const ids = (await listOf(o, "UI-RM")).people.map((x: any) => [x.listId, x.id]); const idOf = (n: string) => ids.find((x: any) => x[0] === n)[1];
-    const A = "9876543210", B = "9876543211", C = "9876543212";
+    const A = "E9876543210", B = "E9876543211", C = "E9876543212";
     const p = await ready(o, "UI-RM", w); await myPeople(p);
     p.click(`[data-rmask="${idOf(A)}"]`); await p.waitFor((x) => /loses their place and their link stops/.test(x)); expect(p.text()).toMatch(/Only this person/); expect(p.text()).toMatch(/This person and everyone they invited/);
     p.click("[data-rmno]"); expect(p.$("[data-rm]")).toBeNull(); expect(w.st.calls.some((c: any) => c[1].endsWith("/remove"))).toBe(false);
@@ -836,7 +836,7 @@ describe("console phase 2: wording fixes, Your people, waiting room, remove, pla
 
   test("Download your list: only where the server says canExport (Organizer and Host); a Co-host does not get it", async () => {
     const o = await organizer(); await make(o, "UI-DL"); await publish(o, "UI-DL"); const w = spy();
-    await o.api("POST", "/api/z/UI-DL/people", { people: [{ id: "9876543210" }] }, o.token);
+    await o.api("POST", "/api/z/UI-DL/people", { people: [{ id: "E9876543210" }] }, o.token);
     const p = await ready(o, "UI-DL", w); await myPeople(p); expect(p.$("#dlpeople")).toBeTruthy(); p.win.URL.createObjectURL = () => "blob:x"; p.click("#dlpeople"); await p.waitFor(() => w.st.calls.some((c: any) => c[1].endsWith("/people/export")));
     const h = await ready(o, "UI-DL", spy(), await hostKey(o)); await myPeople(h); expect(h.$("#dlpeople")).toBeTruthy();
     const c = await ready(o, "UI-DL", spy(), await cohostKey(o, "UI-DL")); openStep(c, 2); await c.waitFor((x) => /Your people/.test(x) && /people are on your list/.test(x)); expect(c.$("#dlpeople")).toBeNull();
@@ -1120,7 +1120,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
 
   test("Create a new game like this one: on the game page and in the games list (not for a Co-host); the people tick box only when the old list exists; the new game opens on step 1 with the date and time empty and the read-back with Change buttons", async () => {
     const o = await organizer(); await make(o, "UI-OLD1"); await publish(o, "UI-OLD1"); await make(o, "UI-NEW1", { name: "Copied game" });
-    expect((await o.api("POST", "/api/z/UI-OLD1/roster", { people: [{ id: "9876543210" }] }, o.token)).status).toBe(200);
+    expect((await o.api("POST", "/api/z/UI-OLD1/roster", { people: [{ id: "E9876543210" }] }, o.token)).status).toBe(200);
     const w = spy({ "POST /api/z/UI-OLD1/clone": () => ({ ok: true, id: "UI-NEW1", openUrl: "/zc.html?e=UI-NEW1", copied: ["settings", "prizes"], peopleCopied: 1 }) });
     const p = await consolePage(o, "UI-OLD1", o.token, {}, { afterLoad: w.hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x)); await p.waitFor(() => (p.win as any).__zc.people.length > 0); openStep(p, 7);
     p.click("[data-clonebtn]"); await p.waitFor(() => !!p.$("#clonepanel")); expect(p.$("#clonepeople")).toBeTruthy(); expect(p.$("#clonepanel")!.textContent).toMatch(/Also bring your people list from the old game/);

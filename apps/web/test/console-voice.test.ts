@@ -8,8 +8,8 @@ const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.ur
 const FIRST_PERSON = /(?<![\w.$-])(I|I'm|I'll|I've|I'd|my|My|me|Me|myself|Myself|mine)(?![\w-])/;
 
 /** The text of every string and template literal in a script (the `${...}` parts are skipped), with its line number. */
-function literals(src: string): { line: number; text: string }[] {
-  const out: { line: number; text: string }[] = []; let i = 0; const n = src.length; const lineOf = (k: number) => src.slice(0, k).split("\n").length;
+function literals(src: string, baseLine = 1): { line: number; text: string }[] {
+  const out: { line: number; text: string }[] = []; let i = 0; const n = src.length; const lineOf = (k: number) => baseLine - 1 + src.slice(0, k).split("\n").length;
   while (i < n) {
     const c = src[i]!;
     if (c === "/" && src[i + 1] === "/") { const j = src.indexOf("\n", i); i = j < 0 ? n : j; continue; }
@@ -19,7 +19,7 @@ function literals(src: string): { line: number; text: string }[] {
       let j = i + 1, buf = "";
       while (j < n) {
         if (src[j] === "\\") { buf += src.slice(j, j + 2); j += 2; continue; }
-        if (src[j] === "$" && src[j + 1] === "{") { let d = 1; j += 2; while (j < n && d > 0) { if (src[j] === "{") d++; else if (src[j] === "}") d--; j++; } buf += " "; continue; }
+        if (src[j] === "$" && src[j + 1] === "{") { let d = 1; const from = j + 2; j += 2; while (j < n && d > 0) { if (src[j] === "{") d++; else if (src[j] === "}") d--; j++; } for (const inner of literals(src.slice(from, j - 1), lineOf(from))) out.push(inner); /* v1.5.3: the sentences INSIDE a ${...} are read too (a button label inside a ternary used to be skipped) */ buf += " "; continue; }
         if (src[j] === "`") break; buf += src[j]; j++;
       }
       out.push({ line: lineOf(i), text: buf }); i = j + 1; continue;
@@ -29,8 +29,9 @@ function literals(src: string): { line: number; text: string }[] {
   return out;
 }
 /** What a person can read in a literal: tags and attribute values are not text. Paths, links and code-like strings are skipped. */
-const readable = (t: string) => t.replace(/<[^>]+>/g, " ").trim();
-const isCode = (t: string) => /^[\w./#:?=&%${}\[\]()*+,;<>!|^~@-]*$/.test(t.trim()) || /https?:\/\/|wa\.me|\/api\/|\.(js|css|html|png|svg)\b/.test(t);
+// A link, a path or a file name inside a sentence is taken OUT of the text; the sentence around it is still read (v1.5.3: a big template that holds one URL used to be skipped whole, and so never read).
+const readable = (t: string) => t.replace(/<[^>]+>/g, " ").replace(/https?:\/\/\S+|wa\.me\/\S*|\/api\/[\w\/.-]*|[\w\/.-]+\.(?:js|css|html|png|svg)\b/g, " ").trim();
+const isCode = (t: string) => /^[\w./#:?=&%${}\[\]()*+,;<>!|^~@-]*$/.test(t.trim());
 
 describe("R71: the organizer's screens say 'you', never 'I', 'my' or 'me'", () => {
   for (const f of ["zc.js", "host.js", "ai-link.js"]) {

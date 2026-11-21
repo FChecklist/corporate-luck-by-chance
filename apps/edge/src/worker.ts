@@ -32,7 +32,7 @@ import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { payRedirect } from "./console-pay";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
-import { ID_ONLY_MSG, carriesPersonalDetails, cleanInviteId, idHashOf } from "./invite-id";
+import { ID_ONLY_MSG, NOT_AN_ID_MSG, carriesPersonalDetails, cleanInviteId, idHashOf } from "./invite-id";
 import { PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
@@ -258,6 +258,25 @@ async function joinOverLimit(env: Env, req: Request, now: number): Promise<boole
     const iso = new Date(now).toISOString();
     return (await bump(`jbm/${iso.slice(0, 16)}/${ip}`, perMin)) || (await bump(`jlim/${iso.slice(0, 10)}/${ip}`, perDay));
   } catch { return false; }
+}
+/**
+ * Guessing typed IDs (v1.5.3). An ID is easy to guess (A1101, A1102 ...) and a typed ID is MATCHED to a list, not proven (people.ts), so wrong tries are counted:
+ * every typed ID that is not accepted as that person's own (not on the list, already on another phone, removed, not an ID at all) counts as a miss against the network address AND against the game,
+ * in 10-minute windows. Over the limit the join answers a friendly 429 BEFORE it says anything about the ID, so the answers cannot be used to map who is invited.
+ * Right tries are not counted, so an office behind one address that joins at the start time is not slowed down.
+ */
+const ID_MISS_PER_IP = 15, ID_MISS_GAME_MIN = 60;
+const idMissKeys = async (req: Request, eid: string, now: number) => { const ip = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), w = new Date(now).toISOString().slice(0, 15); return { ip: `idm/${w}/${eid}/${ip}`, game: `idg/${w}/${eid}` }; };
+async function idGuessBlocked(env: Env, req: Request, eid: string, cap: number, now: number): Promise<Response | null> {
+  try {
+    const k = await idMissKeys(req, eid, now), get = async (key: string) => Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(key).first<{ v: string }>())?.v ?? 0);
+    if ((await get(k.ip)) >= ID_MISS_PER_IP) return json({ error: "Too many IDs that did not work were tried from this connection. Please wait 10 minutes, then type your ID again. If you share a network with others, ask your organizer for your personal link.", code: "too-many-tries" }, 429);
+    if ((await get(k.game)) >= Math.max(ID_MISS_GAME_MIN, cap)) return json({ error: "Many IDs that did not work were tried on this game just now. Please wait a few minutes, then type your ID again. Your organizer can also send you a personal link.", code: "too-many-tries" }, 429);
+  } catch { /* a counter that cannot be read must never stop a real player */ }
+  return null;
+}
+async function idGuessMiss(env: Env, req: Request, eid: string, now: number): Promise<void> {
+  try { const k = await idMissKeys(req, eid, now); for (const key of [k.ip, k.game]) await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?, '1') ON CONFLICT(k) DO UPDATE SET v=CAST(CAST(v AS INTEGER)+1 AS TEXT)").bind(key).run(); } catch { /* counting is best effort */ }
 }
 const BUSY = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
 
@@ -857,7 +876,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
   if (req.method === "POST" && p === "/api/org/ai/fresh") { // "Get a fresh AI link": a new 24-hour key, e-mailed to the organizer; the lasting key and other links are untouched
     if (a.kind !== "master" || !a.org) return deny(a);
     const live = (await env.DB.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE org=? AND kind='ai' AND revoked=0 AND expires_ms>?").bind(a.org, now).first<{ c: number }>())?.c ?? 0;
-    if (live >= 5) return json({ error: "You already asked for several fresh links today. Use the latest e-mail, or press Replace my AI link." }, 429);
+    if (live >= 5) return json({ error: "You already asked for several fresh links today. Use the latest e-mail, or press Replace your AI link." }, 429);
     if (!(await spend(env, now, 3))) return BUSY();
     return json({ ok: true, ...(await mailTempLink(env, req, a.org, "ai", "fresh", now)) });
   }
@@ -1360,8 +1379,11 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const typedGiven = typeof b?.id === "string" ? b.id.trim() !== "" : b?.id != null;
     if (!typedGiven && b?.phone != null && String(b.phone).trim() !== "") return json({ error: "Please type your ID. A mobile number is not used to join.", code: "need-id" }, 400); // an old page that still sends a number
     const typedId = idOf(b?.id), typedPh = await idHash(b?.id);
-    if (typedGiven && !typedPh) return json({ error: (cleanInviteId(b?.id) as { why: string }).why, code: "bad-id" }, 400);
-    let gid: string | null = typedId ?? tokPii?.id ?? null; // the ID this person is known by ("" for a guest who joins with a nickname only)
+    const guessing = typedGiven && !(tok && typedPh && typedPh === tok.ph); // somebody typing an ID that is not the one their own personal link stands for
+    if (guessing) { const stop = await idGuessBlocked(env, req, eid!, e.cap, now); if (stop) return stop; } // before anything is said about the ID: the answers must not map the invite list
+    const missed = async (r: Response): Promise<Response> => { if (guessing) await idGuessMiss(env, req, eid!, now); return r; }; // a try that did not work counts
+    if (typedGiven && !typedPh) { const cl = cleanInviteId(b?.id) as { why: string; code?: string }; return missed(json({ error: cl.code === "not-an-id" ? NOT_AN_ID_MSG : cl.why, code: "bad-id" }, 400)); }
+    let gid: string | null = typedId ?? tokPii?.id ?? (tok ? "" : null); // the ID this person is known by ("" for a guest who joins with a nickname only, or for a 1.5.1 link that holds a number and no ID)
     let ph = typedPh ?? tok?.ph ?? null;
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
     if (!ph && !tok) { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
@@ -1376,12 +1398,16 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const reply = (pid: string, extra: object = {}) => json({ pid, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), ...pub(e), ...extra });
     const lateRound = lateNow();
     const have = await env.DB.prepare("SELECT p.pid AS pid, s.dev AS dev, s.pid AS seat, s.jr AS jr, s.blocked AS blocked, s.role AS role FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? AND p.phone_hash=?").bind(eid, ph).first<{ pid: string; dev: string | null; seat: string | null; jr: number | null; blocked: number | null; role: string | null }>();
-    const removedReply = () => json({ error: "You were removed from this game by the organizer.", code: "removed", removed: true }, 403);
+    const removedReply = () => missed(json({ error: "You were removed from this game by the organizer.", code: "removed", removed: true }, 403));
     if (have) {
       if (have.blocked) return removedReply();
+      if (cfgOf(e).join === "id" && (cleanName(b?.name) ?? "").trim().length < 2) { // the nickname is needed for a seat made by the roster too (a seat has no nickname until its player gives one)
+        const old = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(eid, have.pid).first<{ pii: string | null }>();
+        if (!(await openPii(env, old?.pii))?.name) return json({ error: "Please choose a nickname. Other players see it on the top-10 list.", code: "need-nickname" }, 400);
+      }
       if (have.seat && have.dev && have.dev !== dev) {
-        if (tok && !typedPh) return json({ error: "This link was already opened on another phone. If you are someone else, type your own ID to ask to join. If it is you on a new phone, ask whoever invited you to send the link again.", code: "link-used", needId: true }, 423);
-        return json({ error: "This place is already on another phone. A place plays on one device only. Ask your organizer if you need to move it.", code: "other-phone" }, 423);
+        if (tok && !typedPh) return json({ error: "This link was already opened on another phone. If it is you on a new phone, ask whoever invited you to send the link again.", code: "link-used" }, 423); // the page hides the ID box on a personal link, so it is not offered here
+        return missed(json({ error: "This place is already on another phone. A place plays on one device only. Ask your organizer if you need to move it.", code: "other-phone" }, 423));
       }
       if (have.seat && !have.dev && dev && (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first())) return json({ error: "This phone already holds a place in this game. One phone, one place. Ask the person to open the link on their own phone.", code: "device-used" }, 409);
       if (have.seat && !have.dev && dev) { // first device to open the link of someone who was on the list (or whom the organizer let move) keeps the card
@@ -1418,6 +1444,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const target = owner ?? "o";
     const lateName = cleanName(b?.name);
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
+      if (guessing) await idGuessMiss(env, req, eid!, now); // an ID that is on no list is a try that did not work
       if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
       const w = await addWaiting({ env, eid: eid!, e, now }, { ph, id: gid!, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
@@ -1491,9 +1518,11 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (running) return json({ error: "The game is running. Please delete this person after it ends." }, 409);
     if (!(await spend(env, now, 4))) return BUSY();
     await env.DB.batch([
+      env.DB.prepare("DELETE FROM person WHERE eid=? AND ph=(SELECT ph FROM seat WHERE eid=? AND seq=?)").bind(eid, eid, seat.seq), // the sealed ID on the list goes too (first, while the seat still says whose it is)
       env.DB.prepare("DELETE FROM participant WHERE eid=? AND pid=?").bind(eid, seat.pid), env.DB.prepare("DELETE FROM seat WHERE eid=? AND seq=?").bind(eid, seat.seq),
       env.DB.prepare("DELETE FROM claim WHERE eid=? AND pid=?").bind(eid, seat.pid),
       env.DB.prepare("UPDATE prize SET pii=NULL, orig=NULL, trail=NULL WHERE eid=? AND seat=?").bind(eid, seat.seq), // the prize record keeps no identity once the person asks
+      env.DB.prepare("UPDATE luck_p SET name='Left player' WHERE eid=? AND pid=?").bind(eid, seat.pid), // the nickname on the frozen seat list goes too (the seat itself stays: the result is worked out from it)
     ]);
     return json({ ok: true, deleted: true });
   }
@@ -1769,7 +1798,7 @@ export async function retentionSweep(env: Env, now: number): Promise<void> {
   const safe = async (f: () => Promise<unknown>) => { try { await f(); } catch { /* one failing step must not stop the others */ } };
   const cutoff = new Date(now - 2 * DAY).toISOString().slice(0, 10);
   await safe(async () => {
-    const r = await db.prepare("SELECT k FROM kv WHERE k LIKE 'start/%' OR k LIKE 'linkfail/%' OR k LIKE 'plim/%' OR k LIKE 'jlim/%' OR k LIKE 'jbm/%' LIMIT 2000").all<{ k: string }>();
+    const r = await db.prepare("SELECT k FROM kv WHERE k LIKE 'start/%' OR k LIKE 'linkfail/%' OR k LIKE 'plim/%' OR k LIKE 'jlim/%' OR k LIKE 'jbm/%' OR k LIKE 'idm/%' OR k LIKE 'idg/%' LIMIT 2000").all<{ k: string }>();
     for (const x of r.results ?? []) { const d = x.k.match(/\d{4}-\d{2}-\d{2}/)?.[0]; if (d && d < cutoff) await db.prepare("DELETE FROM kv WHERE k=?").bind(x.k).run(); }
   });
   await safe(() => db.prepare("DELETE FROM login_code WHERE expires_ms < ?").bind(now - DAY).run());

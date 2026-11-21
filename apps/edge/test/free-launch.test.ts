@@ -60,7 +60,7 @@ describe("build first, pay to publish", () => {
   test("participants cannot see or join a draft; the organizer can read it", async () => {
     const { h } = await organizer();
     await call("POST", "/api/z", eng("DRAFT-2"), h);
-    expect((await call("POST", "/api/z/DRAFT-2/join", { id: "9876543210" })).status).toBe(403);
+    expect((await call("POST", "/api/z/DRAFT-2/join", { id: "E9876543210" })).status).toBe(403);
     expect((await call("GET", "/api/z/DRAFT-2/info")).status).toBe(403);
     expect((await call("GET", "/api/z/DRAFT-2/info", undefined, h)).status).toBe(200);
   });
@@ -71,7 +71,7 @@ describe("build first, pay to publish", () => {
     expect(r.status).toBe(200);
     const j = await r.json() as any;
     expect(j.published).toBe(true); expect(j.paid).toBe(false); expect(j.shareUrl).toBe("https://bingo.test/z.html?e=PUB-1"); expect(j.payUrl).toBe("https://bingo.test/pay.html?e=PUB-1");
-    expect((await call("POST", "/api/z/PUB-1/join", { id: "9876543210" })).status).toBe(200); // everyone can join before the organizer has paid
+    expect((await call("POST", "/api/z/PUB-1/join", { id: "E9876543210" })).status).toBe(200); // everyone can join before the organizer has paid
     const info = await (await call("GET", "/api/z/PUB-1/info")).json() as any;
     expect(info.unpaid).toBeUndefined(); expect(info.locked).toBe(false); // participants are never told it is unpaid
     expect(((await (await call("GET", "/api/z/PUB-1/info", undefined, h)).json()) as any).unpaid).toBe(true); // the organizer is
@@ -120,7 +120,7 @@ describe("build first, pay to publish", () => {
     raw.prepare("INSERT INTO entitlement(id,org,pack,payment_id,eid,created_ms) VALUES('ent_t',?,500,'p',NULL,?)").run(org, T);
     const j = await (await call("POST", "/api/z/DRAFT-4/publish", ok, h)).json() as any;
     expect(j.paid).toBe(true);
-    expect((await call("POST", "/api/z/DRAFT-4/join", { id: "9876543210" })).status).toBe(200);
+    expect((await call("POST", "/api/z/DRAFT-4/join", { id: "E9876543210" })).status).toBe(200);
     expect((raw.prepare("SELECT eid FROM entitlement WHERE id='ent_t'").get() as any).eid).toBe("DRAFT-4");
   });
   test("the AI key cannot publish or pay, but hands the organizer the link", async () => {
@@ -129,7 +129,7 @@ describe("build first, pay to publish", () => {
     const r = await (await call("POST", "/api/z/DRAFT-5/publish", {}, { "x-organizer": key })).json() as any;
     expect(r.published).toBe(false); expect(r.needsOrganizer).toBe(true); expect(r.consoleUrl).toBe("https://bingo.test/zc.html?e=DRAFT-5"); expect(r.payUrl).toBeUndefined(); // a draft is opened in the console first; the pay page link only exists once it is published
     expect(raw.prepare("SELECT pack FROM engagement WHERE id='DRAFT-5'").get()).toEqual({ pack: 0 });
-    expect((await call("POST", "/api/z/DRAFT-5/join", { id: "9876543210" })).status).toBe(403); // still a draft
+    expect((await call("POST", "/api/z/DRAFT-5/join", { id: "E9876543210" })).status).toBe(403); // still a draft
   });
   test("publishing first asks the organizer to confirm a valid email and mobile number", async () => {
     const { h } = await organizer();
@@ -177,6 +177,6 @@ describe("build first, pay to publish", () => {
   test("the platform key still creates a published engagement at once", async () => {
     const r = await (await call("POST", "/api/z", eng("PLAT-1"), { "x-organizer": "plat" })).json() as any;
     expect(r.draft).toBe(false);
-    expect((await call("POST", "/api/z/PLAT-1/join", { id: "9876543210" })).status).toBe(200);
+    expect((await call("POST", "/api/z/PLAT-1/join", { id: "E9876543210" })).status).toBe(200);
   });
 });

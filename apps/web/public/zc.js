@@ -460,9 +460,12 @@
     });
     return { ids, wrong };
   }
+  /** The ID content rule, the same as the server's (apps/edge/src/invite-id.ts idContentProblem): an e-mail, a mobile number or a name is not an ID. The server checks again; this only says so at once. */
+  const idLooksWrong = (typed) => { const t = String(typed == null ? "" : typed).trim(), w = t.split(/\s+/), flat = t.replace(/[\s+\-._()/#\\]/g, ""); return /@/.test(t) || /[^A-Za-z0-9\s\-_/.#\\+()]/.test(t) || /^\d{10,15}$/.test(flat) || (/^[+(]/.test(t) && /^\d+$/.test(flat)) || (w.length > 1 && w.some((x) => /^\+?\d{10,15}$/.test(x))) || (!/\d/.test(t) && w.filter((x) => /[A-Za-z]/.test(x)).length >= 2); };
   function cleanBatch(raw) {
     const seen = new Set(), good = [], wrong = []; let dups = 0;
     for (const r of raw) {
+      if (idLooksWrong(r)) { wrong.push({ raw: String(r || ""), why: "That looks like a name, an e-mail or a mobile number. Send the ID only." }); continue; }
       const id = normId(r);
       if (!id) { wrong.push({ raw: String(r || ""), why: "An ID has at least one letter or digit." }); continue; }
       if (id.length > 40) { wrong.push({ raw: String(r), why: "An ID has at most 40 letters and digits." }); continue; }
@@ -551,7 +554,7 @@
     if (list === null) return h + (P.err ? `<p class="zc-small zc-warnt" id="ppnote" role="status">${esc(P.err)}</p>` : small("Loading…")) + `<p class="zc-small" id="emailrule2">${EMAIL_RULE}</p>${guestTools()}</div>`;
     const live = list.filter((p) => stLabel(p.status) !== "Removed"), full = !!P.limit && live.length >= P.limit;
     h += `<p class="zc-small"><b id="gcount">${live.length}</b> ${live.length === 1 ? "person is" : "people are"} on your list${P.limit ? ` (up to ${P.limit})` : ""}.</p>`;
-    if (canRun()) h += small(`Only people on your list join straight away. Anyone else waits until you or a Host says yes.`);
+    if (canRun()) h += small(`Only people on your list join straight away. Anyone else waits until you or a Host says yes. An ID is matched to your list, it is not a password: anyone who knows a listed ID can type it. A personal link is the stronger check, so send each person their own.`);
     h += waitingPanel();
     h += full ? small(`You have reached your limit of ${P.limit} people. Remove someone to add another.`) : addBox();
     if (P.sum) h += `<p class="zc-small" id="cleansum" role="status"><b>${esc(P.sum)}</b></p>`;
@@ -1023,7 +1026,7 @@
     const T = S.setup || {}, m = S.setupMsg;
     const email = T.needEmail ? `<h4>1. Your e-mail</h4>${small(T.emailMasked ? "Use the e-mail your Organizer gave us: " + esc(T.emailMasked) + "." : "Type your e-mail.")}${tbSlot("setup", "K5", "setupsend")}${googleBlock()}
         ${S.setupSent ? `${lbl("setupcode", "The 6-digit code we sent you")}<input id="setupcode" class="zc-in" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupverify">Check the code</button></div>`
-          : `${lbl("setupemail", "Your e-mail")}<input id="setupemail" class="zc-in" type="email" autocomplete="email" placeholder="your e-mail"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupsend" ${tbDis("setup")}>Send me a code</button></div>`}`
+          : `${lbl("setupemail", "Your e-mail")}<input id="setupemail" class="zc-in" type="email" autocomplete="email" placeholder="your e-mail"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupsend" ${tbDis("setup")}>Get a code</button></div>`}`
       : `<p class="zc-small">Your e-mail is checked${T.emailMasked ? ": " + esc(T.emailMasked) : ""}.</p>`;
     const mobile = T.needMobile ? `<h4>${T.needEmail ? "2" : "1"}. Your mobile number</h4>${small("Typed once. We do not send a code to it.")}${lbl("setupmobile", "Your mobile number")}<input id="setupmobile" class="zc-in" inputmode="tel" autocomplete="tel" placeholder="415 555 0132"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupmobilego">Save your number</button></div>` : "";
     return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Luck by Chance</b></span><span class="zc-pill zc-pill-role">Host</span></header><div class="zc-main"><div class="zc-block" id="finishsetup"><h3>Finish setup</h3>${small("Two quick things, then your game opens. This link works once.")}${m ? `<div class="zc-toast" role="status">${esc(m)}</div>` : ""}${email}${mobile}</div></div></div>`;

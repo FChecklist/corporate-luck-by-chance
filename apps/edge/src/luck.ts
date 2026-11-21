@@ -113,7 +113,7 @@ async function settleVotes(env: Env, t: TRow, now: number): Promise<TRow> {
 export async function luckTick(env: Env, now: number, spend?: (n: number) => Promise<boolean>): Promise<number> {
   let n = 0;
   // games set to start by themselves whose start time has come (a paid game; maybeAutoStart checks the rest)
-  const due = await env.DB.prepare(`SELECT t.eid AS eid, e.* FROM luck_t t JOIN engagement e ON e.id=t.eid WHERE t.state='open' AND e.pack>0 AND e.cancelled_ms IS NULL AND e.unplayed_ms IS NULL AND e.config LIKE '%"start":"auto"%' AND ((${GENESIS} + (e.start_round - 1) * 3) * 1000)<=? LIMIT 50`).bind(now).all<any>();
+  const due = await env.DB.prepare(`SELECT t.eid AS eid, e.* FROM luck_t t JOIN engagement e ON e.id=t.eid WHERE t.state='open' AND e.pack>0 AND e.cancelled_ms IS NULL AND e.unplayed_ms IS NULL AND e.config LIKE '%"start":"auto"%' AND ((${GENESIS} + (e.start_round - 1) * 3) * 1000)<=? AND (SELECT COUNT(*) FROM participant WHERE eid=t.eid)>=2 ORDER BY e.start_round LIMIT 50`).bind(now).all<any>();
   for (const e of due.results ?? []) {
     const t = await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(e.eid).first<TRow>();
     if (t && (await maybeAutoStart(env, e, t, now, spend)).state !== "open") n++;
@@ -140,7 +140,7 @@ export async function planOf(env: Env, eid: string): Promise<LuckSettings> {
 }
 type Began = { ok: true; players: number; startMs: number; endMs: number; diceRounds: number } | { ok: false; status: number; error: string; code?: string; joined?: number; busy?: boolean };
 /** Freezes the list of players and sets the clock. The same step for both ways to start; only `delaySecs` and who asked differ. */
-async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: number, now: number, spend: (n: number) => Promise<boolean>): Promise<Began> {
+export async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: number, now: number, spend: (n: number) => Promise<boolean>): Promise<Began> {
   const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? ORDER BY p.pid").bind(t.eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
   const players: { pid: string; name: string }[] = [];
   for (const r of rows.results ?? []) { if (r.blocked) continue; players.push({ pid: r.pid, name: cleanName((await openPii(env, r.pii))?.name ?? null) }); }
@@ -151,7 +151,9 @@ async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: number, 
   const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, t.eid)];
   // the seats go in only while THIS start is the one that won (same seed): two phones that look at the same instant must never mix their lists
   players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM luck_t WHERE eid=? AND state='running' AND seed=?)").bind(t.eid, p.pid, i, p.name, t.eid, seed)));
-  for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+  let won = 0;
+  for (let i = 0; i < stmts.length; i += 90) { const res = await env.DB.batch(stmts.slice(i, i + 90)); if (i === 0) won = res[0]?.meta?.changes ?? 0; }
+  if (won === 0) return { ok: false, status: 409, error: "The game has already started.", code: "started" }; // another start (the game starting by itself, or another press of Start) got there first: its clock is the game's clock, not this one
   return { ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s) };
 }
 /** "The game starts by itself": once the start time has come, a paid game that is set to start by itself begins with its saved plan. Returns the row as it is afterwards. */
@@ -164,7 +166,7 @@ export async function maybeAutoStart(env: Env, e: any, t: TRow, now: number, spe
   const lock = await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v WHERE CAST(kv.v AS INTEGER) < ?").bind(autoLockKey(t.eid), String(now), now - 20_000).run();
   if ((lock.meta?.changes ?? 0) === 0) return (await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(t.eid).first<TRow>()) ?? t;
   const r = await beginGame(env, t, await planOf(env, t.eid), AUTO_LEAD_SECS, now, spend);
-  if (!r.ok) return t; // fewer than 2 players, or a busy moment: it waits and tries again at the next look or tick
+  if (!r.ok && r.code !== "started") return t; // fewer than 2 players, or a busy moment: it waits and tries again at the next look or tick
   return (await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(t.eid).first<TRow>()) ?? t;
 }
 
@@ -208,6 +210,7 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
   if (sub === "start" && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can start the game." }, 403);
     if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
+    if (!(c.e.pack > 0)) return json({ error: "This game cannot start until its pay step is done. Finish the pay step, then press Start again.", code: "unpaid", waitingFor: "organizer" }, 402); // no pay step, no game: pack is set only by the confirmed pay step, a credit or the owner's test or free-launch size; the Organizer is no exception
     const b = (await c.body(req, 4096)) ?? {};
     const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
     const delay = b.delaySecs === undefined ? 20 : Number(b.delaySecs);

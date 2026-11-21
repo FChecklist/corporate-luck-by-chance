@@ -178,7 +178,7 @@
       const v = await RUN.fetchView({ pid, device });
       stateNow = v.state;
       if (v.state === "open") {
-        set(`${brand()}${head()}<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>You are in</h2><p>Waiting for the host to start the game.</p>${v.joined ? `<p><span class="lt-pill">${esc(v.joined)} joined so far</span></p>` : ""}<p class="zsmall">No player, organizer or host can see a target or a dice early: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
+        set(`${brand()}${head()}<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>You are in</h2><p>${esc(v.startMode === "auto" ? "The game starts by itself at the start time." : "Waiting for the host to start the game.")}</p>${v.joined ? `<p><span class="lt-pill">${esc(v.joined)} joined so far</span></p>` : ""}<p class="zsmall">No player, organizer or host can see a target or a dice early: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
       } else if (v.phase === "watching") {
         set(`${head()}<div class="zcard" role="status"><h2>${esc(v.message)}</h2><p><a href="/big.html?e=${encodeURIComponent(EID)}">Open the big screen view</a></p></div>`);
       } else {

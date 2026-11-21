@@ -2,7 +2,20 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
-## 1.5.2 - 2026-11-21 (not deployed; nothing live changes until the owner says go)
+## 1.5.3 - 2026-11-21 (not deployed; nothing live changes until the owner says go)
+Version 1.5.2 failed both of its independent audits (one Medium each). 1.5.3 is 1.5.2 plus the fixes for everything they found, in plain words:
+
+Fixed
+- **A name, an e-mail or a mobile number is never an ID** (audit Medium). Before, only an entry that had a "name" or "phone" field was refused; a pasted e-mail, a bare mobile number or "Priya Sharma" went in as an ID. One rule now covers the list, the paste, the roster and the ID typed on the game page, and the console says so at once. Where: `apps/edge/src/invite-id.ts` (`idContentProblem`), `zc.js`. Test: `audit-fixes-153.test.ts` (R85). About 50 older tests used 10-digit numbers as IDs; they now use real-looking IDs.
+- **Guessing IDs is slowed down** (audit Medium). Wrong typed IDs (not on the list, already on another phone, removed, not an ID) are counted per network address (15 in 10 minutes) and per game (60, or the game's size). Over the limit the person gets a friendly "please wait 10 minutes, or ask for your personal link" before anything is said about the ID. Right tries are not counted, so an office joining together is not slowed down. The console now says that an ID is matched, not proven. Where: `worker.ts` (join), `guide.js`. Test: R86.
+- **No game starts before its pay step is done** (audit Medium; it was already so in 1.5.1). The Organizer and Hosts pressing Start on an unpaid game get a plain refusal. The owner's test or free-launch size sets the same flag and so still starts. Where: `luck.ts`. Test: R87.
+- Lows: a start that lost a race to another start says so (409) instead of showing its own clock; the scheduled start check looks only at games with 2 or more players, earliest first (it could be crowded out by 50 waiting games); a seat made from the roster is asked for a nickname; a 1.5.1 personal link (a number, no ID) opens; a used link no longer offers an ID box the page does not have; a game that starts by itself says so on the players' waiting card; a winner's prize record and a person's sealed ID are erased with the guests' data (and on a deletion request); the report's "changed from" line shows the ID; the console, the AI-link page and the help texts say "you" ("Get a code", "Go to your games", "Replace your AI link", "Use your credit") and the voice test now reads sentences inside templates and next to links; R84 is written down in `docs/RULES.md` (R84 to R91 are new).
+Added
+- **The version is in the footer of every public page** and links to **What's new** (`/changes.html`, plain words, no internal ids, served with the noai and noindex headers). `package.json` carries the version too. Where: `apps/web/public/changes.html`, the footer of the public pages, `pages/build.mjs`. Test: R84 in `apps/web/test/version-stamp.test.ts`.
+Not changed on purpose (still open, see `docs/SUITE_RULES.md` section 7): a typed ID is matched, not proven (needs an owner decision); the same ID rule in the sister games; Terms box K6 wording; "anyone with the link" for games made through the API; the three tests that already failed at 1.5.1; `luck/tick` stays open to Organizer-level keys (it only starts games that are already due). The audited pay contract, the money switches (`PAY_VIA_CONSOLE` unset) and the legal pages are untouched.
+Audits: pending (0 of 2). PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
+
+## 1.5.2 - 2026-11-21 (never deployed: it failed both independent audits; its changes ship in 1.5.3)
 The owner's rules of 20 Nov 2026 (version 1.1), put into this game. In plain words:
 
 Changed
@@ -11,8 +24,8 @@ Changed
 - **The console speaks to you.** "Your people", "Add to your list", "Publish your game" and the rest: no "I", "my" or "me" on the organizer's screens. "Anyone with the link" is no longer offered in the console. Where: `zc.js`, `host.js`, `ai-link.js`. Test: `apps/web/test/console-voice.test.ts`. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14.
 - **Wording that was not true is corrected.** The pages no longer say that "not even us" can know a number (the server holds the secret until the game is over, as `docs/RULES.md` says); the owner's line "not even the software" is not used for the same reason. A default game takes 24 minutes 40 seconds, not the older, longer figure. Where: `apps/web/public/index.html`, `legal.html`, `trust.html` (made from `ai-facts.ts`), `site/index.html`, `site/how-it-plays.html`, `docs/RULES.md`, `docs/SPEC.md`. Test: `honest-wording.test.ts`. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14.
 - **The version is readable from the live site.** `/version.json` now carries the version number next to the commit. Where: `pages/version.mjs`, `pages/build.mjs`, `docs/DEPLOYS.md`. Test: `apps/web/test/version-stamp.test.ts`. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14.
-- The owner's rules are in the repo: `docs/SUITE_RULES.md` (with what this game does about each rule), `docs/CONSOLE_VOICE.md`, `docs/KNOWLEDGE.md`, `README.md`; new rules R71 to R83 in `docs/RULES.md`.
-Audits: pending (0 of 2). Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
+- The owner's rules are in the repo: `docs/SUITE_RULES.md` (with what this game does about each rule), `docs/CONSOLE_VOICE.md`, `docs/KNOWLEDGE.md`, `README.md`; new rules R71 to R84 in `docs/RULES.md`.
+Audits: 2 FAIL on 4b2873c (one Medium each); fixed in 1.5.3. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
 Not changed on purpose: the audited pay contract (`apps/edge/src/console-pay.ts`, `console-bridge/`, `pack/`), the money switches (`PAY_VIA_CONSOLE` stays unset), the legal pages and the Terms box wording.
 
 ## 1.5.1 - 2026-11-20 (deployed to Cloudflare Pages 2026-11-20 18:52 UTC, dark: PAY_VIA_CONSOLE unset)

@@ -55,7 +55,7 @@ describe("no AI-readable route returns a name or a mobile number", () => {
   });
   test("an AI cannot send names or numbers either: roster, and mark/unbind by mobile number, are refused with a plain explanation", async () => {
     const o = await setup();
-    for (const [m, p, b] of [["POST", "/z/PLANT-1/roster", { people: [{ id: "9000000000" }] }], ["POST", "/z/PLANT-1/mark", { id: PLANTED[0]!.id, role: "host" }], ["POST", "/z/PLANT-1/unbind", { id: PLANTED[0]!.id }]] as const) {
+    for (const [m, p, b] of [["POST", "/z/PLANT-1/roster", { people: [{ id: "E9000000000" }] }], ["POST", "/z/PLANT-1/mark", { id: PLANTED[0]!.id, role: "host" }], ["POST", "/z/PLANT-1/unbind", { id: PLANTED[0]!.id }]] as const) {
       const r = await call(m, `/ai/${o.ai}${p}`, b); expect(r.status).toBe(403); expect(await r.text()).toMatch(/console/);
     }
     expect((raw.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid='PLANT-1'").get() as any).c).toBe(2); // nothing was added

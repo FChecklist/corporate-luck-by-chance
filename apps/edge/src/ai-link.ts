@@ -145,7 +145,7 @@ export function manualText(origin: string, key: string, role: LinkRole, now: num
       "",
       "6. PAYMENT FACTS (explain these honestly)",
       "- Only the organizer publishes (confirming their e-mail and mobile number) and only the organizer pays; you never do either.",
-      "- The price depends on the limit (section 1). They pay on the payment page, online, in about 2 minutes; an invoice is e-mailed. Credit from a cancelled game pays first (the organizer taps Use my credit).",
+      "- The price depends on the limit (section 1). They pay on the payment page, online, in about 2 minutes; an invoice is e-mailed. Credit from a cancelled game pays first (the organizer taps Use your credit).",
       "- No payment, no game. There is no separate payment cut-off: they can pay any time until the guests' data is erased (23 hours after the game was meant to end). Until then the Organizer and Hosts see Payment pending and everyone else sees Waiting for the Organizer or Host to start the game. If they pay late the game opens 2 minutes after the payment is confirmed. After the erasure the game is closed (This game did not start. Your details have been erased.).",
       "- We do not give refunds after payment. After payment the organizer can move the game to any date within 365 days of the payment. If the organizer cancels a paid game, the payment stays as credit for a game of Corporate Luck by Chance within the same 365 days.",
       "",

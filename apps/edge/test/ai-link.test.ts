@@ -209,10 +209,10 @@ describe("what the organizer's AI may and may not do now", () => {
   });
   test("it may mark a seat, and move a ticket to a new phone (change of phone)", async () => {
     const o = await liveEngagement("CAP-3");
-    await call("POST", "/api/z/CAP-3/join", { id: "9876543210", name: "Asha" });
+    await call("POST", "/api/z/CAP-3/join", { id: "E9876543210", name: "Asha" });
     expect((await call("POST", `/ai/${o.ai}/z/CAP-3/mark`, { seat: 1, role: "co-host" })).status).toBe(200);
     expect((raw.prepare("SELECT role FROM seat WHERE eid='CAP-3'").get() as any).role).toBe("co-host");
-    expect((await call("POST", `/ai/${o.ai}/z/CAP-3/mark`, { id: "9876543210", role: "host" })).status).toBe(403); expect((await call("POST", `/ai/${o.ai}/z/CAP-3/unbind`, { id: "9876543210" })).status).toBe(403); // an AI never names a person by number
+    expect((await call("POST", `/ai/${o.ai}/z/CAP-3/mark`, { id: "E9876543210", role: "host" })).status).toBe(403); expect((await call("POST", `/ai/${o.ai}/z/CAP-3/unbind`, { id: "E9876543210" })).status).toBe(403); // an AI never names a person by number
     expect((await call("POST", `/ai/${o.ai}/z/CAP-3/unbind`, { seat: 1 })).status).toBe(200);
     expect((raw.prepare("SELECT dev FROM seat WHERE eid='CAP-3'").get() as any).dev).toBeNull();
   });

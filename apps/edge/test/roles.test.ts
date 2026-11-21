@@ -158,8 +158,8 @@ describe("a Co-host's own invite link", () => {
     const link = (await j(await call("GET", "/api/z/ROLE-1/cohost", undefined, t.cohost))).inviteLink as string;
     const from = Number(new URL(link).searchParams.get("from"));
     expect(from).toBeGreaterThan(1_000_000_000);
-    expect((await call("POST", "/api/z/ROLE-1/join", { id: "9876543210", from })).status).toBe(200);
-    expect((await call("POST", "/api/z/ROLE-1/join", { id: "9876543211" })).status).toBe(200); // joined by the main link
+    expect((await call("POST", "/api/z/ROLE-1/join", { id: "E9876543210", from })).status).toBe(200);
+    expect((await call("POST", "/api/z/ROLE-1/join", { id: "E9876543211" })).status).toBe(200); // joined by the main link
     const h = await j(await call("GET", "/api/z/ROLE-1/cohost", undefined, t.cohost));
     expect(h).toMatchObject({ joined: 2, brought: 1 });
     expect((await j(await call("GET", "/api/org/team", undefined, t.master))).cohosts[0].brought).toBe(1);

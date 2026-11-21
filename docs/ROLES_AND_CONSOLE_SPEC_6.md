@@ -21,7 +21,7 @@ This REPLACES every refund rule in specs 2 and 5 and in the Phase 1 build (cance
 
 ## Console and pages
 - **Cancel flow** (three confirmations, already built): rewrite the texts. 1st confirmation: add the line "There is no refund. Your payment stays as credit for your next game, for 365 days." and the option "Change the date instead" (button that goes to step 1). 2nd confirmation: replace the refund numbers with "Your credit: Rs X, valid until <date>. Guests will be told. Their names and numbers will be erased. You cannot undo this." plus the checkbox gate. Final confirmation: "Yes, this game is cancelled" naming the game. Unpaid game: the same screens without the credit lines.
-- **Pay step (8)**: show credit when available with a button "Use my credit" (and the difference to pay); after cancel show "Your credit" with the expiry date; Your account section lists credits (active, used, lapsed) with dates.
+- **Pay step (8)**: show credit when available with a button "Use your credit" (and the difference to pay); after cancel show "Your credit" with the expiry date; Your account section lists credits (active, used, lapsed) with dates.
 - **Create a new game like this one** (spec 5 B): when the account has credit, the new game's Pay step offers it first.
 - **Words everywhere**: Terms, legal, DPA, organizer guide, brochure, FAQ, the AI manual and the 10 facts (fact 9 and the 'Money' lines), trust page, the About lines of Check and publish / Pay. Replace every 'refund' sentence: "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365." Keep banned-claims tests green.
 

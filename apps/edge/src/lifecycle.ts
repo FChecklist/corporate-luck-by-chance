@@ -129,7 +129,7 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
   await env.DB.batch([
     env.DB.prepare("DELETE FROM claim WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM settled WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rcand WHERE eid=?").bind(eid),
     env.DB.prepare("DELETE FROM participant WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM seat WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM person WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM waiting WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM overvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM consent_log WHERE ref=? AND kind='K4'").bind(eid), // the join ticks (K4) go with the person; the organizer's ticks stay as the contract record
-    env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(eid), // the nicknames and the phones' result votes go with the other personal data
+    env.DB.prepare("DELETE FROM luck_p WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM luck_v WHERE eid=?").bind(eid), env.DB.prepare("UPDATE prize SET pii=NULL, orig=NULL, trail=NULL WHERE eid=?").bind(eid), // a winner's prize record keeps no ID, name or number once the guests' data goes (v1.5.3: the "all IDs are deleted within 24 hours" line is true for these rows too) // the nicknames and the phones' result votes go with the other personal data
     env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR k LIKE ? OR k=? OR k=? OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/%`, `seats-blk/${eid}`, `luck-plan/${eid}`, `luck-auto/${eid}`),
     env.DB.prepare(eraseCohostsSql).bind(eid), // the game's Co-hosts: name, mobile number and key go with the participants' data
     env.DB.prepare("INSERT INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?, 'organizer', ?, ?) ON CONFLICT(eid) DO UPDATE SET purged_ms=?, report_state=COALESCE(life.report_state, ?)").bind(eid, now, now, by, now, by),
@@ -282,7 +282,7 @@ async function baseData(env: LifeEnv, e: any, cfg: EngagementCfg, sch: Awaited<R
   for (const [k, r] of prow) {
     const cur = await openPii(env, r.pii), orig = await openPii(env, r.orig);
     let trail: any[] = []; try { trail = JSON.parse((await openText(env, r.trail)) ?? "[]"); } catch { /* none */ }
-    pinfo.set(k, { name: cur?.name ?? null, phone: cur?.phone ?? null, confirmed: !!r.confirmed_ms, changedFrom: trail.length ? `joined as ${orig?.name || "?"}, ${orig?.phone || "?"}` : null, given: r.given_ms ? istDate(r.given_ms) : null });
+    pinfo.set(k, { name: cur?.name ?? null, phone: cur?.phone ?? null, confirmed: !!r.confirmed_ms, changedFrom: trail.length ? `joined as ${orig?.name || "?"}, ${orig?.id || orig?.phone || "?"}` : null, given: r.given_ms ? istDate(r.given_ms) : null });
   }
   const winnerOf = (w: any): ReportWinner => { const i = seatInfo.get(w.seat), pz = pinfo.get(`${w.round}|${w.pattern}|${w.ordinal}|${w.seat}`); return { seat: w.seat, name: pz?.name ?? i?.name ?? null, phone: pz?.phone ?? i?.phone ?? null, role: i?.role ?? null, verified: w.src === "console" || w.src === "phones", callNo: w.idx === null ? null : w.idx + 1, atMs: w.at_ms, confirmed: pz?.confirmed ?? false, changedFrom: pz?.changedFrom ?? null, given: pz?.given ?? null }; };
   const prizes: ReportPrize[] = [];

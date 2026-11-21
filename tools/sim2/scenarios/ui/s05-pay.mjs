@@ -146,8 +146,8 @@ export default [
       const g2 = await t.game(org, { pay: false });
       const c2 = await openConsole(t, org, g2.id, { device: "laptop" }); await openStep(c2.page, 8);
       const txt8 = await t.text(c2.page, "#sec8");
-      t.check("Pay step offers the credit", /credit of Rs 2,399/.test(txt8) && /Use my credit/i.test(txt8), txt8.slice(txt8.search(/credit/i), txt8.search(/credit/i) + 200));
-      const btn = c2.page.locator("#sec8 button:has-text('Use my credit')").first();
+      t.check("Pay step offers the credit", /credit of Rs 2,399/.test(txt8) && /Use your credit/i.test(txt8), txt8.slice(txt8.search(/credit/i), txt8.search(/credit/i) + 200));
+      const btn = c2.page.locator("#sec8 button:has-text('Use your credit')").first();
       if (await btn.count()) { await btn.click(); await c2.page.waitForTimeout(2000); }
       t.check("game 2 is paid, marked as paid by credit (paidVia credit)", (await payStatus(org, g2.id)) === "paid" && (await org.summary(g2.id)).body.payment?.paidVia === "credit", JSON.stringify((await org.summary(g2.id)).body.payment));
       const cr2 = (await org.api("GET", "/api/org/credit")).body.credits ?? [];

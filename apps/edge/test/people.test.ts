@@ -18,7 +18,7 @@ const realFetch = globalThis.fetch;
 const call = (method: string, path: string, body?: unknown, key?: string, now = T, extra: Record<string, string> = {}) =>
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}), ...extra }, body: body === undefined ? undefined : JSON.stringify(body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
-const mob = (i: number) => "9" + String(100000000 + i); // 9100000001 ...
+const mob = (i: number) => "PPL" + String(1000 + i); // PPL1001 ... (an employee-style ID; a bare 10-digit number is refused as a mobile number)
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
 const join = (id: string, body: Record<string, unknown>, now = T) => call("POST", `/api/z/${id}/join`, body, undefined, now);
 const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { id: mob(i), name: "G" + i, device: dev(i), ...extra }, now);
@@ -45,7 +45,7 @@ describe("cleaning IDs", () => {
   test("every character that is not a letter or a digit goes and the rest is upper case: A-1101, A 1101, a/1101 and A.1101 are one ID", () => {
     for (const raw of ["A-1101", "A 1101", "a/1101", "A.1101", " a_1101 ", "(A)1101", "A\t1101"]) expect(cleanInviteId(raw)).toEqual({ ok: true, id: "A1101" });
     expect(normalizeId("emp-007")).toBe("EMP007");
-    expect(cleanInviteId(9876543210)).toEqual({ ok: true, id: "9876543210" }); // a number typed into a spreadsheet cell is an ID like any other
+    expect(cleanInviteId(9876543210).ok).toBe(false); // a bare 10-digit number is a mobile number, never an ID (v1.5.3 content rule)
     for (const bad of ["", "   ", "---", "###", "A".repeat(41), undefined, null, {}, ["A1"]]) expect(cleanInviteId(bad as any).ok).toBe(false);
     expect(cleanInviteId("A".repeat(40)).ok).toBe(true);
   });
@@ -180,7 +180,7 @@ describe("personal links", () => {
     expect(rowsOf("SELECT src FROM seat")[0].src).toBe("ho:" + rowsOf("SELECT inviter FROM person")[0].inviter.slice(2));
     expect((await join("PPL-1", { token: tok, device: dev(1) })).status).toBe(200); // same phone again
     const other = await join("PPL-1", { token: tok, device: dev(2) });
-    expect(other.status).toBe(423); expect((await j(other)).needId).toBe(true);
+    const ob = await j(other); expect(other.status).toBe(423); expect(ob.code).toBe("link-used"); expect(ob.error).not.toMatch(/type your own ID/i); // the page has no ID box on a personal link, so the message does not offer one
   });
   test("send again rotates the link, kills the old one and unlocks the ticket for a new phone", async () => {
     const t = await setup(); const added = (await j(await add(t.master, [{ id: mob(1) }]))).people[0];
@@ -409,7 +409,7 @@ describe("export, privacy and cleanup", () => {
     const r = await call("GET", "/api/z/PPL-1/people/export", undefined, t.master);
     expect(r.headers.get("content-type")).toContain("text/csv"); const csv = await r.text();
     expect(csv.split("\r\n")[0]).toBe("ID,Personal link,Status"); expect(csv).toContain(mob(1) + ",https://bingo.test/j/"); expect(csv).toContain(",Invited"); expect(csv).not.toMatch(/wa\.me|Mobile|Name/);
-    await add(t.master, [{ id: "=HYPERLINK(1)" }]); const csv2 = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv2).toContain("HYPERLINK1,"); expect(csv2).not.toContain("=HYPERLINK"); // a spreadsheet formula cannot be smuggled in: only letters and digits survive
+    await add(t.master, [{ id: "=HYPERLINK(1)" }]); const csv2 = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv2).not.toContain("HYPERLINK"); // a spreadsheet formula cannot be smuggled in: a "=" is not an ID character, so it is refused and never stored (v1.5.3), and what is stored is letters and digits only
   });
   test("deleting the guests' data (the 23-hour rule or on request) deletes people and waiting rows too", async () => {
     const t = await setup({ closed: true }); await add(t.master, [{ id: mob(1) }]); await joinAs("PPL-1", 5, { from: ORG_FROM });
