@@ -2,6 +2,27 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
+## 1.5.5 - 2026-11-22 (not deployed; nothing live changes until the owner says go)
+Version 1.5.4 got one PASS and one FAIL from its two independent audits (the FAIL had one High and one Medium). 1.5.5 is 1.5.4 plus the fixes, in plain words:
+
+Fixed
+- **Changing address no longer gives a guesser a fresh count** (audit Medium). The limit on wrong IDs counted every IPv6 address on its own, and one home or office line has billions of them. Now an IPv6 address is counted by its first 64 bits (its /64); an IPv4 address is counted as before. 100 wrong tries from 100 addresses in one /64 now stop after 15. Where: `apps/edge/src/worker.ts` (`guessNet`, `idMissKeys`). Tests: `apps/edge/test/audit-fixes-155.test.ts` (R92); the main test fails without the fix (0 of 100 stopped).
+- **The help text told something that is not true** (audit High, wording part). It said "nobody can guess their way into a game". It now says plainly that an ID is matched against the list, not proven, and that the organizer can see who joined and remove a seat. The console's people list says the same and tells the organizer what Remove does before and after the start. A code comment that said the answers cannot map the invite list was softened too. Where: `apps/web/public/guide.js`, `zc.js`, `worker.ts` (comments). Tests: R93, R94.
+- **The version number and the What's new link are now on every public page** (audit Low). The pages that had no footer (trust, brochure, partner, demo, sign-in, pay, pay link, help desk and 404) now carry one small version line. Test: R95. App pages that only a signed-in organizer or a player opens (the console, the run-the-game page, the game page, the big screen, the report, the preview, the test pay page, the owner visits page, the AI-link page and the offline page) were left as they are.
+
+Known limit, owner decision (not fixed on purpose)
+The audit's High finding "the ID guess limit does not limit guessing" is the owner's documented decision, `docs/SUITE_RULES.md` line 67 (section 7, "Open for the owner"):
+> An ID is matched, not proven. Anyone who has the game link and knows (or guesses) a listed ID can type it and take that seat.
+- Why it stays: a right ID is never counted or stopped, because an office behind one network address must not block its own real employees. The limit slows wrong guesses (and mapping which IDs are listed); it does not stop someone who already knows a listed ID.
+- What the organizer can do: open My people to see who has joined (every listed ID shows Invited, Joined, Waiting or Removed), press Remove on a seat that is not the right person's (before the game starts the seat is deleted and the ID can be added again so the right person joins; after the game starts the seat stays in the public list, its phone stops, a win stands and the prize is marked not given), and send personal links, which are the strong check. "Change of phone" lets the next phone keep a seat.
+- What the owner can still choose: personal links only, or the organizer's yes for a typed ID. That changes the "on the list = in" rule, so it is a product decision, not a fix.
+Where tested: R94 (a stranger takes a listed ID, the organizer sees it, removes it, adds it again, the real person joins), `apps/edge/test/people.test.ts` (remove before and during a game), `apps/web/test/pages.test.ts` (the Remove button).
+
+Changed
+- Version 1.5.5 in `version.json` and `package.json`, the footers, `changes.html` (What's new), `docs/KNOWLEDGE.md`, `docs/RULES.md` (R92 to R95), `docs/VERSIONING.md`.
+Lows left as they were, with the reason, in `docs/KNOWLEDGE.md` section 7 (fixed 10-minute window, waiting room can be filled by a burst, a probe that is not counted, other limits still count the full IPv6 address, `bun.lock`).
+Audits: pending (0 of 2). PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
+
 ## 1.5.4 - 2026-11-22 (not deployed; nothing live changes until the owner says go)
 Version 1.5.3 failed both of its independent audits, each with three Mediums, all in the ID guess limit (R86). 1.5.4 is 1.5.3 plus the fixes for those three, in plain words:
 
@@ -10,7 +31,7 @@ Fixed
 - **One person could stop everybody from joining by ID** (audit Medium). The count for the whole game stopped every typed ID, right ones too. Now a right (listed) ID is never counted and never stopped, and one connection adds at most its own 15 to the game count, so a single burst cannot use up the game's share. Over the limit, a wrong ID is not added to the organizer's waiting list either. Tests: R86 "M2".
 - **An office behind one network address was locked out by its own typing mistakes** (audit Medium). Colleagues whose ID is on the list are no longer refused because other people on the same address typed wrong IDs. Only the wrong tries are slowed down. Tests: R86 "M3" (20 mistyping colleagues, then listed ones join; 50 listed players with 25 first mistyping).
 Not changed on purpose (see `docs/SUITE_RULES.md` section 7): a typed ID is matched, not proven. Because a right ID is never stopped, a person who already knows a listed ID can still take that seat; the limit only slows down guessing and mapping the list through wrong IDs. The owner's choice (personal links only, or the organizer's yes for a typed ID) is still open. The audited pay contract, the money switches (`PAY_VIA_CONSOLE` unset) and the legal pages are untouched.
-Audits: pending (0 of 2). PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
+Audits: head 86919efb: audit 1 PASS, audit 2 FAIL (one High: wording of the guess limit and the owner-decided "matched, not proven"; one Medium: IPv6). Fixed in 1.5.5. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
 
 ## 1.5.3 - 2026-11-21 (never deployed: it failed both independent audits; its changes ship in 1.5.4)
 Version 1.5.2 failed both of its independent audits (one Medium each). 1.5.3 is 1.5.2 plus the fixes for everything they found, in plain words:

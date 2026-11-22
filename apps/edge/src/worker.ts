@@ -264,11 +264,28 @@ async function joinOverLimit(env: Env, req: Request, now: number): Promise<boole
  * every typed ID that is not accepted as that person's own (not on the list, already on another phone, removed, not an ID at all) is a miss, counted per network address and per game in 10-minute windows.
  * 1) ATOMIC: a miss is counted with ONE statement (INSERT .. ON CONFLICT DO UPDATE .. RETURNING) and the number it returns is compared with the limit. There is no separate read, so requests that arrive together cannot all see "0 misses".
  * 2) A RIGHT ID IS NEVER STOPPED: the limit is only looked at when a try is a miss. A listed person is never refused because of other people's wrong tries (an office behind one address, a stranger's burst).
- * 3) ONE ADDRESS CANNOT USE UP THE GAME: the game counter only counts misses that the address's own limit let through, so one address adds at most ID_MISS_PER_IP to it.
+ * 3) ONE NETWORK, NOT ONE ADDRESS (1.5.5): an IPv6 address is counted by its /64 and an IPv4 address as it is (guessNet), so a guesser cannot get a fresh count by changing address inside one line.
+ * 4) ONE ADDRESS CANNOT USE UP THE GAME: the game counter only counts misses that the address's own limit let through, so one address adds at most ID_MISS_PER_IP to it.
  * Over the limit a miss is answered with a friendly 429 instead of the usual answer, and nothing is stored for it (no waiting-room entry).
  */
 const ID_MISS_PER_IP = 15, ID_MISS_GAME_MIN = 60;
-const idMissKeys = async (req: Request, eid: string, now: number) => { const ip = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), w = new Date(now).toISOString().slice(0, 15); return { ip: `idm/${w}/${eid}/${ip}`, game: `idg/${w}/${eid}` }; };
+/**
+ * The network a try comes from, for the guess limit (1.5.5, audit M1). An IPv4 address is used as it is. An IPv6 address is cut to its first 64 bits (the /64): one home or office line is given a whole /64
+ * (2^64 addresses), so counting the full address let a guesser change address for every try. IPv4-mapped IPv6 (::ffff:1.2.3.4) is read as the IPv4 address. Anything else is used as it is.
+ */
+export function guessNet(raw: string | null | undefined): string {
+  const ip = (raw ?? "local").trim().toLowerCase().split("%")[0] ?? "local";
+  if (!ip.includes(":")) return ip;
+  const mapped = ip.match(/^(?:0{0,4}:){2,5}(?:ffff:)?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) return mapped[1] ?? ip;
+  let head = ip, tail = "";
+  if (ip.includes("::")) { const [a, b] = ip.split("::"); head = a ?? ""; tail = b ?? ""; }
+  const h = head ? head.split(":") : [], t = tail ? tail.split(":") : [];
+  const groups = ip.includes("::") ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t] : h;
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return ip;
+  return groups.slice(0, 4).map((g) => g.padStart(4, "0")).join(":") + "::/64";
+}
+const idMissKeys = async (req: Request, eid: string, now: number) => { const ip = (await sha("jip|" + guessNet(req.headers.get("cf-connecting-ip")))).slice(0, 16), w = new Date(now).toISOString().slice(0, 15); return { ip: `idm/${w}/${eid}/${ip}`, game: `idg/${w}/${eid}` }; };
 /** Add 1 and read the new value in the same statement (D1 and SQLite both support RETURNING). */
 async function bumpMiss(env: Env, key: string): Promise<number> {
   const r = await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?, '1') ON CONFLICT(k) DO UPDATE SET v=CAST(CAST(v AS INTEGER)+1 AS TEXT) RETURNING CAST(v AS INTEGER) AS n").bind(key).first<{ n: number }>();
@@ -1385,7 +1402,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!typedGiven && b?.phone != null && String(b.phone).trim() !== "") return json({ error: "Please type your ID. A mobile number is not used to join.", code: "need-id" }, 400); // an old page that still sends a number
     const typedId = idOf(b?.id), typedPh = await idHash(b?.id);
     const guessing = typedGiven && !(tok && typedPh && typedPh === tok.ph); // somebody typing an ID that is not the one their own personal link stands for
-    const missed = async (r: Response): Promise<Response> => (guessing && (await idGuessMiss(env, req, eid!, e.cap, now))) || r; // a try that did not work is counted (atomically); over the limit the friendly wait answer replaces the usual one, so the answers cannot map the invite list. A right try is never counted or stopped.
+    const missed = async (r: Response): Promise<Response> => (guessing && (await idGuessMiss(env, req, eid!, e.cap, now))) || r; // a try that did not work is counted (atomically); over the limit the friendly wait answer replaces the usual one. This SLOWS wrong guesses only: a right try is never counted or stopped (owner decision, docs/SUITE_RULES.md section 7, 'ID matched, not proven'), so a guesser can still tell a listed ID from an unlisted one and a hit takes the seat.
     if (typedGiven && !typedPh) { const cl = cleanInviteId(b?.id) as { why: string; code?: string }; return missed(json({ error: cl.code === "not-an-id" ? NOT_AN_ID_MSG : cl.why, code: "bad-id" }, 400)); }
     let gid: string | null = typedId ?? tokPii?.id ?? (tok ? "" : null); // the ID this person is known by ("" for a guest who joins with a nickname only, or for a 1.5.1 link that holds a number and no ID)
     let ph = typedPh ?? tok?.ph ?? null;

@@ -554,7 +554,7 @@
     if (list === null) return h + (P.err ? `<p class="zc-small zc-warnt" id="ppnote" role="status">${esc(P.err)}</p>` : small("Loading…")) + `<p class="zc-small" id="emailrule2">${EMAIL_RULE}</p>${guestTools()}</div>`;
     const live = list.filter((p) => stLabel(p.status) !== "Removed"), full = !!P.limit && live.length >= P.limit;
     h += `<p class="zc-small"><b id="gcount">${live.length}</b> ${live.length === 1 ? "person is" : "people are"} on your list${P.limit ? ` (up to ${P.limit})` : ""}.</p>`;
-    if (canRun()) h += small(`Only people on your list join straight away. Anyone else waits until you or a Host says yes. An ID is matched to your list, it is not a password: anyone who knows a listed ID can type it. A personal link is the stronger check, so send each person their own.`);
+    if (canRun()) h += small(`Only people on your list join straight away. Anyone else waits until you or a Host says yes. An ID is matched to your list, it is not a password: anyone who knows a listed ID can type it. A personal link is the stronger check, so send each person their own. Below you can see who has joined. If someone joined with an ID that is not theirs, press Remove on that ID. Before the game starts, add the ID again and the right person can join. After the game starts, Remove stops that phone for good.`);
     h += waitingPanel();
     h += full ? small(`You have reached your limit of ${P.limit} people. Remove someone to add another.`) : addBox();
     if (P.sum) h += `<p class="zc-small" id="cleansum" role="status"><b>${esc(P.sum)}</b></p>`;
