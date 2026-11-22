@@ -67,14 +67,15 @@ describe("R85: the ID content rule: a name, an e-mail or a mobile number is neve
   });
 });
 
-describe("R86: guessing typed IDs is slowed down, per network address and per game, with a friendly message", () => {
-  test("15 wrong tries from one address are answered normally; the 16th and every try after it (even a right ID) get the friendly wait message, and another address is not affected", async () => {
+describe("R86: guessing typed IDs is slowed down (per network address and per game), counted atomically, and a right ID is never stopped", () => {
+  const joinNew = (id: string, who: string, i: number, ip: string, now = T) => call("POST", `/api/z/${id}/join`, { id: who, name: "N" + i, device: dev(200 + i) }, { "cf-connecting-ip": ip }, now);
+  test("15 wrong tries from one address are answered normally; the 16th and every wrong try after it get the friendly wait message; another address is not affected; the next window starts clean", async () => {
     const h = await game("R86-1"); await list(h, "R86-1", ["A-1101", "A-1102"]);
     for (let i = 0; i < 15; i++) expect([i, (await joinWith("R86-1", { id: "Z-" + (9000 + i) })).status]).toEqual([i, 403]);
     const stop = await joinWith("R86-1", { id: "Z-9999" }); const sb = await j(stop);
     expect(stop.status).toBe(429); expect(sb.code).toBe("too-many-tries"); expect(sb.error).toMatch(/wait 10 minutes/i); expect(sb.error).toMatch(/personal link/i); expect(sb.error).not.toMatch(/IP|rate|limit/i);
-    const right = await joinWith("R86-1", { id: "A-1101" }); expect(right.status).toBe(429); expect(raw.query("SELECT COUNT(*) c FROM participant").get()).toEqual({ c: 0 }); // the answer does not depend on whether the ID is listed
-    expect((await joinWith("R86-1", { id: "A-1101" }, "2.2.2.2")).status).toBe(200); // somebody else on another address joins normally
+    expect((await joinWith("R86-1", { id: "Z-9998" })).status).toBe(429);
+    expect((await joinWith("R86-1", { id: "Z-7778" }, "2.2.2.2")).status).toBe(403); // somebody else on another address is not affected
     expect((await joinWith("R86-1", { id: "Z-7777", device: dev(77) }, "1.1.1.1", T + 11 * 60_000)).status).toBe(403); // the next 10-minute window starts clean
   });
   test("probing IDs that already joined (the 423 answer) counts too: it used to be unlimited", async () => {
@@ -85,19 +86,62 @@ describe("R86: guessing typed IDs is slowed down, per network address and per ga
   });
   test("right tries are not counted: 40 listed people joining from one office address are all let in", async () => {
     const h = await game("R86-3"); await list(h, "R86-3", Array.from({ length: 40 }, (_, i) => "E-" + (1000 + i)));
-    for (let i = 0; i < 40; i++) expect([i, (await call("POST", "/api/z/R86-3/join", { id: "E-" + (1000 + i), name: "N" + i, device: dev(100 + i) }, { "cf-connecting-ip": "5.5.5.5" })).status]).toEqual([i, 200]);
-  });
-  test("one game as a whole: after 60 wrong tries (from many addresses) a new address is told to wait, and says so in game words", async () => {
-    const h = await game("R86-4", { cap: 20 }); await list(h, "R86-4", ["A-1101"]);
-    for (let i = 0; i < 60; i++) expect((await joinWith("R86-4", { id: "Z-" + (5000 + i) }, `9.9.${Math.floor(i / 200)}.${i + 1}`)).status).toBe(403);
-    const r = await joinWith("R86-4", { id: "A-1101" }, "8.8.8.8"); const b = await j(r);
-    expect(r.status).toBe(429); expect(b.code).toBe("too-many-tries"); expect(b.error).toMatch(/this game/i);
-    expect((await joinWith("R86-4", { id: "A-1101" }, "8.8.8.8", T + 11 * 60_000)).status).toBe(200);
+    for (let i = 0; i < 40; i++) expect([i, (await joinNew("R86-3", "E-" + (1000 + i), i, "5.5.5.5")).status]).toEqual([i, 200]);
   });
   test("a person on their own personal link is not counted as a guesser", async () => {
     const h = await game("R86-5"); const added = (await j(await list(h, "R86-5", ["A-1101"]))).people[0];
     const tok = added.link.split("/j/")[1];
     for (let i = 0; i < 20; i++) expect((await call("POST", "/api/z/R86-5/join", { token: tok, name: "Maya", device: dev(1) }, { "cf-connecting-ip": "6.6.6.6" })).status).toBe(200);
+  });
+  // M1 (audit): the count must be one atomic write. These fail on the 1.5.3 code (read, then count after the answer): every request in a burst read "0 misses" and all were answered 403.
+  test("M1: 70 wrong tries sent AT THE SAME TIME from one address: exactly 15 are answered normally, the other 55 get the wait message, and the counter reads 70 (nothing lost)", async () => {
+    const h = await game("R86-6"); await list(h, "R86-6", ["A-1101"]);
+    const rs = await Promise.all(Array.from({ length: 70 }, (_, i) => joinNew("R86-6", "Z-" + (3000 + i), i, "7.7.7.7")));
+    const codes = rs.map((r) => r.status);
+    expect(codes.filter((c) => c === 403)).toHaveLength(15); expect(codes.filter((c) => c === 429)).toHaveLength(55);
+    expect(raw.query("SELECT COUNT(*) c FROM waiting").get()).toEqual({ c: 15 }); // nothing is added to the waiting room once the limit is passed
+    expect((raw.query("SELECT v FROM kv WHERE k LIKE 'idm/%'").get() as any).v).toBe("70");
+  });
+  test("M1: 100 parallel probes of an ID that already joined: 15 get 423, the rest 429 (the 423 path is not unlimited in a burst)", async () => {
+    const h = await game("R86-7"); await list(h, "R86-7", ["A-1101"]);
+    expect((await joinWith("R86-7", { id: "A-1101" }, "3.3.3.3")).status).toBe(200);
+    const rs = await Promise.all(Array.from({ length: 100 }, (_, i) => call("POST", "/api/z/R86-7/join", { id: "A 1101", name: "Evil", device: dev(300 + i) }, { "cf-connecting-ip": "4.4.4.4" })));
+    const codes = rs.map((r) => r.status); expect(codes.filter((c) => c === 423)).toHaveLength(15); expect(codes.filter((c) => c === 429)).toHaveLength(85);
+  });
+  test("M1: the count is one statement that returns the new value (no separate read of the counter)", () => {
+    const src = readFileSync(new URL("../src/worker.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/INSERT INTO kv\(k,v\) VALUES\(\?, '1'\) ON CONFLICT\(k\) DO UPDATE SET v=CAST\(CAST\(v AS INTEGER\)\+1 AS TEXT\) RETURNING/);
+    expect(src).not.toContain("idGuessBlocked");
+  });
+  // M2 (audit): one burst from one address must not lock every typed-ID join of the game.
+  test("M2: one address sends 120 wrong IDs at once on a 100-player game: the game is NOT locked: a listed person from another address joins, and another unlisted person still gets the normal answer", async () => {
+    const h = await game("R86-8", { cap: 100 }); await list(h, "R86-8", ["A-1101", "A-1102"]);
+    await Promise.all(Array.from({ length: 120 }, (_, i) => joinNew("R86-8", "Z-" + (4000 + i), i, "8.8.8.8")));
+    expect((raw.query("SELECT v FROM kv WHERE k LIKE 'idg/%'").get() as any).v).toBe("15"); // one address adds at most its own limit to the game's count
+    expect((await joinNew("R86-8", "A-1101", 500, "9.9.9.9")).status).toBe(200);
+    expect((await joinNew("R86-8", "Z-5000", 501, "9.9.9.10")).status).toBe(403);
+  });
+  test("M2: even when many addresses push the game over its limit (60 wrong tries), a listed ID still joins; only further wrong tries are told to wait, and the waiting room is not filled past that", async () => {
+    const h = await game("R86-4", { cap: 20 }); await list(h, "R86-4", ["A-1101"]);
+    for (let i = 0; i < 60; i++) expect((await joinNew("R86-4", "Z-" + (5000 + i), i, `9.9.${Math.floor(i / 200)}.${i + 1}`)).status).toBe(403);
+    const wrong = await joinNew("R86-4", "Z-6000", 700, "8.8.4.4"); const wb = await j(wrong);
+    expect(wrong.status).toBe(429); expect(wb.code).toBe("too-many-tries"); expect(wb.error).toMatch(/this game/i);
+    expect(raw.query("SELECT COUNT(*) c FROM waiting").get()).toEqual({ c: 60 });
+    expect((await joinNew("R86-4", "A-1101", 701, "8.8.8.8")).status).toBe(200); // a right ID is never stopped
+    expect((await joinNew("R86-4", "Z-6001", 702, "8.8.4.4", T + 11 * 60_000)).status).toBe(403); // the next window starts clean
+  });
+  // M3 (audit): an office behind one address must not be locked out by its own typos.
+  test("M3: 20 colleagues behind one address type an ID that is not on the list (over the address limit); the next colleague, whose ID IS listed, still joins (200); so does the one after", async () => {
+    const h = await game("R86-9"); await list(h, "R86-9", ["E-2001", "E-2002"]);
+    for (let i = 0; i < 20; i++) await joinNew("R86-9", "TYPO-" + i, i, "5.6.7.8");
+    expect((await joinNew("R86-9", "TYPO-99", 90, "5.6.7.8")).status).toBe(429); // the wrong tries are slowed down
+    expect((await joinNew("R86-9", "E-2001", 91, "5.6.7.8")).status).toBe(200); // a right ID is not
+    expect((await joinNew("R86-9", "E-2002", 92, "5.6.7.8")).status).toBe(200);
+  });
+  test("M3: 50 listed players behind one address, 25 of them mistyping once first: all 50 get in", async () => {
+    const h = await game("R86-10"); await list(h, "R86-10", Array.from({ length: 50 }, (_, i) => "E-" + (3000 + i)));
+    for (let i = 0; i < 25; i++) await joinNew("R86-10", "E-" + (3000 + i) + "X", i, "5.5.0.1");
+    for (let i = 0; i < 50; i++) expect([i, (await joinNew("R86-10", "E-" + (3000 + i), 100 + i, "5.5.0.1")).status]).toEqual([i, 200]);
   });
 });
 

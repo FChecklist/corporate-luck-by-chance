@@ -2,7 +2,17 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
-## 1.5.3 - 2026-11-21 (not deployed; nothing live changes until the owner says go)
+## 1.5.4 - 2026-11-22 (not deployed; nothing live changes until the owner says go)
+Version 1.5.3 failed both of its independent audits, each with three Mediums, all in the ID guess limit (R86). 1.5.4 is 1.5.3 plus the fixes for those three, in plain words:
+
+Fixed
+- **The limit could be skipped by sending tries at the same moment** (audit Medium). The game page first looked at the count and only later added to it, so 70 wrong IDs sent together were all answered as normal. Now one single step adds one and returns the new number, and that number is compared with the limit. Together-sent tries are counted exactly: 15 are answered normally, the rest are asked to wait. Where: `apps/edge/src/worker.ts` (`bumpMiss`, `idGuessMiss`). Tests: `audit-fixes-153.test.ts` (R86, the "M1" tests, including 70 and 100 tries sent with `Promise.all`).
+- **One person could stop everybody from joining by ID** (audit Medium). The count for the whole game stopped every typed ID, right ones too. Now a right (listed) ID is never counted and never stopped, and one connection adds at most its own 15 to the game count, so a single burst cannot use up the game's share. Over the limit, a wrong ID is not added to the organizer's waiting list either. Tests: R86 "M2".
+- **An office behind one network address was locked out by its own typing mistakes** (audit Medium). Colleagues whose ID is on the list are no longer refused because other people on the same address typed wrong IDs. Only the wrong tries are slowed down. Tests: R86 "M3" (20 mistyping colleagues, then listed ones join; 50 listed players with 25 first mistyping).
+Not changed on purpose (see `docs/SUITE_RULES.md` section 7): a typed ID is matched, not proven. Because a right ID is never stopped, a person who already knows a listed ID can still take that seat; the limit only slows down guessing and mapping the list through wrong IDs. The owner's choice (personal links only, or the organizer's yes for a typed ID) is still open. The audited pay contract, the money switches (`PAY_VIA_CONSOLE` unset) and the legal pages are untouched.
+Audits: pending (0 of 2). PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
+
+## 1.5.3 - 2026-11-21 (never deployed: it failed both independent audits; its changes ship in 1.5.4)
 Version 1.5.2 failed both of its independent audits (one Medium each). 1.5.3 is 1.5.2 plus the fixes for everything they found, in plain words:
 
 Fixed

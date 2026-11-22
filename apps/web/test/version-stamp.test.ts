@@ -57,14 +57,14 @@ describe("R84: one version number, three places", () => {
     for (const c of v.changes) expect([c.id, !!c.what, !!c.where, /^https:\/\/github\.com\/FChecklist\/corporate-luck-by-chance\/pull\/\d+$/.test(c.pr)]).toEqual([c.id, true, true, true]);
     expect(v.changes.length).toBeLessThanOrEqual(20);
   });
-  test("package.json, the footer of every public page and the What's new page carry the same number (v1.5.3)", () => {
+  test("package.json, the footer of every public page and the What's new page carry the same number (v1.5.4)", () => {
     expect(JSON.parse(rd("package.json")).version).toBe(v.version);
     const { readdirSync } = require("node:fs");
     const pages = (readdirSync(join(ROOT, "apps/web/public")) as string[]).filter((f) => f.endsWith(".html") && /class="uf"/.test(rd("apps/web/public/" + f)));
     expect(pages.length).toBeGreaterThanOrEqual(13); expect(pages).toContain("changes.html"); expect(pages).toContain("about.html");
     for (const f of pages) expect([f, rd("apps/web/public/" + f).match(/<p class="ufv">Version (\d+\.\d+\.\d+) &middot; <a href="\/changes\.html">/)?.[1]]).toEqual([f, v.version]);
     const c = rd("apps/web/public/changes.html"); expect(c).toContain(`<h2 id="v-${v.version.replace(/\./g, "-")}">Version ${v.version}</h2>`);
-    expect(c.indexOf(`Version ${v.version}</h2>`)).toBeLessThan(c.indexOf("Version 1.5.2</h2>")); // newest first
+    expect(c.indexOf(`Version ${v.version}</h2>`)).toBeLessThan(c.indexOf("Version 1.5.3</h2>")); expect(c.indexOf("Version 1.5.3</h2>")).toBeLessThan(c.indexOf("Version 1.5.2</h2>")); // newest first
     const words = c.slice(c.indexOf("<main"), c.indexOf("</main>")); expect(words).not.toMatch(/\.(ts|js|mjs)\b|docs\/|pull\/\d+|worker|D1|SQL|secret|rate limit|per IP/i); // plain words only: no file names, no internal ids, no security details
     expect(rd("pages/build.mjs")).toContain('"changes.html"'); expect(rd("pages/build.mjs")).toContain('["/changes", PLAINCSP, true]');
   });

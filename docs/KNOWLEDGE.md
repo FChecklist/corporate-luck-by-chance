@@ -1,12 +1,12 @@
 # Knowledge: Corporate Luck by Chance (corporate-luck-by-chance)
 
-Written 20 Nov 2026 (PR 11) and brought up to date on 21 Nov 2026 (version 1.5.3) for a future AI session that has never seen this repo (standard: marketing-ledger plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md). It describes the CURRENT state only, from the code and existing docs. Anything not found is marked "unknown". Do not publish this file on the website.
+Written 20 Nov 2026 (PR 11) and brought up to date on 21 Nov 2026 (version 1.5.4) for a future AI session that has never seen this repo (standard: marketing-ledger plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md). It describes the CURRENT state only, from the code and existing docs. Anything not found is marked "unknown". Do not publish this file on the website.
 
 ## 1. What this is
 Pure-luck dice game for company events: ten rounds of ten dice rounds, a target number from 1 to 6, a strict top 10 with no ties. The game runs on the players' phones; the server keeps the sealed secret, the list of players and the votes.
 - Live site: https://luck.corporatetambola.com (Cloudflare Pages project `corporate-luck-by-chance`).
 - Live now: **1.5.1**, deployed 2026-11-20 18:52 UTC (Pages deployment `7fb0c286`), built from the default branch head `1736b9a` (the merge of PR 12). It is dark: `PAY_VIA_CONSOLE` is unset, so the old Pay now flow works exactly as before and no real payment flag was switched. The live `/version.json` has `commit` and `builtAt` but no version number; the number appears there from the next deploy on.
-- Version in the repository: **1.5.3** (1.5.2, the owner rules v1.1 change, plus the fixes for its two failed audits; PR 14; not deployed). 1.5.2 itself was never deployed. Nothing live changes until the owner says go.
+- Version in the repository: **1.5.4** (1.5.2, the owner rules v1.1 change, plus the fixes for the failed audits of 1.5.2 and 1.5.3; PR 14; not deployed). 1.5.2 and 1.5.3 were never deployed. Nothing live changes until the owner says go.
 - Where the history is: `CHANGELOG.md` (plain-language, newest first), `version.json` (the number and the last changes), `docs/DEPLOYS.md`. PR 11 (first knowledge notes) and PR 13 (the 1.5.1 deploy record) are folded into these files by PR 14 (1.5.2, then 1.5.3): close them when it merges; do not merge them as well.
 - Other repos and what they are for: `KNOWLEDGE-MAP.md` in the repo root.
 
@@ -20,7 +20,7 @@ Files that matter first: `docs/RULES.md` (R01 to R91, each with a test), `apps/e
 ## 4. Rules in force
 - Suite rules version 1.1 (20 Nov 2026): `docs/SUITE_RULES.md` (the owner's text, then section 6 says what this repo does about each rule, section 7 what is open for the owner); console voice: `docs/CONSOLE_VOICE.md`; source in the ledger `plans/SUITE-RULES-VERSION-2026-11-20.md`.
 - Invite by ID only: ONE alphanumeric ID, no names or personal details; every non-alphanumeric character is removed and the rest upper-cased (A-1101 = A 1101 = A/1101) at upload, join, approval and matching; a person not on the list waits for the organizer's or host's yes or no. The list and all IDs are deleted 23 hours after the game ends (inside the "within 24 hours" promise). Rules R76 to R80.
-- ID content rule (R85): a name, an e-mail or a mobile number is never an ID (`idContentProblem` in `invite-id.ts`, copied in `zc.js`; a test keeps the two equal). Typed IDs that do not work are counted per address and per game (R86). An ID is matched, not proven.
+- ID content rule (R85): a name, an e-mail or a mobile number is never an ID (`idContentProblem` in `invite-id.ts`, copied in `zc.js`; a test keeps the two equal). Typed IDs that do not work are counted per address (15) and per game (60 or the game size) in 10-minute windows, with ONE atomic statement (`INSERT .. ON CONFLICT DO UPDATE .. RETURNING`, `bumpMiss` in `worker.ts`), and only a miss is ever counted or stopped: a listed ID is never refused because of other people's wrong tries, and one address adds at most its own 15 to the game count (R86). An ID is matched, not proven.
 - Two ways to start: "You start the game" (default) and "The game starts by itself". Rules R72 to R75. No game starts before its pay step is done, for anybody (R87).
 - Console voice = "you", polite, simple English, never "I". Rule R71, test `apps/web/test/console-voice.test.ts`.
 - Fairness wording must be true in code. The owner's line "No one knows the next number: not the organizer, not the host, not even the software" is NOT used: the server draws the secret and holds it until the game is over (`docs/RULES.md`, Known limits). No page may say "not even us". Rule R81.
@@ -30,7 +30,7 @@ Files that matter first: `docs/RULES.md` (R01 to R91, each with a test), `apps/e
 
 ## 5. How to run the tests
 `bun install` once (the folder starts without its packages), then `bun test packages apps tools/control-worker` (about 2 minutes) and `bun run typecheck` (`tsc --noEmit -p tsconfig.json`).
-At 1.5.3 three tests fail that also failed at 1.5.1 and 1.5.2, for reasons outside this change: `legal-sync.test.ts` (the legal position page in `site/` says "Corporate Tambola" in one sentence where the app page says this game), and two console tests in `pages.test.ts` ("Create a new game like this one" and "Rescheduling ...") that use dates in October 2026 and fail once the clock has passed them. Everything else passes.
+At 1.5.4 three tests fail that also failed at 1.5.1 and 1.5.2, for reasons outside this change: `legal-sync.test.ts` (the legal position page in `site/` says "Corporate Tambola" in one sentence where the app page says this game), and two console tests in `pages.test.ts` ("Create a new game like this one" and "Rescheduling ...") that use dates in October 2026 and fail once the clock has passed them. Everything else passes.
 RAM on the owner's laptop is tight: no full builds or browsers without the heavy lock (C:/ct/HEAVY_JOB_PROTOCOL.md).
 
 ## 6. Deploy and roll back
@@ -44,7 +44,7 @@ Nothing is deployed from a docs-only change. Every deploy needs a version bump, 
 - Guests who win confirm their name and mobile number to collect a prize (`winners.ts`); that is separate from the invite list and was not changed.
 - Hosts and Co-hosts still have a name and a mobile number (their own contact, not an invite).
 - Rupee sign in prices (owner rule): not done.
-- A typed ID is matched, not proven (SUITE_RULES.md section 7): the limit on wrong tries slows guessing, it does not stop someone who knows a listed ID.
+- A typed ID is matched, not proven (SUITE_RULES.md section 7): the limit on wrong tries slows guessing and mapping the list, it does not stop someone who knows a listed ID (a right ID is never stopped, by design: it keeps an office behind one address, and a game under a stranger's burst, joinable).
 - The luck/tick route is open to any Organizer-level key of the platform; it only starts games that are already due (harmless, left as it is).
 - The Terms box K6 and the sister games' copy of the ID rule: see SUITE_RULES.md section 7.
 

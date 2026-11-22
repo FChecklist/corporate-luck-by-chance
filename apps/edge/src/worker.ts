@@ -260,23 +260,28 @@ async function joinOverLimit(env: Env, req: Request, now: number): Promise<boole
   } catch { return false; }
 }
 /**
- * Guessing typed IDs (v1.5.3). An ID is easy to guess (A1101, A1102 ...) and a typed ID is MATCHED to a list, not proven (people.ts), so wrong tries are counted:
- * every typed ID that is not accepted as that person's own (not on the list, already on another phone, removed, not an ID at all) counts as a miss against the network address AND against the game,
- * in 10-minute windows. Over the limit the join answers a friendly 429 BEFORE it says anything about the ID, so the answers cannot be used to map who is invited.
- * Right tries are not counted, so an office behind one address that joins at the start time is not slowed down.
+ * Guessing typed IDs (v1.5.3, made atomic and fair in v1.5.4). An ID is easy to guess (A1101, A1102 ...) and a typed ID is MATCHED to a list, not proven (people.ts), so wrong tries are counted:
+ * every typed ID that is not accepted as that person's own (not on the list, already on another phone, removed, not an ID at all) is a miss, counted per network address and per game in 10-minute windows.
+ * 1) ATOMIC: a miss is counted with ONE statement (INSERT .. ON CONFLICT DO UPDATE .. RETURNING) and the number it returns is compared with the limit. There is no separate read, so requests that arrive together cannot all see "0 misses".
+ * 2) A RIGHT ID IS NEVER STOPPED: the limit is only looked at when a try is a miss. A listed person is never refused because of other people's wrong tries (an office behind one address, a stranger's burst).
+ * 3) ONE ADDRESS CANNOT USE UP THE GAME: the game counter only counts misses that the address's own limit let through, so one address adds at most ID_MISS_PER_IP to it.
+ * Over the limit a miss is answered with a friendly 429 instead of the usual answer, and nothing is stored for it (no waiting-room entry).
  */
 const ID_MISS_PER_IP = 15, ID_MISS_GAME_MIN = 60;
 const idMissKeys = async (req: Request, eid: string, now: number) => { const ip = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), w = new Date(now).toISOString().slice(0, 15); return { ip: `idm/${w}/${eid}/${ip}`, game: `idg/${w}/${eid}` }; };
-async function idGuessBlocked(env: Env, req: Request, eid: string, cap: number, now: number): Promise<Response | null> {
-  try {
-    const k = await idMissKeys(req, eid, now), get = async (key: string) => Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(key).first<{ v: string }>())?.v ?? 0);
-    if ((await get(k.ip)) >= ID_MISS_PER_IP) return json({ error: "Too many IDs that did not work were tried from this connection. Please wait 10 minutes, then type your ID again. If you share a network with others, ask your organizer for your personal link.", code: "too-many-tries" }, 429);
-    if ((await get(k.game)) >= Math.max(ID_MISS_GAME_MIN, cap)) return json({ error: "Many IDs that did not work were tried on this game just now. Please wait a few minutes, then type your ID again. Your organizer can also send you a personal link.", code: "too-many-tries" }, 429);
-  } catch { /* a counter that cannot be read must never stop a real player */ }
-  return null;
+/** Add 1 and read the new value in the same statement (D1 and SQLite both support RETURNING). */
+async function bumpMiss(env: Env, key: string): Promise<number> {
+  const r = await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?, '1') ON CONFLICT(k) DO UPDATE SET v=CAST(CAST(v AS INTEGER)+1 AS TEXT) RETURNING CAST(v AS INTEGER) AS n").bind(key).first<{ n: number }>();
+  return Number(r?.n ?? 0);
 }
-async function idGuessMiss(env: Env, req: Request, eid: string, now: number): Promise<void> {
-  try { const k = await idMissKeys(req, eid, now); for (const key of [k.ip, k.game]) await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?, '1') ON CONFLICT(k) DO UPDATE SET v=CAST(CAST(v AS INTEGER)+1 AS TEXT)").bind(key).run(); } catch { /* counting is best effort */ }
+/** Counts one miss. Returns the friendly 429 when this miss is over the limit, else null (the caller then answers as usual). */
+async function idGuessMiss(env: Env, req: Request, eid: string, cap: number, now: number): Promise<Response | null> {
+  try {
+    const k = await idMissKeys(req, eid, now);
+    if ((await bumpMiss(env, k.ip)) > ID_MISS_PER_IP) return json({ error: "Too many IDs that did not work were tried from this connection. Please wait 10 minutes, then type your ID again. If you share a network with others, ask your organizer for your personal link.", code: "too-many-tries" }, 429);
+    if ((await bumpMiss(env, k.game)) > Math.max(ID_MISS_GAME_MIN, cap)) return json({ error: "Many IDs that did not work were tried on this game just now. Please wait a few minutes, then type your ID again. Your organizer can also send you a personal link.", code: "too-many-tries" }, 429);
+  } catch { /* a counter that cannot be written must never stop a real player */ }
+  return null;
 }
 const BUSY = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
 
@@ -1380,8 +1385,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!typedGiven && b?.phone != null && String(b.phone).trim() !== "") return json({ error: "Please type your ID. A mobile number is not used to join.", code: "need-id" }, 400); // an old page that still sends a number
     const typedId = idOf(b?.id), typedPh = await idHash(b?.id);
     const guessing = typedGiven && !(tok && typedPh && typedPh === tok.ph); // somebody typing an ID that is not the one their own personal link stands for
-    if (guessing) { const stop = await idGuessBlocked(env, req, eid!, e.cap, now); if (stop) return stop; } // before anything is said about the ID: the answers must not map the invite list
-    const missed = async (r: Response): Promise<Response> => { if (guessing) await idGuessMiss(env, req, eid!, now); return r; }; // a try that did not work counts
+    const missed = async (r: Response): Promise<Response> => (guessing && (await idGuessMiss(env, req, eid!, e.cap, now))) || r; // a try that did not work is counted (atomically); over the limit the friendly wait answer replaces the usual one, so the answers cannot map the invite list. A right try is never counted or stopped.
     if (typedGiven && !typedPh) { const cl = cleanInviteId(b?.id) as { why: string; code?: string }; return missed(json({ error: cl.code === "not-an-id" ? NOT_AN_ID_MSG : cl.why, code: "bad-id" }, 400)); }
     let gid: string | null = typedId ?? tokPii?.id ?? (tok ? "" : null); // the ID this person is known by ("" for a guest who joins with a nickname only, or for a 1.5.1 link that holds a number and no ID)
     let ph = typedPh ?? tok?.ph ?? null;
@@ -1444,7 +1448,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     const target = owner ?? "o";
     const lateName = cleanName(b?.name);
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
-      if (guessing) await idGuessMiss(env, req, eid!, now); // an ID that is on no list is a try that did not work
+      if (guessing) { const stop = await idGuessMiss(env, req, eid!, e.cap, now); if (stop) return stop; } // an ID that is on no list is a try that did not work; over the limit nothing is added to the waiting room
       if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
       const w = await addWaiting({ env, eid: eid!, e, now }, { ph, id: gid!, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
