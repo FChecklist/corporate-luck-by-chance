@@ -2,7 +2,7 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
-## 1.5.5 - 2026-11-22 (not deployed; nothing live changes until the owner says go)
+## 1.5.5 - 2026-11-22 (DEPLOYED 22 Nov 2026 about 17:42 IST, deployment 621b0dbc)
 Version 1.5.4 got one PASS and one FAIL from its two independent audits (the FAIL had one High and one Medium). 1.5.5 is 1.5.4 plus the fixes, in plain words:
 
 Fixed
@@ -21,7 +21,7 @@ Where tested: R94 (a stranger takes a listed ID, the organizer sees it, removes 
 Changed
 - Version 1.5.5 in `version.json` and `package.json`, the footers, `changes.html` (What's new), `docs/KNOWLEDGE.md`, `docs/RULES.md` (R92 to R95), `docs/VERSIONING.md`.
 Lows left as they were, with the reason, in `docs/KNOWLEDGE.md` section 7 (fixed 10-minute window, waiting room can be filled by a burst, a probe that is not counted, other limits still count the full IPv6 address, `bun.lock`).
-Audits: pending (0 of 2). PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Rollback id: 7fb0c286 (the 1.5.1 deployment; only its short id is recorded).
+Audits: two independent AUDIT: PASS on ef502b80a544e8f5d29353507eea5551c4518ede. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/14. Deployed to Cloudflare Pages project corporate-luck-by-chance as deployment 621b0dbc (live `/version.json` says 1.5.5, commit ef502b80a544, dirty:true only because `bun install` changed `bun.lock` in the deploy clone; the code is the audited head). Rollback id: 7fb0c286 (commit 446ba215, deployed 20 Nov). No migration or function change in this release.
 
 ## 1.5.4 - 2026-11-22 (not deployed; nothing live changes until the owner says go)
 Version 1.5.3 failed both of its independent audits, each with three Mediums, all in the ID guess limit (R86). 1.5.4 is 1.5.3 plus the fixes for those three, in plain words:
