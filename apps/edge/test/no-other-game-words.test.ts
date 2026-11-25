@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { layoutReport, type ReportData } from "../src/report-layout";
 
 const WEB = join(import.meta.dir, "../../web/public"), SRC = join(import.meta.dir, "../src");
-const SKIP = new Set(["gamesbar.js", "control.js", "zgame.js", "luck-engine.js", "reportgen.js"]); // the games bar lists the other games; the others are built bundles with internal names
+const SKIP = new Set(["gamesbar.js", "control.js", "zgame.js", "luck-engine.js", "reportgen.js", "sw-push-snippet.js"]); // the games bar lists the other games; the others are built bundles with internal names; sw-push-snippet.js is the push service's own file, copied unchanged (apps/web/test/push-optin.test.ts pins it): it lists the sister sites' host names that the push service accepts for a link in a notification, and no person ever reads it
 const WORDS = /\b(bingo|tambola|housie)\b/i;
 const UNIFORM_FOOTER = /<footer class="uf"[\s\S]*?<\/footer>/; // the same footer on every Corporate Games site (games-ops/footer/ufooter.py): it links the other games
 

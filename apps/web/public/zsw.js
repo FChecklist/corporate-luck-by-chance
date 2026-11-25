@@ -7,6 +7,11 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
+// The two handlers a push message needs (a "push" and a "notificationclick" handler), kept as ONE unchanged file from the corporate-push repo (sw-push-snippet.js). They stay idle until a person has tapped
+// "Yes, notify me when this game begins" on the game page, and that button is not shown until the push service address is set (config/push.json). They do not touch saving or fetching: everything below is as it was.
+// Its notificationclick handler is the only one in this file now: it opens links on this site or on the company's own sites. A second handler here would open two windows for one tap, so the older one was folded into it
+// (the news notices below carry "/..." links, which it opens exactly as before). A failed load must never stop the game from being saved, so the import is guarded.
+try { importScripts("/sw-push-snippet.js"); } catch (e) { /* no push handlers: the saved game still works */ }
 const CACHE = "luck-game-v6"; // bump when the game files change shape, so every phone saves a matching set
 const FILES = ["/z.html", "/blackbox.js", "/guide.js", "/zc.html", "/big.html", "/host.html", "/offline.html", "/demo.html", "/demo.js", "/luck.js", "/luck-dice.js", "/rights.js", "/luck-run.js", "/luck-engine.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
   "/app.css", "/z.css", "/luck.css", "/luck-dice.css", "/luck-big.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-192.png", "/icon-maskable-512.png",
@@ -64,11 +69,6 @@ async function showNews() {
   } catch { /* try again at the next sync */ }
 }
 self.addEventListener("periodicsync", (e) => { if (e.tag === "cb-news") e.waitUntil(showNews()); });
-self.addEventListener("notificationclick", (e) => {
-  e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "/";
-  e.waitUntil(self.clients.matchAll({ type: "window" }).then((cs) => { for (const c of cs) if ("focus" in c) { c.navigate(url).catch(() => {}); return c.focus(); } return self.clients.openWindow(url); }));
-});
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;

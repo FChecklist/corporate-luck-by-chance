@@ -2,6 +2,20 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
+## 1.6.0 - 2026-11-25 (NOT DEPLOYED, switched off)
+Work package pt33.3 (PR 16): the "Yes, notify me when this game begins" button from the corporate-push repo (spec: FChecklist/corporate-push PR 1 at f1e93f59f45444711edbb66e632fe1333bf8f9cb), shipped dark. In plain words:
+
+Added
+- **A notify button on the player's game page, switched off.** One setting, `config/push.json` `pushApi`, is empty today: while it is empty the page shows nothing, loads nothing and makes no request to any push service, and the page rule does not mention one. With a real https address the page shows the button, Stop notifications and the privacy line; the browser's own question and every request wait for the person's tap. The three client files are copied unchanged from the push repo (their SHA-256 is pinned in a test).
+- **One message when the game really starts, and a purge when its data is deleted, switched off.** Only when both Pages settings `PUSH_URL` and `PUSH_ADMIN_KEY` are set: one `/send` per game (a flag on the game's row, migration 0027) and one `/purge` whenever the game's personal data is deleted. Neither can stop a game from starting or its data from being deleted. The key is never logged, stored or shown.
+- **Privacy wording.** The privacy page says what is saved (a browser address, not your name, e-mail or phone), that it is deleted with the game within 24 hours, and who carries the message. The list of what a device keeps and the list of settings are updated.
+
+Changed
+- The service worker (`zsw.js`) now loads the push handlers; its own click handler was removed so one tap opens one window.
+- The page rule for `/z` gains the push address in `connect-src` only when configured; `script-src` stays `'self'`.
+
+Tests: `apps/web/test/push-optin.test.ts`, `apps/edge/test/push-notify.test.ts` (fake push service). Audit result: not yet audited. Rollback id: none (not deployed).
+
 ## 1.5.5 - 2026-11-22 (DEPLOYED 22 Nov 2026 about 17:42 IST, deployment 621b0dbc)
 Version 1.5.4 got one PASS and one FAIL from its two independent audits (the FAIL had one High and one Medium). 1.5.5 is 1.5.4 plus the fixes, in plain words:
 

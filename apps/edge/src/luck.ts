@@ -18,6 +18,7 @@ import { sha256Hex } from "../../../packages/luck/src/random";
 import { defaultSettings, parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/settings";
 import { beaconDueMs, gameEndMs, phaseAt, roundOf, totalDiceRounds } from "../../../packages/luck/src/timeline";
 import { openPii } from "./pii";
+import { pushGameBegins } from "./push-notify";
 import type { Env } from "./worker";
 
 export const LUCK_SCHEMA: string[] = [
@@ -154,6 +155,7 @@ export async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: n
   let won = 0;
   for (let i = 0; i < stmts.length; i += 90) { const res = await env.DB.batch(stmts.slice(i, i + 90)); if (i === 0) won = res[0]?.meta?.changes ?? 0; }
   if (won === 0) return { ok: false, status: 409, error: "The game has already started.", code: "started" }; // another start (the game starting by itself, or another press of Start) got there first: its clock is the game's clock, not this one
+  try { await pushGameBegins(env, t.eid, now); } catch { /* "notify me" is best effort: it never stops a game from starting (push-notify.ts; it does nothing unless PUSH_URL and PUSH_ADMIN_KEY are both set) */ }
   return { ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s) };
 }
 /** "The game starts by itself": once the start time has come, a paid game that is set to start by itself begins with its saved plan. Returns the row as it is afterwards. */

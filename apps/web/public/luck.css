@@ -210,3 +210,6 @@ body:has(.zapp) #cb-notify{display:none!important}
 
 .zlogo{display:inline-flex;flex:0 0 auto;line-height:0;text-decoration:none}
 .zlogo img{display:block;width:20px;height:20px;border-radius:5px}
+
+/* corporate-push opt-in (its own style file is loaded only when the push address is set): once the game has begun, the "when this game begins" button is put away unless it is already on; Stop stays */
+#pushslot[data-game="begun"] .cp-optin[data-state="idle"] .cp-optin__btn:not(.cp-optin__keep) { display: none; }
