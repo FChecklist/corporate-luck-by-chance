@@ -46,6 +46,7 @@ import { goScreen, screenJson, screenText } from "./ai-go";
 import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold, toCsv, verifyChain, closeAuditFor, sweepAudit, type AuditEnv } from "./audit";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
 import { LUCK_SCHEMA, luckRoute, ensureL, gameStarted, luckTick } from "./luck";
+import { PUSH_SCHEMA } from "./push-notify";
 import { CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentRequired, hasConsented, recordConsent, textFor, type Kind } from "./consent";
 import { WINNERS_SCHEMA, acceptVotes, auditAi, confirmPrize, listAiAudit, listPrizes, markGiven, myPrizes } from "./winners";
 import { PAUSE_MAX_PARTICIPANTS, safetyForCap, publishControl, readPublished, registerKey, type KV } from "../../../packages/beacon/src/control";
@@ -72,6 +73,8 @@ export interface Env {
   ANALYZE_AI_URL?: string; ANALYZE_AI_KEY?: string; ANALYZE_AI_MODEL?: string;
   /** Optional and public (it is not a secret): the Google sign-in client id. Without it the "Continue with Google" button is hidden and /api/auth/google answers 404. */
   GOOGLE_CLIENT_ID?: string;
+  /** Optional, both or neither: the push service's https address and its admin key (a secret). Only when BOTH are set does the server tell the people who tapped "notify me" that their game has begun, and ask the push service to delete a game's saved browser addresses when the game's data is deleted. Unset = nothing is sent and nothing is asked (push-notify.ts). */
+  PUSH_URL?: string; PUSH_ADMIN_KEY?: string;
 }
 const controlKey = (id: string) => `c/${id}.json`;
 const controlUrl = (env: Env, id: string) => (env.CONTROL_BASE && env.CONTROL_R2 ? `${env.CONTROL_BASE.replace(/\/$/, "")}/${controlKey(id)}` : null);
@@ -180,6 +183,8 @@ export const SCHEMA: string[] = [
   ...ADMIN_SCHEMA,
   // Help Desk: a Refer-and-earn partner prepares games for an Organizer, who publishes with one tap (helpdesk.ts, 0026_helpdesk.sql)
   ...HELPDESK_SCHEMA,
+  // "notify me when this game begins": the one flag on a game's row that keeps the message to one send per game (push-notify.ts, 0027_push_notify.sql)
+  ...PUSH_SCHEMA,
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim

@@ -1,0 +1,4 @@
+{
+ "_about": "The ONE setting for the 'Yes, notify me when this game begins' button on the game page (corporate-push, FChecklist/corporate-push). pushApi = the web address of the push service, for example https://push.example.com (an https address with no path). It is EMPTY today: while it is empty the game page shows nothing, loads nothing and makes no request to any push service, and the page rules (connect-src) do not mention one. The build (pages/build.mjs, pages/push-config.mjs) reads it for the data-push-api value on the page and for the page rule. The server side switches on separately, only when the Pages settings PUSH_URL and PUSH_ADMIN_KEY are both set (apps/edge/src/push-notify.ts). Fill this in only after the push service itself is deployed and has passed its audits.",
+ "pushApi": ""
+}

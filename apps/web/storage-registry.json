@@ -104,6 +104,15 @@
       ]
     },
     {
+      "id": "push-optin",
+      "store": "localStorage",
+      "say": "Only if a player taps the notify button on the game page (switched off today): a yes or no note for each game, so the page shows the right button, and, only after a stop that could not reach our server, the browser address to be deleted on the next visit.",
+      "keys": [
+        "corporatePush.v1.*",
+        "corporatePush.v1pending"
+      ]
+    },
+    {
       "id": "visits",
       "store": "localStorage",
       "say": "On the public pages only: a random visitor id and one first-party cookie, cbv, kept one year, to count visits. Never on game pages, never with names or numbers. With Global Privacy Control or Do Not Track no id is made.",

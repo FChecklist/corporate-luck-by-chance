@@ -25,6 +25,12 @@ function argAt(src: string, from: number): string {
 }
 const lit = /^(["'])((?:(?!\1).)*)\1$/s;
 
+/** The text of a constant that is just a quoted string (const NAME = "text";), or null. */
+const textConst = (name: string, src: string): string | null => {
+  const d = new RegExp("(?:const|let|var)\\s+" + name.replace(/\$/g, "\\$") + "\\s*=\\s*(\"[^\"\\n]*\"|'[^'\\n]*')\\s*;").exec(src);
+  return d ? d[1]!.slice(1, -1) : null;
+};
+
 /** Writes an expression as a key: fixed pieces as they are, every changing piece as *. Follows constants and small helpers inside the same file. */
 function norm(expr: string, src: string, depth = 0): string {
   const e = expr.trim();
@@ -35,7 +41,7 @@ function norm(expr: string, src: string, depth = 0): string {
     const parts: string[] = []; let d = 0, cur = "";
     for (const c of e) { if (c === "(" || c === "[") d++; if (c === ")" || c === "]") d--; if (c === "+" && d === 0) { parts.push(cur); cur = ""; } else cur += c; }
     parts.push(cur);
-    return parts.map((p) => { const q = p.trim(); return lit.test(q) ? lit.exec(q)![2]! : "*"; }).join("").replace(/\*+/g, "*");
+    return parts.map((p) => { const q = p.trim(); if (lit.test(q)) return lit.exec(q)![2]!; return (/^[A-Za-z_$][\w$]*$/.test(q) ? textConst(q, src) : null) ?? "*"; }).join("").replace(/\*+/g, "*"); // a fixed piece held in a plain-text constant (FLAG_PREFIX + scope) is followed too
   }
   if (depth > 3) return "?" + e;
   m = /^([A-Za-z_$][\w$]*)$/.exec(e);

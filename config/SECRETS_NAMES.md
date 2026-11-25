@@ -52,4 +52,6 @@ Where things are set:
 | `ANALYZE_AI_KEY` | Key for that endpoint | Optional Pages secret | secret |
 | `ANALYZE_AI_MODEL` | Model name for that endpoint | Optional Pages variable | setting |
 | `PAY_VIA_CONSOLE` | "1" sends the old Pay now pages and routes to the console (console-pay.ts); anything else, or unset, keeps the old payment exactly as it was. Set only by the owner. | Optional Pages variable | setting |
+| `PUSH_URL` | The push service's https address (corporate-push), for "Yes, notify me when this game begins": when the game starts, one message is handed to it; when a game's data is deleted, the game's saved browser addresses are deleted there too. When it is not set, nothing is sent and nothing is asked (dark). Used only together with `PUSH_ADMIN_KEY` | Optional Pages variable | setting |
+| `PUSH_ADMIN_KEY` | The push service's admin key (at least 32 random characters), sent in one header to that service's send and purge addresses; never stored, logged or shown. When it is not set, everything stays dark | Optional Pages secret | secret |
 | `TARGET` | The scheduled job: the web address it calls | `apps/cron/wrangler.toml` | setting |

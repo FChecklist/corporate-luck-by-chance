@@ -98,6 +98,7 @@
     lastV = v;
     const g = RUN.game, s = RUN.settings(), p = RUN.phase(), seat = v.you ? v.you.seat : -1;
     if (window.ctzView) window.ctzView({ phase: p.kind === "over" ? "ended" : String(p.kind || "") }); // the flight recorder (blackbox.js) learns the stage
+    if (p.kind === "over") pushEnded();
     const gi = p.g !== undefined ? p.g : -1;
     const key = keyOf(v);
     if (key === lastKey) return; lastKey = key;
@@ -172,11 +173,36 @@
   function standing(seat) { const st = LE.standingOf(RUN.game.total, seat); return st.of > 1 ? (st.percent <= 50 ? `You are in the top ${st.percent}% of ${st.of} players.` : `You are ${ord(st.ahead + 1)} of ${st.of} players.`) : ""; } // "top 100%" confused people: in the lower half the place is said as a place
   const tickCd = () => document.querySelectorAll("#cd[data-until]").forEach((el) => { el.textContent = secsTo(Number(el.dataset.until)); });
 
+  // ---------- "Yes, notify me when this game begins" (corporate-push): DARK until config/push.json holds a real https address ----------
+  // The build writes that ONE address into data-push-api on #pushslot (pages/build.mjs). While it is empty (today) nothing is drawn, no file is loaded and no request goes to any push service.
+  // When it is a real https address the unchanged opt-in script and style (push-optin.js / push-optin.css) are loaded and the block is built here for THIS game. The browser's own question is asked only after a tap on its button.
+  const PUSH_SLOT = document.getElementById("pushslot");
+  const PUSH_API = (() => { try { const u = new URL(PUSH_SLOT ? (PUSH_SLOT.getAttribute("data-push-api") || "").trim() : ""); return u.protocol === "https:" && !u.username && !u.password && !u.search && !u.hash && (u.pathname === "/" || u.pathname === "") && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(u.hostname) ? u.origin : ""; } catch (e) { return ""; } })();
+  let pushBox = null;
+  const pushWire = () => {
+    if (!PUSH_API || pushBox || !/^[A-Za-z0-9_-]{1,128}$/.test(EID)) return;
+    pushBox = document.createElement("div");
+    pushBox.setAttribute("data-push-optin", "");
+    pushBox.setAttribute("data-push-api", PUSH_API);
+    pushBox.setAttribute("data-push-site", "game");
+    pushBox.setAttribute("data-push-game-id", EID);
+    pushBox.setAttribute("data-push-privacy", "/privacy.html");
+    pushBox.setAttribute("data-push-sw", "/zsw.js"); // only used if the browser has no service worker for this site yet
+    pushBox.setAttribute("data-push-ended", "false");
+    PUSH_SLOT.appendChild(pushBox);
+    const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "/push-optin.css"; document.head.appendChild(css);
+    const js = document.createElement("script"); js.src = "/push-optin.js"; js.defer = true; document.head.appendChild(js);
+  };
+  // once the game has begun the button for "when this game begins" is put away (Stop stays); once it is over the block offers "Keep notifying me about new games" to a person who turned it on
+  const pushBegun = () => { if (PUSH_SLOT) PUSH_SLOT.setAttribute("data-game", "begun"); };
+  const pushEnded = () => { pushBegun(); if (!pushBox) return; pushBox.setAttribute("data-push-ended", "true"); pushBox.dispatchEvent(new Event("corporatepush:game-ended")); };
+
   const tick = async () => {
     clearTimeout(timer);
     try {
       const v = await RUN.fetchView({ pid, device });
       stateNow = v.state;
+      if (stateNow && stateNow !== "open") pushBegun();
       if (v.state === "open") {
         set(`${brand()}${head()}<div class="zcard lt-wait" role="status"><div class="lt-hero">${LD.dieHtml("")}</div><h2>You are in</h2><p>${esc(v.startMode === "auto" ? "The game starts by itself at the start time." : "Waiting for the host to start the game.")}</p>${v.joined ? `<p><span class="lt-pill">${esc(v.joined)} joined so far</span></p>` : ""}<p class="zsmall">No player, organizer or host can see a target or a dice early: each target is published only when its dice round opens. The fingerprint of this game: <span class="mono">${esc((v.commit || "").slice(0, 16))}</span>.</p></div>`);
       } else if (v.phase === "watching") {
@@ -198,6 +224,6 @@
   cdTimer = setInterval(tickCd, 250);
   const start = () => { if (!pid) joinView(); else tick(); };
   if (!EID) { set(`${head()}<div class="zcard"><h2>Open your game link</h2><p class="zsmall">Ask your organizer for the link to this game.</p></div>`); return; }
-  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>We could not find this game</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
+  api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2></div>`); return; } pushWire(); start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>We could not find this game</h2><p class="zsmall">Please check the link your organizer sent you.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });
   void cdTimer;
 })();

@@ -67,7 +67,8 @@ describe("installable app (PWA)", () => {
     expect(js).not.toMatch(/innerHTML|Install app|Saving the game|saved on this device|Remind me/i); // nothing is drawn, except one small "Notify me" button
     expect((js.match(/createElement/g) ?? []).length).toBe(1); expect(js).toContain("Notify me"); expect(js).not.toContain("pointerdown"); // the permission question comes only from a tap on that button
     expect(js).toContain("preventDefault"); expect(js).toContain("Notification.permission"); expect(js).toContain("/api/notices"); expect(js).toContain("periodicSync");
-    expect(sw).toContain("periodicsync"); expect(sw).toContain("notificationclick"); expect(sw).toContain('Notification.permission !== "granted"');
+    expect(sw).toContain("periodicsync"); expect(sw).toContain('Notification.permission !== "granted"');
+    expect(sw).toContain('importScripts("/sw-push-snippet.js")'); expect(sw).not.toContain('addEventListener("notificationclick"'); // the one notificationclick handler is the push snippet's (apps/web/test/push-optin.test.ts); a second one here would open two windows for one tap
     expect(js + sw).not.toMatch(/pushManager|subscribe\(/); // no push subscription: we never receive an address of the visitor
   });
 });
