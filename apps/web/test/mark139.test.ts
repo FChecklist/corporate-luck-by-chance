@@ -22,7 +22,13 @@ function check(name: string, html: string) {
   expect(at).toBeGreaterThan(body);
 }
 
-const htmlIn = (dir: string) => readdirSync(join(ROOT, dir)).filter((f) => f.endsWith(".html")).map((f) => `${dir}/${f}`);
+// Walks every folder below dir (all depths); only the vendored console pack is left out.
+const SKIP = new Set(["apps/web/public/pack", "node_modules"]);
+const htmlIn = (dir: string): string[] => readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+  const rel = `${dir}/${e.name}`;
+  if (e.isDirectory()) return SKIP.has(rel) || SKIP.has(e.name) ? [] : htmlIn(rel);
+  return e.name.endsWith(".html") ? [rel] : [];
+});
 const STATIC = [...htmlIn("apps/web/public"), ...htmlIn("site")];
 
 test("there are static pages to check", () => { expect(STATIC.length).toBeGreaterThan(40); });
