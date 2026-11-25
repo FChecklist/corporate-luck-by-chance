@@ -1,6 +1,6 @@
 {
   "name": "corporate-luck-by-chance",
-  "version": "1.5.5",
+  "version": "1.6.0",
   "private": true,
   "workspaces": [
     "packages/*",
