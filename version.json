@@ -1,11 +1,12 @@
 {
  "product": "Corporate Luck by Chance",
- "version": "1.5.1",
+ "version": "1.5.2",
  "commit": "set at build",
  "builtAt": "set at build",
- "note": "Version history before this file was not recorded (git history shows 1.4.x); 1.5.0 is the first number kept here, 1.5.1 fixes the audit finding on PR 12. Not deployed.",
+ "note": "Version history before this file was not recorded (git history shows 1.4.x); 1.5.0 is the first number kept here, 1.5.1 fixes the audit finding on PR 12, 1.5.2 adds the small top mark. Not deployed.",
  "changes": [
   { "id": "console-pay-step", "what": "Game side of the console Pay step, dark: payInfo/markPaid for the organizer's game, PAY_VIA_CONSOLE switch (off = old Pay now unchanged), descriptor, page rules for the payment window and the console. Not deployed, no switch set.", "where": "apps/edge/src/console-pay.ts, apps/edge/src/console-bridge/ and apps/edge/test/console-contract/ and apps/web/public/pack/ (vendored), apps/web/public/zc-pay-game.js, config/console-pay.json, pages/build.mjs (/zc header), pages/functions/_middleware.ts, apps/edge/src/worker.ts (handleCore); organizer page /zc header only", "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12" },
   { "id": "console-pay-size-race", "what": "Audit fix: markPaid could unlock a bigger game with a smaller size's payment if the owner raised the limit between the size check and the write. Every write of markPaid now only happens while the game is still unpaid, open and at the limit the size was worked out from (cap=?); otherwise it refuses for certain and writes nothing.", "where": "apps/edge/src/console-pay.ts (markPaid), tests apps/edge/test/console-pay.test.ts and console-pay-static.test.ts", "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12" }
+  ,{ "id": "mark-139", "what": "The small mark १३९ (6px, bold, dark blue, thin dark red line under it) at the very top centre of every page; it takes no space, catches no clicks and is hidden from screen readers and copy. Numerals only, no wording, layout or payment change. Not deployed.", "where": "every static page in apps/web/public and site, the pages built in code (apps/edge/src/admin.ts, people.ts, trust-page.ts), shared text in apps/edge/src/mark139.ts, guard apps/web/test/mark139.test.ts", "pr": "pending" }
  ]
 }

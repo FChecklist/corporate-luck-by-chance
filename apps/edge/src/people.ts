@@ -7,6 +7,7 @@
 //   - Removing a person before the game frees the place; during the game the seat stays in the public seat list (winners must be identical on every phone) and is only blocked.
 // Names and numbers are sealed at rest (pii.ts) and never reach an AI key (every route here refuses an AI, and anything arriving through an AI work link).
 // The Worker (worker.ts) owns routing, `join` and `settings`; this file owns the schema, the cleaning of numbers and the people / waiting / me routes.
+import { MARK139_DIV, MARK139_STYLE } from "./mark139";
 import { consentRequired, recordConsent } from "./consent";
 import { openPii, openText, sealPii, sealText } from "./pii";
 import type { D1, Env } from "./worker";
@@ -596,7 +597,7 @@ export type { PersonRow };
 export async function joinLinkPage(env: Env, token: string, origin: string, gameNameOf: (e: any) => string): Promise<Response> {
   const headers = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex, nofollow", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'" };
   const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
-  const gone = () => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Link not valid</title></head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>This link is not valid any more</h1><p>Please ask the person who invited you to send it again.</p></body></html>`, { status: 404, headers });
+  const gone = () => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Link not valid</title>${MARK139_STYLE}</head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">${MARK139_DIV}<h1>This link is not valid any more</h1><p>Please ask the person who invited you to send it again.</p></body></html>`, { status: 404, headers });
   if (!/^[a-z0-9]{6,20}$/i.test(token)) return gone();
   const row = await env.DB.prepare("SELECT eid, pii, status FROM person WHERE tok_hash=?").bind(await tokenHash(token)).first<{ eid: string; pii: string; status: string }>();
   if (!row || row.status === "removed") return gone();
@@ -607,6 +608,6 @@ export async function joinLinkPage(env: Env, token: string, origin: string, game
   const title = `You are invited to ${game}`, desc = `${first ? first + ", tap" : "Tap"} to open your game. Corporate Luck by Chance needs no app and no sign-up.`;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0;url=${esc(target)}"><title>${esc(title)}</title>`
     + `<meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Luck by Chance"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(origin + "/j/" + token.toLowerCase())}">`
-    + `<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(title)}"></head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>${esc(title)}</h1><p><a href="${esc(target)}">Open your game</a></p></body></html>`;
+    + `<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(title)}">${MARK139_STYLE}</head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">${MARK139_DIV}<h1>${esc(title)}</h1><p><a href="${esc(target)}">Open your game</a></p></body></html>`;
   return new Response(html, { headers });
 }

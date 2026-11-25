@@ -1,5 +1,6 @@
 // The public Trust page (/trust.html) and /llms.txt, generated from the same 10 facts the AI assistant is given (ai-facts.ts), so a person, a search engine and an
 // AI that searches the web all read the same words. tools/make-trust.ts writes the two files; a test regenerates them and fails if they differ, so they cannot drift.
+import { MARK139_DIV, MARK139_STYLE } from "./mark139";
 import { FACTS } from "./ai-facts";
 
 const ORIGIN = "https://luck.corporatetambola.com";
@@ -18,7 +19,7 @@ export function trustHtml(): string {
 <meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Luck by Chance"><meta property="og:title" content="${esc(TITLE)}"><meta property="og:description" content="${esc(DESC)}"><meta property="og:url" content="${ORIGIN}/trust.html"><meta property="og:image" content="${ORIGIN}/img/card.png">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(TITLE)}"><meta name="twitter:description" content="${esc(DESC)}"><meta name="twitter:image" content="${ORIGIN}/img/card.png">
 <link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/app.css"><link rel="icon" href="/favicon-32.png?v=2" sizes="32x32" type="image/png"><link rel="icon" href="/icon-192.png?v=2" sizes="192x192" type="image/png">
-<style>body{margin:0;font:17px/1.55 Inter,system-ui,sans-serif;color:#1b1f2a;background:#fff}main{max-width:760px;margin:0 auto;padding:28px 18px 56px}h1{font-size:28px;line-height:1.2;margin:0 0 8px}li{margin:0 0 14px}.lead{color:#444}.note{background:#F4F9F8;border-radius:10px;padding:12px 14px;margin:20px 0}a{color:#0B5D5B}footer{margin-top:28px;font-size:15px;color:#444}</style></head><body>
+<style>body{margin:0;font:17px/1.55 Inter,system-ui,sans-serif;color:#1b1f2a;background:#fff}main{max-width:760px;margin:0 auto;padding:28px 18px 56px}h1{font-size:28px;line-height:1.2;margin:0 0 8px}li{margin:0 0 14px}.lead{color:#444}.note{background:#F4F9F8;border-radius:10px;padding:12px 14px;margin:20px 0}a{color:#0B5D5B}footer{margin-top:28px;font-size:15px;color:#444}</style>${MARK139_STYLE}</head><body>${MARK139_DIV}
 <main>
 <p><a href="/">Corporate Luck by Chance</a></p>
 <h1>Safety, privacy and how it works: 10 facts</h1>
