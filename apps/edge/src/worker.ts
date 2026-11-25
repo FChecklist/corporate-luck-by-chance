@@ -1353,6 +1353,11 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
   if (action === "join" && req.method === "POST") {
     const b = await body(req);
     { const mt = consentRequired(b, "K4"); if (mt) return mt; } // K4: the 24-hour notice (with the invite chain) and the 18+ box, ticked BEFORE a name or number is used
+    if (typeof b?.name === "string" && b.name.trim() !== "") { // nickname: HTML removed, 2 to 20 letters, digits or spaces; a blank one keeps today's behaviour
+      const nick = b.name.replace(/<[^>]*>/g, "").replace(/[<>`]/g, "").replace(/\s+/g, " ").trim();
+      if (!/^[\p{L}\p{N} ]{2,20}$/u.test(nick)) return json({ error: "Please use 2 to 20 letters, numbers or spaces for your nickname.", code: "bad-nickname" }, 400);
+      b.name = nick;
+    }
     // a personal link (/j/<token>) stands for one listed person: their number is then not typed at all. The strong proof is the secret in the link, a typed number is only matched to a list.
     let tok: PersonRow | null = null, tokPii: { phone: string; name: string | null } | null = null;
     if (typeof b?.token === "string" && b.token) {

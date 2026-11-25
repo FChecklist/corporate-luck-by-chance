@@ -33,7 +33,7 @@
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask a nickname only. Other players see it on the top-10 list. Your organizer sees the name you give.</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
-      <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="40" disabled>
+      <label for="nm">Your nickname</label><input id="nm" autocomplete="nickname" maxlength="20" disabled>
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);

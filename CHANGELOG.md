@@ -2,6 +2,10 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id.
 
+## 1.5.2 - 2026-11-25 (not deployed)
+Added
+- Nickname check at join: 2 to 20 letters, digits or spaces; HTML is removed; a bad one is refused with "Please use 2 to 20 letters, numbers or spaces for your nickname." (`bad-nickname`); a blank one keeps today's behaviour. The cleaned nickname is what the board, banner and winner lists already show. Where: `apps/edge/src/worker.ts` (join), `apps/web/public/luck.js` (input limit 20); test: `apps/edge/test/nickname.test.ts`. Rollback id: n/a (not deployed).
+
 ## 1.5.1 - 2026-11-20 (not deployed; PR 12 audit fix)
 Fixed
 - `markPaid` size race (audit High): the owner could pay for a small size and play a bigger one by raising the limit between the size check and the unlock. All four writes of `markPaid` are now guarded by `cap=?` (the limit the size was worked out from) on top of unpaid and open; if the limit moved, it refuses for certain (`definite`) and writes nothing, not even the order record. Where: `apps/edge/src/console-pay.ts`; test: `apps/edge/test/console-pay.test.ts` (race test, falsified by dropping the guard), `console-pay-static.test.ts`. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/12. Audits: 1 FAIL (this fix), fresh audits pending. Rollback id: n/a (not deployed).
