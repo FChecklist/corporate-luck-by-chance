@@ -1,6 +1,6 @@
 # The game: where to look
 
-The rules of the game are in `docs/RULES.md` (one plain sentence per rule, R01 to R57, each with a test whose name starts with the rule number).
+The rules of the game are in `docs/RULES.md` (one plain sentence per rule, R01 to R83, each with a test).
 The product description is `docs/SPEC.md`.
 
 ## Code map
@@ -14,6 +14,9 @@ The product description is `docs/SPEC.md`.
 | The engine for the pages (built into `apps/web/public/luck-engine.js`) | `packages/luck/src/browser.ts` |
 | The game on the server: sealed draw, seat list, beacon feed, result votes | `apps/edge/src/luck.ts` |
 | When personal data is deleted | `apps/edge/src/lifecycle.ts` |
+| The invite ID: one field, cleaned the same way everywhere | `apps/edge/src/invite-id.ts` |
+| Who is on which list, personal links, the waiting room | `apps/edge/src/people.ts` |
+| The two ways to start (by hand, or by itself at the start time) | `apps/edge/src/luck.ts` (`beginGame`, `maybeAutoStart`, `luckTick`) |
 | How a name is sealed | `apps/edge/src/pii.ts` |
 
 ## Pages (`apps/web/public/`)

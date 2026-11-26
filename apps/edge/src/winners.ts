@@ -88,7 +88,7 @@ export async function confirmPrize(env: Env & PiiEnv, eid: string, b: any, now: 
   if (!(await spend(env, now, rows.length + 1))) return json({ error: "Busy day. Please try again after midnight UTC." }, 503);
   const cur = await openPii(env, rows[0].pii);
   const changed = !cur || (cur.phone ?? "").slice(-10) !== phone.slice(-10) || (cur.name ?? "") !== name;
-  const sealed = await sealPii(env, { phone, name });
+  const sealed = await sealPii(env, { phone, name, ...(cur?.id ? { id: cur.id } : {}) }); // a guest who joined with an ID keeps that ID on the record
   for (const r of rows) {
     let trail: any[] = []; try { trail = JSON.parse((await openText(env, r.trail)) ?? "[]"); } catch { /* none yet */ }
     if (changed) trail.push({ at: now, name, phone });

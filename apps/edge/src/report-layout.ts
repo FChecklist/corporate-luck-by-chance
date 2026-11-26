@@ -3,7 +3,7 @@
 import { BRAND } from "./brand";
 import { GOLD, NAVY, PdfDoc, WHITE, type Column } from "./pdf";
 
-export interface ReportPerson { seat: number | null; name: string | null; phone: string | null; joinedMs: number | null; late: boolean; role: string | null; invitedBy: number | null; onRoster: boolean; joined: boolean; /** the list this person is on: Organizer, Host <name>, Co-host <name> (a guest's own invitees show under that guest) */ via?: string | null; /** who let them in from the waiting room or put them back */ admittedBy?: string | null; removed?: boolean }
+export interface ReportPerson { seat: number | null; name: string | null; phone: string | null; /** The invite ID the organizer listed (one alphanumeric field); a guest has this and no mobile number. */ id?: string | null; joinedMs: number | null; late: boolean; role: string | null; invitedBy: number | null; onRoster: boolean; joined: boolean; /** the list this person is on: Organizer, Host <name>, Co-host <name> (a guest's own invitees show under that guest) */ via?: string | null; /** who let them in from the waiting room or put them back */ admittedBy?: string | null; removed?: boolean }
 export interface ReportWinner { seat: number | null; name: string | null; phone: string | null; role: string | null; verified: boolean; callNo: number | null; atMs: number | null; /** the winner confirmed these details on their own phone after the game */ confirmed?: boolean; /** what they joined with, when they changed it after the game */ changedFrom?: string | null; /** the date the organizer ticked 'prize given' */ given?: string | null }
 export interface ReportPrize { round: number; label: string; text: string; winners: ReportWinner[] }
 export interface Agg { joined: number; onRoster: number; notJoined: number; late: number; viaInvite: number; inviters: number; topInviter: [number, number] | null; roles: number; joinedInTime: number; firstJoinMs: number | null }
@@ -141,7 +141,7 @@ export function layoutReport(d: ReportData): Uint8Array {
     `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from our systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that we hold none of it.`,
     "2. We keep only two things, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
     `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is deleted too. We keep billing data for audit and tax reasons.`,
-    "4. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever built from them.",
+    "4. Invite IDs and nicknames (and your team's mobile numbers) are stored encrypted while we hold them, and only your own game's report is ever built from them.",
   ]);
   pdf.box("The laws we follow", [
     "Corporate Luck by Chance is built to follow India's Digital Personal Data Protection Act, 2023 (DPDP Act), the European Union's General Data Protection Regulation (GDPR) and the United Kingdom's equivalent, and the privacy laws of the United States, including state laws such as the California Consumer Privacy Act (CCPA / CPRA).",
@@ -190,10 +190,10 @@ function treeSection(pdf: PdfDoc, people: ReportPerson[]) {
   else { for (const l of lines) pdf.pre(l); if (lines.length >= 4000) pdf.para("(The list is cut at 4,000 lines.)", { size: 8.5 }); }
 }
 function listSection(pdf: PdfDoc, people: ReportPerson[], tz?: string) {
-  pdf.h1("6. Everyone, with name and mobile number");
+  pdf.h1("6. Everyone, with nickname and ID");
   pdf.para(`${people.length} people. 'Joined' is the time they opened the link (${zoneAbbr(people.find((x) => x.joinedMs)?.joinedMs ?? 0, tz)}). Names in scripts other than Latin letters print as ? in this PDF.`, { size: 9, gap: 4 });
-  const cols: Column[] = [{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 24 }, { head: "Mobile", width: 12 }, { head: "Joined", width: 8 }, { head: "Late", width: 4 }, { head: "Role", width: 9 }, { head: "By", width: 5, align: "r" }, { head: "List", width: 4 }];
-  pdf.table(cols, [...people].sort((a, b) => (a.seat ?? 1e9) - (b.seat ?? 1e9)).map((p) => [p.seat === null ? "-" : String(p.seat), p.name || "(no name)", mob(p.phone), p.joinedMs ? hm(p.joinedMs, tz) : "-", p.late ? "yes" : "", p.role || "", p.invitedBy ? String(p.invitedBy) : "", p.onRoster ? "yes" : ""]), { zebra: true });
+  const cols: Column[] = [{ head: "Seat", width: 5, align: "r" }, { head: "Nickname", width: 24 }, { head: "ID", width: 12 }, { head: "Joined", width: 8 }, { head: "Late", width: 4 }, { head: "Role", width: 9 }, { head: "By", width: 5, align: "r" }, { head: "List", width: 4 }];
+  pdf.table(cols, [...people].sort((a, b) => (a.seat ?? 1e9) - (b.seat ?? 1e9)).map((p) => [p.seat === null ? "-" : String(p.seat), p.name || "(no name)", p.id || mob(p.phone), p.joinedMs ? hm(p.joinedMs, tz) : "-", p.late ? "yes" : "", p.role || "", p.invitedBy ? String(p.invitedBy) : "", p.onRoster ? "yes" : ""]), { zebra: true });
 }
 /** One of the extra PDFs of a big game: the invite tree and the list for up to 1,500 people. */
 export function layoutPeoplePart(d: ReportData, people: ReportPerson[], k: number, n: number): Uint8Array {

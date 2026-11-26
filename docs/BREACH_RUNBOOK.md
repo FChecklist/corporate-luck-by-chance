@@ -9,7 +9,7 @@ For Corporate Luck by Chance. A breach is any loss, leak or unauthorised use of 
 ## 2. Contain (first hour)
 1. Write down the time and what you saw. Do not delete evidence.
 2. A leaked platform key or other secret: replace it in Cloudflare (`wrangler pages secret bulk` for the site, `wrangler secret put` for the Worker) and redeploy. Do NOT replace `DATA_KEY` while a game still holds players: sealed rows would become unreadable. Treat a `DATA_KEY` leak as the highest case below.
-3. One organizer's key leaked: in the console press "Replace my AI link"; retire other keys in the Keys card. An organizer's lasting key is stored sealed, so a database copy alone does not reveal it.
+3. One organizer's key leaked: in the console press "Replace your AI link"; retire other keys in the Keys card. An organizer's lasting key is stored sealed, so a database copy alone does not reveal it.
 4. Stop the bleeding if needed: switch the site off with `POST /api/owner/site {"off": true}` (every page answers a plain "Back soon"), or set `STRICT_KEYS=1` and remove one required secret so the Worker answers 503 to everything. Restore after the fix.
 5. A vendor breach: follow the vendor's steps, then continue at 3.
 
