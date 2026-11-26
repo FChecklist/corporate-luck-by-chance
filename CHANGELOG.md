@@ -2,6 +2,13 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id.
 
+## 1.5.5 - 27 Nov 2026 (versioning baseline; no code change)
+Added
+- Clean version record. The owner records 1.5.5 as live, but that live build was made from a dirty tree and 1.5.2 to 1.5.4 (and the dirty edits) are not in this repository; this entry is the first clean, recorded baseline and its relation to the live build is NOT verified. Where: `version.json`.
+- `/version.json` now also carries `version` (read from the root `version.json`). Where: `pages/version.mjs`, `apps/web/test/version-stamp.test.ts`, `docs/DEPLOYS.md`.
+- `docs/REPO-KNOWLEDGE.md`.
+No game, edge or page behaviour changes. Not deployed.
+
 ## 1.5.1 - 2026-11-20 (not deployed; PR 12 audit fix)
 Fixed
 - `markPaid` size race (audit High): the owner could pay for a small size and play a bigger one by raising the limit between the size check and the unlock. All four writes of `markPaid` are now guarded by `cap=?` (the limit the size was worked out from) on top of unpaid and open; if the limit moved, it refuses for certain (`definite`) and writes nothing, not even the order record. Where: `apps/edge/src/console-pay.ts`; test: `apps/edge/test/console-pay.test.ts` (race test, falsified by dropping the guard), `console-pay-static.test.ts`. PR: https://github.com/FChecklist/corporate-luck-by-chance/pull/12. Audits: 1 FAIL (this fix), fresh audits pending. Rollback id: n/a (not deployed).
