@@ -1,11 +1,27 @@
 {
  "product": "Corporate Luck by Chance",
- "version": "1.5.1",
+ "version": "1.5.5",
  "commit": "set at build",
  "builtAt": "set at build",
- "note": "Version history before this file was not recorded (git history shows 1.4.x); 1.5.0 is the first number kept here, 1.5.1 fixes the audit finding on PR 12. Not deployed.",
+ "note": "Version history before this file was not recorded (git history shows 1.4.x); 1.5.0 is the first number kept here, 1.5.1 fixes the audit finding on PR 12. 1.5.5 (27 Nov 2026, versioning order) is the number the owner records as live; that live build was made from a dirty tree, so 1.5.2 to 1.5.4 and the dirty edits are not in this repository. This entry is the first clean, recorded baseline. It changes no code.",
  "changes": [
-  { "id": "console-pay-step", "what": "Game side of the console Pay step, dark: payInfo/markPaid for the organizer's game, PAY_VIA_CONSOLE switch (off = old Pay now unchanged), descriptor, page rules for the payment window and the console. Not deployed, no switch set.", "where": "apps/edge/src/console-pay.ts, apps/edge/src/console-bridge/ and apps/edge/test/console-contract/ and apps/web/public/pack/ (vendored), apps/web/public/zc-pay-game.js, config/console-pay.json, pages/build.mjs (/zc header), pages/functions/_middleware.ts, apps/edge/src/worker.ts (handleCore); organizer page /zc header only", "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12" },
-  { "id": "console-pay-size-race", "what": "Audit fix: markPaid could unlock a bigger game with a smaller size's payment if the owner raised the limit between the size check and the write. Every write of markPaid now only happens while the game is still unpaid, open and at the limit the size was worked out from (cap=?); otherwise it refuses for certain and writes nothing.", "where": "apps/edge/src/console-pay.ts (markPaid), tests apps/edge/test/console-pay.test.ts and console-pay-static.test.ts", "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12" }
+  {
+   "id": "console-pay-step",
+   "what": "Game side of the console Pay step, dark: payInfo/markPaid for the organizer's game, PAY_VIA_CONSOLE switch (off = old Pay now unchanged), descriptor, page rules for the payment window and the console. Not deployed, no switch set.",
+   "where": "apps/edge/src/console-pay.ts, apps/edge/src/console-bridge/ and apps/edge/test/console-contract/ and apps/web/public/pack/ (vendored), apps/web/public/zc-pay-game.js, config/console-pay.json, pages/build.mjs (/zc header), pages/functions/_middleware.ts, apps/edge/src/worker.ts (handleCore); organizer page /zc header only",
+   "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12"
+  },
+  {
+   "id": "console-pay-size-race",
+   "what": "Audit fix: markPaid could unlock a bigger game with a smaller size's payment if the owner raised the limit between the size check and the write. Every write of markPaid now only happens while the game is still unpaid, open and at the limit the size was worked out from (cap=?); otherwise it refuses for certain and writes nothing.",
+   "where": "apps/edge/src/console-pay.ts (markPaid), tests apps/edge/test/console-pay.test.ts and console-pay-static.test.ts",
+   "pr": "https://github.com/FChecklist/corporate-luck-by-chance/pull/12"
+  },
+  {
+   "id": "versioning-baseline-1.5.5",
+   "what": "Clean version record: pages/build.mjs now writes version (from this file) into /version.json next to commit, builtAt and dirty:false/true. No game, edge or page behaviour changes. CHANGELOG.md and docs/REPO-KNOWLEDGE.md added or extended.",
+   "where": "pages/version.mjs, apps/web/test/version-stamp.test.ts, docs/DEPLOYS.md, version.json, CHANGELOG.md, docs/REPO-KNOWLEDGE.md",
+   "pr": "see PR titled versioning + knowledge 27 Nov"
+  }
  ]
 }
