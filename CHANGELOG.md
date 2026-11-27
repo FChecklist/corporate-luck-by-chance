@@ -9,6 +9,8 @@ Decision of 27 Nov 2026: hide the public pages of this game without deleting any
 - Test `apps/edge/test/site-hidden.test.ts` (switch off = unchanged, switch on = coming soon, join/host/api untouched).
 ### Changed
 - `pages/build.mjs`: `/llms.txt` and `/sitemap.xml` are served through the function so the switch can answer them (off: they are served exactly as before).
+### Fixed
+- Audit follow-up (27 Nov 2026, findings M1, M4, L3): `siteHidden` now tidies the request path before matching (safe percent-decode, repeated slashes collapsed, trailing slash dropped, lower case), so `//about`, `/%61bout` and `//sitemap.xml` no longer slip past the switch; tests added in `apps/edge/test/site-hidden.test.ts`. Switch off: unchanged. With the switch on, every other page (`/demo`, `/terms`, `/contact` and the rest) also sends noindex (meta tag and X-Robots-Tag); `/j/...`, the player and host pages and `/api` are untouched; robots.txt is not changed. `docs/REPO-KNOWLEDGE.md` now says 1.5.6.
 ### Rollback
 - Unset `SITE_HIDDEN` in Cloudflare Pages (instant, no deploy), or redeploy the previous version (1.5.5).
 
