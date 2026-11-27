@@ -111,7 +111,7 @@ export async function passK5Gate(page, { timeout = 15000 } = {}) {
 }
 /** The API way of the same K5 acceptance for a Co-host key (what the one-time box does when ticked). */
 export const acceptRole = (key) => H.call("POST", "/api/org/role/accept", {}, { "x-organizer": key });
-/** Host first-open, e-mail step: the box (K5) first, then "Send me a code". */
+/** Host first-open, e-mail step: the box (K5) first, then "Get a code". */
 export async function setupSendUi(page, email) {
   await page.fill("#setupemail", email);
   await tickTerms(CUR, page, { scope: "[data-tbk='setup']", btn: "#setupsend", what: "Host setup" }); await page.click("#setupsend"); await page.waitForSelector("#setupcode");

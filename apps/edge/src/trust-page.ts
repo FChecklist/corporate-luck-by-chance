@@ -2,6 +2,7 @@
 // AI that searches the web all read the same words. tools/make-trust.ts writes the two files; a test regenerates them and fails if they differ, so they cannot drift.
 import { FACTS } from "./ai-facts";
 import { shellPage } from "./site-shell";
+import VERSION from "../../../version.json"; // the number on the page is the one in version.json (a test keeps them equal)
 
 const ORIGIN = "https://luck.corporatetambola.com";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -21,7 +22,7 @@ ${facts}
 <p>More detail: <a href="/privacy.html">Rules and privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/dpa.html">Data processing</a> &middot; <a href="/subprocessors.html">Sub-processors</a> &middot; <a href="/organizer-guide.html">Organizer guide</a> &middot; <a href="/demo.html">Try the free demo game</a></p>
 <p>Questions or requests: our Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BLuck%20by%20Chance%5D%20">hello@corporatetambola.com</a>. We reply within 30 days.</p>
 </main>`;
-  return shellPage(TITLE, DESC, "/trust.html", main); // the same frame as every other page (head, six-item header, footer); no script, so any crawler can read it
+  return shellPage(TITLE, DESC, "/trust.html", main, VERSION.version); // the same frame as every other page (head, six-item header, footer); no script, so any crawler can read it
 }
 
 export function llmsTxt(): string {

@@ -65,7 +65,7 @@ describe("what is recorded, and sealed", () => {
     await call("POST", "/api/z/EVT1/publish", {}, o.h); // may be refused for an AI-less test; the join below only needs the engagement row
     const dev = "ab".repeat(16);
     raw.prepare("UPDATE engagement SET pack=100 WHERE id='EVT1'").run();
-    await call("POST", "/api/z/EVT1/join", { phone: "9876543210", name: "Asha", device: dev }, { "cf-connecting-ip": "198.51.100.5", "user-agent": UA }, T);
+    await call("POST", "/api/z/EVT1/join", { id: "E9876543210", name: "Asha", device: dev }, { "cf-connecting-ip": "198.51.100.5", "user-agent": UA }, T);
     const jr = (await j(await call("GET", "/api/owner/audit/EVT1", undefined, PLAT))).rows.find((x: any) => x.event.startsWith("join"));
     expect(jr).toBeTruthy(); expect(jr.actor).toBe("participant"); expect(jr.details.device_id).toBe(dev); expect(jr.details.device_hash).toMatch(/^[0-9a-f]{32}$/);
     expect(JSON.stringify(raw.prepare("SELECT * FROM audit_log").all())).not.toContain(dev);

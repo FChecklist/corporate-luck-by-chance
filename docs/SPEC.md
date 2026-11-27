@@ -70,8 +70,8 @@ Why Presence mode needs a server timestamp: after a window closes the dice resul
 
 ## 7. Timing
 - A dice round: press window 10 seconds, reveal 3 seconds: about **13 seconds**. (A setting: window 6 / 10 / 15 seconds.)
-- A round of 10 dice rounds: about 2 minutes 10 seconds, plus a 20-second standings break: about 2.5 minutes.
-- **Ten rounds: about 26 minutes** (the default), plus any golden shoot-out. Five rounds would be about 13 minutes.
+- A round of 10 dice rounds: 2 minutes 10 seconds, plus a 20-second standings break: 2 minutes 30 seconds.
+- **Ten rounds: 24 minutes 40 seconds** (the default; see R30 in docs/RULES.md). The golden shoot-out is not built. Five rounds would be 12 minutes 10 seconds.
 
 ## 8. Prizes
 - **Per round:** 1st to 5th of each round (organizer sets text or a gift for each place), and the top-10 list.

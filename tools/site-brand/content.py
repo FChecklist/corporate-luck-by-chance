@@ -26,7 +26,7 @@ BENEFITS = [
     ("One link, any place", "Share one link by WhatsApp, e-mail, Slack or Teams. It works for remote, hybrid and in-room teams. Only the people you invite can join."),
     ("Just a name to join", "Players type a display name and they are in. No app to download and no account."),
     ("Clear screens", "A big target number, a big dice button and a top 10 list. A big-screen page works for a projector or a shared video call."),
-    ("Fair by design", "Every target and every dice comes from a public random number that does not exist until its moment. Nobody can know a result in advance, not even us. Anyone can re-check it afterwards."),
+    ("Fair by design", "Every target and every dice comes from a secret that is locked in before the game starts and published one number at a time, at its moment. No player, organizer or host can see a number early. Anyone can re-check every number afterwards."),
     ("A place for every player", "Equal points are settled by the highest single hit, then the most hits, then who got there first, then a public random number. The ranking has no ties."),
     ("Your own moments", "Add your logo and your own message or video for everyone to see. Great for an opening or a closing word."),
     ("Details erased", "Player names are erased within 24 hours of the game ending. We keep only the winners record and the organizer&rsquo;s details for 365 days. We never e-mail players and never sell data."),

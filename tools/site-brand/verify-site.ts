@@ -11,7 +11,7 @@ const ROOT = join(import.meta.dir, "..", ".."), PUB = join(ROOT, "apps/web/publi
 const ORIGIN = "https://luck.corporatetambola.com";
 const SIX = ["How it works", "Free demo game", "Guide", "Brochure", "Refer & earn", "Log in"];
 const SIX_HREFS = ["/how-it-works", "/demo.html", "/organizer-guide", "/brochure", "/partner", "/#login"];
-const WEBSITE = ["index", "how-it-works", "about", "contact", "pricing", "legal", "terms", "privacy", "legal-position", "refund-policy", "dpa", "subprocessors", "partner-terms", "organizer-guide", "brochure", "partner", "helpdesk", "signin", "404", "trust"];
+const WEBSITE = ["index", "how-it-works", "about", "contact", "pricing", "legal", "terms", "privacy", "legal-position", "refund-policy", "dpa", "subprocessors", "partner-terms", "organizer-guide", "brochure", "partner", "helpdesk", "signin", "404", "trust", "changes"];
 const GAME_PAGES = ["z", "zc", "host", "big", "demo", "offline"]; // saved on the phone by the service worker
 const APP_PAGES = ["z", "zc", "host", "big", "pay", "paylink", "paytest", "report", "preview", "demo", "ai-link", "helpdesk-accept", "helpdesk-approve", "offline", "owner-visits"];
 const BUNDLES = new Set(["luck-engine.js", "control.js", "zgame.js", "reportgen.js"]); // built files: not read for wording

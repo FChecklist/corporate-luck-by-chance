@@ -63,7 +63,7 @@ def doc_page(name, cur="", extra_main_class=""):
     p = parse(name)
     attrs, inner, after = main_block(p["body"])
     cls = re.search(r'class="([^"]*)"', attrs)
-    classes = "ck-doc" + ((" " + cls.group(1)) if cls else "") + extra_main_class
+    classes = " ".join(dict.fromkeys(("ck-doc " + (cls.group(1) if cls else "") + extra_main_class).split()))  # each class once: a second run used to add ck-doc again
     path = "/" + name
     out = head(p["title"], p["desc"], path, robots=p["robots"], scripts=p["scripts"])
     out += sprite() + header(cur) + f'<main id="main" class="{classes}">{inner}</main>\n' + footer() + tail_scripts(after) + "\n</body></html>\n"
@@ -212,8 +212,8 @@ def how_page():
             f'<table class="ck-table ck-facts-table"><tbody>{facts}</tbody></table>'
             '<p class="ck-small">If a Host moves the rounds on by hand, there is no fixed time between rounds and no countdown is shown.</p></div></section>\n')
     out += ('<section class="ck-sec" aria-labelledby="fh2"><div class="ck-wrap"><div class="ck-sec-head"><span class="ck-kicker">Fair for everyone</span><h2 id="fh2">Nobody can know a result in advance</h2></div>'
-            '<ul class="ck-benef"><li><h3>The target</h3><p>Each target is made from public random data before the press window opens.</p></li>'
-            '<li><h3>Your dice</h3><p>Your dice is made from public random data that is published only after the window closes. Not even we can know it while the window is open.</p></li>'
+            '<ul class="ck-benef"><li><h3>The target</h3><p>Each target is made from a number that is locked in before the game starts and published when its window opens.</p></li>'
+            '<li><h3>Your dice</h3><p>Your dice is made from a number that is published only after the window closes. No player, organizer or host can see it while the window is open.</p></li>'
             '<li><h3>The same chance for all</h3><p>Whatever the target is, your chance of a hit is exactly 1 in 6, the same for everybody. Anyone can re-check the standings.</p></li>'
             '<li><h3>Press on time</h3><p>You may press only inside the 10 second window, decided by the server&rsquo;s clock. A late press is not counted and nothing is recorded.</p></li></ul></div></section>\n')
     out += ('<section class="ck-cta ck-sec"><div class="ck-wrap"><h2>See it for yourself</h2><p>Play five dice rounds on your own phone.</p>'
@@ -287,7 +287,7 @@ def shell_only(name, light=True):
 
 
 DOCS = {"about.html": "", "contact.html": "", "pricing.html": "", "legal.html": "", "terms.html": "", "privacy.html": "", "legal-position.html": "", "dpa.html": "",
-        "subprocessors.html": "", "refund-policy.html": "", "partner-terms.html": "", "organizer-guide.html": "guide"}
+        "subprocessors.html": "", "refund-policy.html": "", "partner-terms.html": "", "organizer-guide.html": "guide", "changes.html": ""}
 SHELL_ONLY = ["z.html", "zc.html", "host.html", "big.html", "preview.html", "demo.html", "offline.html", "pay.html", "paytest.html", "paylink.html", "report.html", "owner-visits.html", "ai-link.html",
               "helpdesk-accept.html", "helpdesk-approve.html"]
 

@@ -12,7 +12,7 @@ const rd = (f: string) => readFileSync(join(PUB, f), "utf8");
 const sha = (f: string, text = !/\.(woff2|png|ico)$/.test(f)) => { let b = readFileSync(join(PUB, f)); if (text) b = Buffer.from(b.toString("utf8").split(String.fromCharCode(13)).join("")); return createHash("sha256").update(b).digest("hex"); };
 
 // the pages that carry the website header (all public pages)
-const SITE = ["index", "how-it-works", "about", "contact", "pricing", "legal", "terms", "privacy", "legal-position", "refund-policy", "dpa", "subprocessors", "partner-terms", "organizer-guide", "brochure", "partner", "helpdesk", "signin", "404", "trust"];
+const SITE = ["index", "how-it-works", "about", "contact", "pricing", "legal", "terms", "privacy", "legal-position", "refund-policy", "dpa", "subprocessors", "partner-terms", "organizer-guide", "brochure", "partner", "helpdesk", "signin", "404", "trust", "changes"];
 const SIX = ["How it works", "Free demo game", "Guide", "Brochure", "Refer & earn", "Log in"];
 const navOf = (h: string) => /<nav class="ck-nav"[^>]*>([\s\S]*?)<\/nav>/.exec(h)![1]!;
 const labelsOf = (h: string) => [...navOf(h).replace(/<span class="ck-dots"[\s\S]*?<\/span>/, "").matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]!.replace(/&amp;/g, "&").trim());

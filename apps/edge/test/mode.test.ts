@@ -249,7 +249,7 @@ describe("purging test data", () => {
     await call("POST", "/api/payments/test", { pack: 100, email: "test@acme.com", org: "Test Co", country: "IN", eid: "TTT-9" }, t.h);
     await call("POST", "/api/z/suggestions", { kind: "feature", title: "A test idea", body: "Only for the walk-through." }, t.h);
     const tp = await j(await call("POST", "/api/partner/enroll", { phone: "9811100010", email: "tp@partner.example", consent: true })); await call("POST", "/api/partner/enroll/verify", { email: "tp@partner.example", code: tp.devCode });
-    await call("POST", "/api/z/TTT-9/join", { phone: "9876543210", name: "Tess", device: "dev1" });
+    await call("POST", "/api/z/TTT-9/join", { id: "E9876543210", name: "Tess", device: "dev1" });
     return { live, t };
   }
   const counts = () => ({

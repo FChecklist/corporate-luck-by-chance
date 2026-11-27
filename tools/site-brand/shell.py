@@ -1,7 +1,7 @@
 """The shared parts of every Corporate Luck by Chance public page: <head>, games-bar-ready body start, the six-item header, the footer.
 Everything comes from the Corporate Games brand kit snippets (C:\\ct\\test-sites\\corporate-brand-kit\\snippets), with this game's own links.
 Used by build_pages.py (which writes the pages) and by write_edge_shell.py (which writes apps/edge/src/site-shell.ts for the generated Trust page)."""
-import html, os, re
+import html, json, os, re
 
 KIT = os.environ.get("BRAND_KIT", r"C:\ct\test-sites\corporate-brand-kit")
 ORIGIN = "https://luck.corporatetambola.com"
@@ -50,7 +50,13 @@ def header(cur=""):
             '<nav class="ck-nav" id="ck-nav" aria-label="Main">' + "".join(links) + dots + '</nav>\n</div></header>\n')
 
 
-def footer():
+def repo_version():
+    """The number in version.json at the repository root: the same one master prints at the end of every page and the What's new page."""
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "version.json"), encoding="utf8") as f:
+        return json.load(f)["version"]
+
+
+def footer(version=None):
     f = kit("footer-luck.html")
     # the legal column points at THIS game's own pages (the kit snippet points at the Tambola site)
     legal = ('<div><h2>Legal and help</h2><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy notice</a></li><li><a href="/subprocessors.html">Sub-processors</a></li>'
@@ -64,6 +70,10 @@ def footer():
     # the owner's payment order (29 Oct 2026): every place that names the payee says who takes the money and how
     f = f.replace("Payments are collected by IT Services by Rajat Agarwal.", "All payments are taken only by IT Services by Rajat Agarwal, through Razorpay.")
     assert "through Razorpay." in f, "footer payment line was not replaced"
+    # the version line (master's rule: every public page names the number of version.json and links the What's new page)
+    end = "<p>&copy; 2026 Rajat Agarwal. All rights reserved.</p></div>\n</div></footer>"
+    assert f.count(end) == 1, "footer end not found"
+    f = f.replace(end, '<p>&copy; 2026 Rajat Agarwal. All rights reserved.</p><p class="ufv">Version ' + (version or repo_version()) + ' &middot; <a href="/changes.html">What&#39;s new</a></p></div>\n</div></footer>')
     return f
 
 

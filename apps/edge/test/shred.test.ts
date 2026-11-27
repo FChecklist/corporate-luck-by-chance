@@ -17,7 +17,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 const j = async (r: Response) => (await r.json()) as any;
 const PLAT = { "x-organizer": "plat" };
-const IP = "198.51.100.5", UA = "Mozilla/5.0 (Linux; Android 14) Chrome/120.0 Mobile Safari/537.36", DEV = "ab".repeat(16), PHONE = "9876543210";
+const IP = "198.51.100.5", UA = "Mozilla/5.0 (Linux; Android 14) Chrome/120.0 Mobile Safari/537.36", DEV = "ab".repeat(16), PHONE = "E9876543210"; // an ID (a bare 10-digit number is refused as a mobile number)
 const rows = (chain: string) => raw.prepare("SELECT * FROM audit_log WHERE chain=? ORDER BY seq").all(chain) as any[];
 const count = (sql: string) => (raw.prepare(sql).get() as any).c as number;
 
@@ -30,8 +30,8 @@ async function game() {
   const h = { "x-organizer": x.token as string, "cf-connecting-ip": "203.0.113.9", "user-agent": "OrganizerBrowser/1" };
   expect((await call("POST", "/api/z", { id: "EVT1", startRound: roundAt(T) + 1200, callSeconds: 6, cap: 100 }, h)).status).toBe(200);
   raw.prepare("UPDATE engagement SET pack=100 WHERE id='EVT1'").run();
-  await call("POST", "/api/z/EVT1/join", { phone: PHONE, name: "Asha Rao", device: DEV }, { "cf-connecting-ip": IP, "user-agent": UA }, T);
-  await call("POST", "/api/z/EVT1/join", { phone: "9123456780", name: "Ravi", device: "cd".repeat(16) }, { "cf-connecting-ip": "198.51.100.6", "user-agent": UA }, T);
+  await call("POST", "/api/z/EVT1/join", { id: PHONE, name: "Asha Rao", device: DEV }, { "cf-connecting-ip": IP, "user-agent": UA }, T);
+  await call("POST", "/api/z/EVT1/join", { id: "E9123456780", name: "Ravi", device: "cd".repeat(16) }, { "cf-connecting-ip": "198.51.100.6", "user-agent": UA }, T);
   return h;
 }
 const engagementRow = () => raw.prepare("SELECT * FROM engagement WHERE id='EVT1'").get();
@@ -106,7 +106,7 @@ describe("participant crypto-shredding", () => {
   test("a participant row written after the shredding keeps only its non-personal core and no new key is made", async () => {
     await game();
     await shredParticipantAudit(env as any, "EVT1", T + 23 * HOUR);
-    await call("POST", "/api/z/EVT1/join", { phone: "9000000001", name: "Late", device: "ef".repeat(16) }, { "cf-connecting-ip": "198.51.100.77", "user-agent": UA }, T + 24 * HOUR);
+    await call("POST", "/api/z/EVT1/join", { id: "E9000000001", name: "Late", device: "ef".repeat(16) }, { "cf-connecting-ip": "198.51.100.77", "user-agent": UA }, T + 24 * HOUR);
     const last = rows("EVT1").at(-1);
     expect(last.actor).toBe("participant"); expect(last.sealed).toBe(""); expect(last.pdig).toBeNull();
     expect(count("SELECT COUNT(*) c FROM eng_key")).toBe(0); expect(count("SELECT COUNT(*) c FROM audit_pii")).toBe(0);

@@ -1,4 +1,4 @@
-/* Corporate Luck by Chance, run the game (host.html). For the Organizer or a Host: see who joined, choose the number of rounds, the press window and the prizes, start the game, and watch its progress.
+/* Corporate Luck by Chance, run the game (host.html). For the Organizer or a Host: see who joined, choose the number of rounds, the press window and the prizes, start the game (or, when the game starts by itself, save these choices as its plan), and watch its progress.
    The page holds the sign-in key only in this tab's session (it comes from the console: zc.html?e=...). Nothing here changes a result: the host cannot pick a target, a dice or a winner. */
 (function () {
   const $app = document.getElementById("app");
@@ -9,7 +9,7 @@
   const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* blocked */ } } };
   let key = ss.get("cbz-org") || "";
   { const k = q.get("k"); if (k && /^cb[a-z]_[0-9a-f]{48}$/.test(k)) { key = k; ss.set("cbz-org", k); history.replaceState(null, "", location.pathname + "?e=" + encodeURIComponent(EID)); } }
-  const S = { rounds: 10, windowSecs: 10, prizeMode: "both", oneWin: false, overall: ["", "", "", "", ""], perRound: ["", "", "", "", ""], msg: "", view: null };
+  const S = { rounds: 10, windowSecs: 10, prizeMode: "both", oneWin: false, overall: ["", "", "", "", ""], perRound: ["", "", "", "", ""], msg: "", view: null, planLoaded: false };
   const call = async (method, path, body) => {
     const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", "x-organizer": key }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
     const j = await r.json().catch(() => ({}));
@@ -37,18 +37,33 @@
     if (cur >= v.settings.rounds) return `<p class="zsmall">This is the last round. The game ends by itself.</p>`;
     return `<div class="hrow"><button class="zbtn" id="end">End the game after round ${esc(cur)}</button></div><p class="zsmall">The round being played is finished and counted first. Then the game is over for everybody. This cannot be undone.</p>`;
   }
+  // the two ways to start (owner rules v1.1): "The game starts by itself" or "You start the game"
+  function startNote(v) {
+    if (v.startMode === "auto") return `<p><b>The game starts by itself</b> at ${esc(v.scheduledMs ? new Date(v.scheduledMs).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "the time you set")}. You do nothing. It waits until at least 2 players have joined.</p>`;
+    return `<p><b>You start the game.</b> The game waits for you. Press Start when you are ready.</p>`;
+  }
+  async function loadPlan() {
+    if (S.planLoaded) return; S.planLoaded = true;
+    try {
+      const r = await call("GET", `/api/z/${EID}/luck/plan`), p = r.plan || {};
+      S.rounds = p.rounds || S.rounds; S.windowSecs = p.windowSecs || S.windowSecs; S.prizeMode = p.prizeMode || S.prizeMode; S.oneWin = !!p.oneWinPerPlayer;
+      const fill = (a) => { const o = ["", "", "", "", ""]; (a || []).forEach((x, i) => { if (i < 5) o[i] = x || ""; }); return o; };
+      S.overall = fill(p.prizes && p.prizes.overall); S.perRound = fill(p.prizes && p.prizes.rounds && p.prizes.rounds[0]);
+    } catch (e) { /* the defaults stay */ }
+  }
   function paint() {
     const v = S.view; if (!v) { $app.innerHTML = `<p class="zmsg">${esc(S.msg || "Loading...")}</p>`; return; }
     let body = "";
+    const auto = v.startMode === "auto";
     if (v.state === "open") {
-      body = `<div class="zcard"><h2>Before the start</h2><p><b>${esc(v.joined)}</b> players have joined. Share the player link; the list closes when you press Start.</p>${links()}</div>
+      body = `<div class="zcard"><h2>Before the start</h2><p><b>${esc(v.joined)}</b> players have joined. ${auto ? `Share the player link; the list closes when the game starts by itself.` : `Share the player link; the list closes when you press Start.`}</p>${startNote(v)}${links()}</div>
         <div class="zcard"><h2>Rounds</h2><p class="zsmall">Each round has 10 dice rounds.</p><label for="rounds">Number of rounds (1 to 20)</label><input id="rounds" type="number" min="1" max="20" value="${esc(S.rounds)}">
         <h2>Press window</h2>${chips("windowSecs", [[6, "6 seconds"], [10, "10 seconds"], [15, "15 seconds"]], S.windowSecs)}
         <h2>Prizes</h2><p class="zsmall">A prize is a gift you hand over. Players never pay and there are no cash prizes.</p>${chips("prizeMode", [["both", "Each round and overall"], ["overall", "Overall only"], ["rounds", "Each round only"]], S.prizeMode)}
         ${S.prizeMode !== "rounds" ? `<h3>Overall prizes</h3>${prizeInputs("overall", S.overall)}` : ""}${S.prizeMode !== "overall" ? `<h3>Prizes for each round</h3>${prizeInputs("perRound", S.perRound)}` : ""}
         <label class="tcheck" for="onewin"><input type="checkbox" id="onewin" ${S.oneWin ? "checked" : ""}> A player can win only one prize. The next player in the order gets the other prize.</label>
-        <p class="zsmall">There is no tie: if players are equal, the highest single hit, then the most hits, then who reached the score first decide, and a number from the public beacon is the last step. The game starts 20 seconds after you press Start.</p>
-        <button class="zbtn" id="start">Start the game</button></div>`;
+        <p class="zsmall">There is no tie: if players are equal, the highest single hit, then the most hits, then who reached the score first decide, and a number from the public beacon is the last step. ${auto ? "" : "The game starts 20 seconds after you press Start."}</p>
+        ${auto ? `<button class="zbtn" id="saveplan">Save your choices</button><p class="zsmall">The game starts by itself at the time you set. If you do not save, it plays with 10 rounds, a 10 second press window and no prize text.</p>` : `<button class="zbtn" id="start">You start the game</button>`}</div>`;
     } else {
       body = `<div class="zcard"><h2>${v.state === "done" ? "Finished" : "Running"}</h2><p>${esc(v.players || v.joined)} players</p>${progress(v)}${endBlock(v)}${v.state === "done" ? `<p>${v.agreed ? "The result was agreed by the players' phones." : "The phones did not agree on a result."}</p>` : ""}${links()}</div>
         <div class="zcard"><h2>Check the draw</h2><p class="zsmall">Fingerprint (shown before anybody joined): <span class="mono">${esc((v.commit || "").slice(0, 32))}</span></p><p class="zsmall">After the game <a href="${esc(BASE)}/api/z/${esc(EID)}/luck/reveal" target="_blank" rel="noopener">show the secret and the seed</a>. Anybody can re-compute every number from it.</p></div>`;
@@ -60,6 +75,13 @@
       if (!confirm("End the game for everybody after the round now being played? This cannot be undone.")) return;
       try { await call("POST", `/api/z/${EID}/luck/end`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load();
     });
+    on("saveplan", async () => {
+      grab();
+      const list = (a) => a.map((x) => x.trim()); const trim = (a) => { const l = list(a); while (l.length && !l[l.length - 1]) l.pop(); return l; };
+      const rounds = Number(S.rounds), per = trim(S.perRound);
+      const settings = { rounds, windowSecs: S.windowSecs, prizeMode: S.prizeMode, oneWinPerPlayer: S.oneWin, prizes: { overall: trim(S.overall), rounds: Array.from({ length: Math.max(0, Math.min(20, rounds)) }, () => per) } };
+      try { await call("POST", `/api/z/${EID}/luck/plan`, { settings }); S.msg = "Saved. The game starts by itself at the time you set."; } catch (e) { S.msg = e.message; } paint();
+    });
     on("start", async () => {
       grab();
       const list = (a) => a.map((x) => x.trim()); const trim = (a) => { const l = list(a); while (l.length && !l[l.length - 1]) l.pop(); return l; };
@@ -70,7 +92,7 @@
     });
   }
   function grab() { const r = document.getElementById("rounds"); if (r) S.rounds = r.value; const o = document.getElementById("onewin"); if (o) S.oneWin = o.checked; document.querySelectorAll("input[data-p]").forEach((el) => { S[el.dataset.p][Number(el.dataset.i)] = el.value; }); }
-  async function load() { try { S.view = await (await fetch(BASE + `/api/z/${EID}/luck/view`, { cache: "no-store" })).json(); S.fetchedAt = Date.now(); } catch (e) { S.msg = "Connecting..."; } if (!document.activeElement || document.activeElement.tagName !== "INPUT") paint(); }
+  async function load() { try { S.view = await (await fetch(BASE + `/api/z/${EID}/luck/view`, { cache: "no-store" })).json(); S.fetchedAt = Date.now(); if (S.view && S.view.startMode === "auto" && S.view.state === "open") await loadPlan(); } catch (e) { S.msg = "Connecting..."; } if (!document.activeElement || document.activeElement.tagName !== "INPUT") paint(); }
   if (!EID) { $app.innerHTML = `<p class="zmsg">Open this page from your console.</p>`; return; }
   if (!key) { $app.innerHTML = `<div class="zcard"><h2>Sign in first</h2><p>Open your console, then choose "Run the game".</p><a class="zbtn" href="/zc.html?e=${encodeURIComponent(EID)}">Open the console</a></div>`; return; }
   load(); setInterval(load, 4000);
