@@ -9,7 +9,7 @@ Pure-luck dice game for company events. Domain: corporate events (company games 
 Bun + TypeScript monorepo (`apps/edge` Cloudflare Worker with D1 database, `apps/web/public` static pages, `packages/*` game code, `pages/` Cloudflare Pages build and Functions, `apps/cron` scheduled jobs where present). Payments only via the one IT Services payee (see KNOWLEDGE-MAP rules).
 
 ## Current version
-**1.5.5**. Where it is kept: `version.json` in the repo root (newest first in `changes`) and `CHANGELOG.md`. A running site reports it at `/version.json` as `{ version, commit, dirty, builtAt, game }`; `dirty` must be false for a release (a build from a dirty tree is not a recorded release). Footers of the static pages do not show the version (hand-copied footers; not changed).
+**1.5.6**. Where it is kept: `version.json` in the repo root (newest first in `changes`) and `CHANGELOG.md`. A running site reports it at `/version.json` as `{ version, commit, dirty, builtAt, game }`; `dirty` must be false for a release (a build from a dirty tree is not a recorded release). Footers of the static pages do not show the version (hand-copied footers; not changed).
 
 ## Build / test / deploy / rollback
 - Install: `bun install`. Test: `bun test packages apps tools/control-worker` (`bun run test`); typecheck `bun run typecheck`; quick version check `bun test apps/web/test/version-stamp.test.ts`.

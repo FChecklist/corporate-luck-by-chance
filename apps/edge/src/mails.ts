@@ -61,7 +61,7 @@ export function aiLinkMail(origin: string, key: string, why: "start" | "replace"
     paste: aiPaste(origin, key),
     steps: ["Copy the box.", "Paste it into any AI chat: ChatGPT, Claude, Gemini, Grok, DeepSeek, z.ai.", "Answer its questions. It does the work."],
     can: AI_CAN, stays: AI_STAYS,
-    replace: "Press \"Replace my AI link\" in your console. Every AI link stops at once.",
+    replace: "Press \"Replace your AI link\" in your console. Every AI link stops at once.",
     footer: "",
   });
   return { subject: AI_SUBJECT, text, html };
@@ -119,9 +119,9 @@ export function newUseAlertMail(info: { when: string; country: string; program: 
   const text = [
     `Someone new used your ${info.kind} work link`, "",
     `When: ${info.when}`, `Country: ${info.country || "unknown"}`, `Program: ${info.program || "unknown"}`, "",
-    "Not you? Press \"Replace my AI link\" in your console.", "", footerText(info.origin), "",
+    "Not you? Press \"Replace your AI link\" in your console.", "", footerText(info.origin), "",
   ].join("\n");
-  const html = pageHtml("Someone new used your " + info.kind + " work link", `<tr><td style="padding:20px 22px 8px;"><h1 style="font-size:22px;color:#0B5D5B;margin:0 0 8px;">Someone new used your ${esc(info.kind)} work link</h1><p style="font-size:15px;line-height:1.5;margin:0 0 12px;">When: ${esc(info.when)}<br>Country: ${esc(info.country || "unknown")}<br>Program: ${esc(info.program || "unknown")}</p><p style="font-size:15px;line-height:1.5;margin:0;">Not you? Press <b>Replace my AI link</b> in your console.</p></td></tr>`, info.origin);
+  const html = pageHtml("Someone new used your " + info.kind + " work link", `<tr><td style="padding:20px 22px 8px;"><h1 style="font-size:22px;color:#0B5D5B;margin:0 0 8px;">Someone new used your ${esc(info.kind)} work link</h1><p style="font-size:15px;line-height:1.5;margin:0 0 12px;">When: ${esc(info.when)}<br>Country: ${esc(info.country || "unknown")}<br>Program: ${esc(info.program || "unknown")}</p><p style="font-size:15px;line-height:1.5;margin:0;">Not you? Press <b>Replace your AI link</b> in your console.</p></td></tr>`, info.origin);
   return { subject: `Someone new used your ${info.kind} work link`, text, html };
 }
 

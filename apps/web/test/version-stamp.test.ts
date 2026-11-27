@@ -9,7 +9,7 @@ const ROOT = join(import.meta.dir, "../../..");
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { name: string };
 
 describe("P12: the version stamp", () => {
-  test("it holds the release version, the commit, whether files differed from it, the build time and the game, and nothing else", () => {
+  test("it holds the version, the commit, whether files differed from it, the build time and the game, and nothing else", () => {
     const calls: string[][] = [];
     const v = versionStamp({ root: ROOT, game: "corporate-test", version: "9.8.7", now: () => new Date("2026-10-14T05:00:00Z"), run: (a: string[]) => { calls.push(a); return a[0] === "rev-parse" ? "abc123def456" : ""; } });
     expect(v).toEqual({ version: "9.8.7", commit: "abc123def456", dirty: false, builtAt: "2026-10-14T05:00:00.000Z", game: "corporate-test" });
@@ -25,7 +25,7 @@ describe("P12: the version stamp", () => {
     expect(r.exitCode).toBe(0);
     const v = JSON.parse(readFileSync(join(ROOT, "pages/public/version.json"), "utf8"));
     expect(v.game).toBe(pkg.name);
-    expect(v.version).toMatch(/^[0-9]+[.][0-9]+[.][0-9]+/); // the release number kept in the repo (releases.json or version.json)
+    expect(v.version).toBe(JSON.parse(readFileSync(join(ROOT, "version.json"), "utf8")).version); expect(v.version).toMatch(/^\d+\.\d+\.\d+$/); expect(Object.keys(v).sort()).toEqual(["builtAt", "commit", "dirty", "game", "version"]); // the list of changes is not published
     expect(v.commit).toMatch(/^([0-9a-f]{7,40}|unknown)$/);
     expect(new Date(v.builtAt).toISOString()).toBe(v.builtAt);
     expect(typeof v.dirty).toBe("boolean");
@@ -40,5 +40,36 @@ describe("P12: the version stamp", () => {
     expect(d).toMatch(/\/version\.json/);
     expect(d).toMatch(/\| [0-9a-f]{7} \|/); // at least one deploy row, by short commit
     expect(readFileSync(join(ROOT, "README.md"), "utf8")).not.toMatch(/Nothing is deployed/i);
+  });
+});
+
+// The owner's version rule: every change that goes live bumps the number, and the number is the same in version.json, at the top of CHANGELOG.md and in docs/KNOWLEDGE.md.
+describe("R84: one version number, three places", () => {
+  const rd = (p: string) => readFileSync(join(ROOT, p), "utf8");
+  const v = JSON.parse(rd("version.json"));
+  test("version.json, the newest CHANGELOG.md entry and docs/KNOWLEDGE.md agree", () => {
+    expect(v.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(rd("CHANGELOG.md").match(/^## (\d+\.\d+\.\d+)/m)![1]).toBe(v.version);
+    expect(rd("docs/KNOWLEDGE.md")).toContain(`Version in the repository: **${v.version}**`);
+  });
+  test("every version in the CHANGELOG appears once, and the changes in version.json each carry what, where and the pull request", () => {
+    const heads = [...rd("CHANGELOG.md").matchAll(/^## (\d+\.\d+\.\d+)/gm)].map((m) => m[1]); expect(new Set(heads).size).toBe(heads.length);
+    for (const c of v.changes) expect([c.id, !!c.what, !!c.where, /^https:\/\/github\.com\/FChecklist\/corporate-luck-by-chance\/pull\/\d+$/.test(c.pr)]).toEqual([c.id, true, true, true]);
+    expect(v.changes.length).toBeLessThanOrEqual(20);
+  });
+  test("package.json, the footer of every public page and the What's new page carry the same number (v1.5.4)", () => {
+    expect(JSON.parse(rd("package.json")).version).toBe(v.version);
+    const { readdirSync } = require("node:fs");
+    const pages = (readdirSync(join(ROOT, "apps/web/public")) as string[]).filter((f) => f.endsWith(".html") && /class="uf"/.test(rd("apps/web/public/" + f)));
+    expect(pages.length).toBeGreaterThanOrEqual(13); expect(pages).toContain("changes.html"); expect(pages).toContain("about.html");
+    for (const f of pages) expect([f, rd("apps/web/public/" + f).match(/<p class="ufv">Version (\d+\.\d+\.\d+) &middot; <a href="\/changes\.html">/)?.[1]]).toEqual([f, v.version]);
+    const c = rd("apps/web/public/changes.html"); expect(c).toContain(`<h2 id="v-${v.version.replace(/\./g, "-")}">Version ${v.version}</h2>`);
+    expect(c.indexOf(`Version ${v.version}</h2>`)).toBeLessThan(c.indexOf("Version 1.5.3</h2>")); expect(c.indexOf("Version 1.5.3</h2>")).toBeLessThan(c.indexOf("Version 1.5.2</h2>")); // newest first
+    const words = c.slice(c.indexOf("<main"), c.indexOf("</main>")); expect(words).not.toMatch(/\.(ts|js|mjs)\b|docs\/|pull\/\d+|worker|D1|SQL|secret|rate limit|per IP/i); // plain words only: no file names, no internal ids, no security details
+    expect(rd("pages/build.mjs")).toContain('"changes.html"'); expect(rd("pages/build.mjs")).toContain('["/changes", PLAINCSP, true]');
+  });
+  test("there is exactly one place that says what is live, and the open docs pull requests (11 and 13) add no second one", () => {
+    const k = rd("docs/KNOWLEDGE.md"); expect(k.match(/Live now/g)?.length ?? 0).toBe(1);
+    expect(existsSync(join(ROOT, "docs/VERSIONING.md"))).toBe(true);
   });
 });

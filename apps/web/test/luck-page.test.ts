@@ -10,7 +10,7 @@ const K4: Record<string, string> = (TEXT as any).K4, VER: string = (TEXT as any)
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
-async function openPlayerPage(search = "?e=GAME-1", opts: { pid?: boolean; ann?: { id: string; text: string } | null } = {}) {
+async function openPlayerPage(search = "?e=GAME-1", opts: { pid?: boolean; ann?: { id: string; text: string } | null; info?: Record<string, unknown> } = {}) {
   const w: any = new Window({ url: "https://luck.corporatetambola.com/z.html" + search, width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   const sent: { url: string; method: string; body: any }[] = [];
@@ -18,7 +18,7 @@ async function openPlayerPage(search = "?e=GAME-1", opts: { pid?: boolean; ann?:
     const u = String(url); const body = init.body ? JSON.parse(init.body) : undefined; sent.push({ url: u, method: init.method ?? "GET", body });
     const ok = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status });
     if (u.includes("/api/consent/text")) return ok({ version: VER, kind: "K4", boxes: Object.entries(K4).map(([id, text]) => ({ id, text })) });
-    if (u.endsWith("/info")) return ok({});
+    if (u.endsWith("/info")) return ok(opts.info ?? {});
     if (u.endsWith("/join")) return ok({ pid: "1x000000000001" });
     if (u.includes("/luck/me")) return ok({ phase: "waiting", state: "open", joined: 1, serverNow: Date.now(), commit: "ab".repeat(32), ann: opts.ann ?? null });
     return ok({}, 404);
@@ -59,6 +59,26 @@ describe("the join screen (K4, U1-U3)", () => {
     const join = sent.find((s) => s.url.endsWith("/join"))!;
     expect(join.body.name).toBe("Maya"); expect(join.body.consent).toEqual({ v: VER, boxes: ["A", "B"] }); expect(join.body.device).toMatch(/^[0-9a-f]{32}$/);
     expect(d.body.textContent).toContain("Waiting for the host to start the game");
+  });
+  test("R78: when the game asks for the ID there is ONE ID box, before the nickname box, and the request carries the ID, the nickname and nothing else about the person", async () => {
+    const { d, sent } = await openPlayerPage("?e=GAME-1", { info: { joinId: true } });
+    expect(d.querySelectorAll("#gid").length).toBe(1); expect(d.querySelector('input[type="tel"]')).toBeNull(); expect(d.getElementById("ph")).toBeNull();
+    const html = d.body.innerHTML; expect(html.indexOf("tbslot")).toBeLessThan(html.indexOf('id="gid"')); expect(html.indexOf('id="gid"')).toBeLessThan(html.indexOf('id="nm"'));
+    expect(d.getElementById("gid")!.disabled).toBe(true); // like the nickname, it waits for the two ticks
+    expect(d.body.textContent).toContain("employee ID, associate ID, vendor ID or customer ID"); expect(d.body.textContent).not.toMatch(/mobile/i);
+    for (const b of [...d.querySelectorAll('input[type="checkbox"]')] as any[]) { b.checked = true; b.dispatchEvent(new (d.defaultView as any).Event("change")); }
+    await tick();
+    const gid = d.getElementById("gid") as any, nm = d.getElementById("nm") as any, go = d.getElementById("go") as any;
+    expect(gid.disabled).toBe(false); nm.value = "Maya"; nm.dispatchEvent(new (d.defaultView as any).Event("input")); await tick(); expect(go.disabled).toBe(true); // no ID yet
+    gid.value = "---"; gid.dispatchEvent(new (d.defaultView as any).Event("input")); await tick(); expect(go.disabled).toBe(true); // no letter or digit in it
+    gid.value = "a-1101"; gid.dispatchEvent(new (d.defaultView as any).Event("input")); await tick(); expect(go.disabled).toBe(false);
+    go.click(); await tick(60);
+    const join = sent.find((x) => x.url.endsWith("/join"))!;
+    expect(join.body).toMatchObject({ id: "a-1101", name: "Maya" }); expect(Object.keys(join.body).sort()).toEqual(["consent", "device", "id", "name"]); // the server cleans the ID (A1101); the page sends what was typed
+  });
+  test("R78: a personal link already knows who it is for, so it has no ID box; a game that does not ask for the ID shows none either", async () => {
+    const t = await openPlayerPage("?e=GAME-1&t=abcdefghij", { info: { joinId: true } }); expect(t.d.getElementById("gid")).toBeNull();
+    const n = await openPlayerPage("?e=GAME-1", { info: { joinId: false } }); expect(n.d.getElementById("gid")).toBeNull();
   });
   test("the page never types the consent wording itself (it comes from the server)", () => {
     for (const f of ["luck.js", "termsbox.js"]) for (const text of Object.values(K4)) expect([f, pub(f).includes(text)]).toEqual([f, false]);
