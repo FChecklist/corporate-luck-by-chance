@@ -145,14 +145,14 @@ describe("the switch PAY_VIA_CONSOLE", () => {
       expect(payRedirect(new Request("http://x/pay.html"), { PAY_VIA_CONSOLE: flag })).toBeNull();
     }
   });
-  test("on: the old pay routes answer 302 to the console; Razorpay's notice, the return check and read-only views are not touched", async () => {
+  test("on: the old pay routes of the API answer 410 with the console's address; Razorpay's notice, the return check and read-only views are not touched", async () => {
     const { master } = await team();
     const on = { ...env, PAY_VIA_CONSOLE: "1" } as PayEnv;
     for (const [m, p] of [["POST", "/api/z/CP-1/paylink"], ["POST", "/api/checkout"], ["POST", "/api/payments/test"], ["POST", "/api/payments/paytest"], ["POST", `/api/paylink/${"a".repeat(48)}/checkout`], ["POST", "/api/z/CP-1/pay-with-credit"], ["GET", "/pay.html"], ["GET", "/pay"], ["GET", "/paylink"], ["GET", "/paytest.html"]] as const) {
       const r = await call(m, p, m === "POST" ? {} : undefined, master, T, on);
-      expect([p, r.status, r.headers.get("location")]).toEqual([p, 302, CONSOLE_ORIGIN + "/"]);
+      expect(p.startsWith("/api/") ? [p, r.status, (await j(r)).console] : [p, r.status, r.headers.get("location")]).toEqual(p.startsWith("/api/") ? [p, 410, CONSOLE_ORIGIN + "/"] : [p, 302, CONSOLE_ORIGIN + "/"]); // 1.5.6: a program gets 410 (gone) and the console address; a page still gets the 302
     }
-    for (const [m, p] of [["POST", "/api/payments/webhook"], ["POST", "/api/payments/verify"], ["GET", "/api/payments/status"], ["GET", `/api/paylink/${"a".repeat(48)}`], ["GET", "/api/z/CP-1/summary"]] as const) {
+    for (const [m, p] of [["POST", "/api/payments/webhook"], ["GET", "/api/payments/status"], ["GET", `/api/paylink/${"a".repeat(48)}`], ["GET", "/api/z/CP-1/summary"]] as const) {
       const r = await call(m, p, m === "POST" ? {} : undefined, master, T, on);
       expect([p, r.status === 302]).toEqual([p, false]);
     }

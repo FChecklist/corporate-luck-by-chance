@@ -5,7 +5,8 @@
 //              and never extends or resets anything on a repeat. A half-done call is safe to run again (the unlock itself is the LAST write, and only while the game is unpaid).
 // No price lives here: the size is the pack the game already belongs to (paylink.ts packFor); every amount comes from the console / Moneypenny.
 // Dark by default: the bridge itself is not wired to a route yet, and PAY_VIA_CONSOLE is off, so nothing here runs in the live game.
-import { legacyPayRedirect, type Adapter } from "./console-bridge/bridge";
+import { handleConsole, legacyPayRedirect, type Adapter, type KeyAuth } from "./console-bridge/bridge";
+import type { D1 as BridgeD1 } from "./console-bridge/d1";
 import { GRACE_ROUNDS } from "../../../packages/beacon/src/config";
 import CFG from "../../../config/console-pay.json";
 import { LATE_PAY_LEAD_ROUNDS } from "./pay";
@@ -65,13 +66,56 @@ export const markPaid: NonNullable<Adapter<Env>["markPaid"]> = async (env, o) =>
   throw refuse("This game can no longer be paid for (its size or state changed while paying).");
 };
 
-/** the game's own old payment routes that START a payment (Razorpay's notice, the buyer's return check and read-only views are NOT here: money already paid must still be recorded) */
+/** The game's own old payment routes. Razorpay's notice (/api/payments/webhook) and the read-only status are NOT here: money already paid must still be recorded. */
 export const LUCK_PAY_ROUTES: RegExp[] = [
   /^\/(pay|paylink|paytest)$/, // the clean addresses of the three pages (Cloudflare serves /pay.html as /pay)
-  /^\/api\/(checkout|payments\/test|payments\/paytest)$/,
-  /^\/api\/paylink\/[0-9a-f]{48}\/checkout$/,
-  /^\/api\/z\/[^/]+\/pay-with-credit$/,
+  /^\/api\/(checkout|proforma)$/,
+  /^\/api\/payments\/(test|paytest|verify)(\/|$)/,
+  /^\/api\/paylink\/[0-9a-f]{48}(\/checkout)?$/,
+  /^\/api\/z\/[^/]+\/(paylink|credit|apply-credit|pay-with-credit)(\/|$)/,
+  /^\/api\/org\/credit(\/|$)/,
 ];
-/** null = not this business (or the switch is off: PAY_VIA_CONSOLE must be exactly "1"); otherwise a 302 to the console */
-export const payRedirect = (req: Request, env: { PAY_VIA_CONSOLE?: string }): Response | null =>
-  legacyPayRedirect(req, { flag: env.PAY_VIA_CONSOLE, consoleOrigin: CONSOLE_ORIGIN, extra: LUCK_PAY_ROUTES });
+/** null = not this business (or the switch is off: PAY_VIA_CONSOLE must be exactly "1"). A page gets a 302 to the console; a program (/api/...) gets 410 (gone) and the console's address (1.5.6). */
+export const payRedirect = (req: Request, env: { PAY_VIA_CONSOLE?: string }): Response | null => {
+  const r = legacyPayRedirect(req, { flag: env.PAY_VIA_CONSOLE, consoleOrigin: CONSOLE_ORIGIN, extra: LUCK_PAY_ROUTES });
+  if (!r || !new URL(req.url).pathname.startsWith("/api/")) return r;
+  return new Response(JSON.stringify({ error: "Payment is made in your console now. Please open your console and press Pay.", code: "pay-in-console", console: CONSOLE_ORIGIN.replace(/\/$/, "") + "/" }), { status: 410, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+};
+
+export interface ConsoleEnv extends Env { CONSOLE_PUBKEYS?: string; PAY_VIA_CONSOLE?: string; PUBLIC_ORIGIN?: string }
+const notOpen = () => { throw new Error("This part of the console link is not open in this game yet."); };
+/** The adapter the bridge needs. Only markPaid and payInfo are used (the routes are /api/console/paid and /api/console/payable); every other method refuses, so nothing else of the bridge can be reached. */
+export function consoleAdapter(now: number): Adapter<ConsoleEnv> {
+  return {
+    game: PAY_GAME, gameName: "Corporate Luck by Chance", gameVersion: "1.5.6",
+    nowMs: () => now,
+    origin: (env) => (env.PUBLIC_ORIGIN || "").replace(/\/$/, ""),
+    pubkeys: (env) => env.CONSOLE_PUBKEYS,
+    db: (env) => env.DB as unknown as BridgeD1,
+    organizerOf: async (env, h) => { const r = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(h).first<{ org: string }>(); return r ? { org: r.org } : null; },
+    createOrganizer: async () => notOpen(),
+    mintKey: async () => notOpen(),
+    revokeKeys: async () => notOpen(),
+    authOfKey: async (): Promise<KeyAuth | null> => null,
+    engagement: async (env, eid) => { const r = await env.DB.prepare("SELECT org, config, cancelled_ms, unplayed_ms FROM engagement WHERE id=?").bind(eid).first<any>(); if (!r) return null; let name = eid; try { name = JSON.parse(r.config || "{}").name || eid; } catch { /* keep the id */ } return { org: r.org, name, ended: !!(r.cancelled_ms || r.unplayed_ms) }; },
+    listGames: async () => notOpen(),
+    billing: async () => notOpen(),
+    invitedCards: async () => notOpen(),
+    purgePerson: async () => notOpen(),
+    live: async () => notOpen(),
+    capabilities: async () => notOpen(),
+    sendRoleInvite: async () => notOpen(),
+    seal: async () => notOpen(),
+    unseal: async () => notOpen(),
+    markPaid: (env, o) => markPaid(env, o),
+    payInfo: (env, o) => payInfo(env, o),
+  };
+}
+/** Only the paid notice and the read-only question are handed to the bridge. Dark (null, the normal 404) without CONSOLE_PUBKEYS; 503 with a reason when the public address is not set. */
+export async function consolePaidRoute(req: Request, env: ConsoleEnv, now: number): Promise<Response | null> {
+  const path = new URL(req.url).pathname.replace(/\/+$/, "");
+  if (path !== "/api/console/paid" && path !== "/api/console/payable") return null;
+  if (req.method !== "POST" && req.method !== "OPTIONS") return null;
+  if (env.CONSOLE_PUBKEYS && !env.PUBLIC_ORIGIN) return new Response(JSON.stringify({ ok: false, code: "not_set_up", error: "This game's public address (PUBLIC_ORIGIN) is not set, so it cannot take the console's paid notice yet." }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  return handleConsole(consoleAdapter(now), req, env);
+}

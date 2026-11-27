@@ -29,7 +29,7 @@ import { cloneGame } from "./clone";
 import { acceptOver, acceptWon, endBoundMs, eraseEverything, erasePersonal, erasureOf, fullDeleteAt, lifecycleTick, MAX_AHEAD_MS, PAID_WINDOW_MS, latestStartMs, personalDeleteAt, SETTINGS_KEEP_MS, recordWinners, reportApi, reportLink } from "./lifecycle";
 import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_CAP, MAX_DRAFTS, type PayEnv } from "./pay";
 import { PACKS, price } from "../../../packages/shared/src/pricing";
-import { payRedirect } from "./console-pay";
+import { payRedirect, consolePaidRoute, type ConsoleEnv } from "./console-pay";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
 import { ID_ONLY_MSG, NOT_AN_ID_MSG, carriesPersonalDetails, cleanInviteId, idHashOf } from "./invite-id";
@@ -403,6 +403,7 @@ export async function handle(req: Request, env: Env, now = Date.now(), waitUntil
   return res;
 }
 async function handleCore(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
+  { const pn0 = new URL(req.url).pathname; if (pn0 === "/api/console/paid" || pn0 === "/api/console/payable") { const cr = await consolePaidRoute(req, env as ConsoleEnv, now); if (cr) return cr; } } // the console's signed notice and question (dark without CONSOLE_PUBKEYS)
   { const toConsole = payRedirect(req, env as PayEnv); if (toConsole) return toConsole; } // PAY_VIA_CONSOLE="1": the old Pay now routes send the person to the console; off = null and nothing changes (console-pay.ts)
   if (keysMissing(env)) return new Response(JSON.stringify({ error: "The service is not configured. Please try again later." }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store" } });
   const pn = new URL(req.url).pathname;
@@ -1292,7 +1293,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     await adminTick(env.DB, now); // old error counters and old mail events go (admin.ts)
     await remindUnpaid(env, now);
     let luckClosed = 0; try { luckClosed = await luckTick(env, now, (n) => spend(env, now, n)); } catch { /* tried again next minute */ } // games whose result never reached agreement
-    const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
+    const ledgerC = (env as PayEnv).PAY_VIA_CONSOLE === "1" ? null : await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
     return json({ ok: true, ...(await lifecycleTick(env as any, now)), purged: await purgeOld(env, now), luckClosed, ledgerC });
   }
   if (req.method === "POST" && p === "/api/purge") { // run daily (Cron trigger) or by hand: removes everything older than the retention period
