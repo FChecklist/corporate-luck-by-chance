@@ -2,6 +2,16 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
+## 1.5.6 - 2026-11-27 (not deployed)
+Payment only through the console (owner order 27 Nov 2026), switch off by default. Based on the 1.5.5 branch (PR 14); the live site runs commit `ef502b80a544` (1.5.5, built dirty on 22 Nov), which is an ancestor of this branch.
+
+Added
+- `POST /api/console/payable` (signed, read-only: is this the organizer's own game, its pack size as a string, already paid) and `POST /api/console/paid` (signed notice, once per order id, unlocks the start), through the bridge in `console-bridge/`. Dark (the normal 404) until `CONSOLE_PUBKEYS` is set; 503 with a reason when `PUBLIC_ORIGIN` is not set.
+
+Changed
+- With `PAY_VIA_CONSOLE` set to 1: pay pages go to the console (302); `/api/checkout`, `/api/proforma`, `/api/payments/test|paytest|verify`, `/api/paylink/*`, `/api/org/credit`, `/api/z/<id>/paylink|credit|apply-credit|pay-with-credit` answer **410** with the console's address (302 before); `placeOrder` opens no order; credit-expiry and ledger C jobs are skipped; `/api/payments/webhook` and `/api/payments/status` stay open. Off: unchanged.
+- Guide entry for the 410 message. Tests: `pay-via-console.test.ts` (8), `console-pay.test.ts` updated. Not run against the real console or Moneypenny.
+
 ## 1.5.5 - 2026-11-22 (DEPLOYED 22 Nov 2026 about 17:42 IST, deployment 621b0dbc)
 Version 1.5.4 got one PASS and one FAIL from its two independent audits (the FAIL had one High and one Medium). 1.5.5 is 1.5.4 plus the fixes, in plain words:
 

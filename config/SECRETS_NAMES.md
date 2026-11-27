@@ -51,5 +51,6 @@ Where things are set:
 | `ANALYZE_AI_URL` | Optional chat endpoint the owner's analyze route may send masked totals to | Optional Pages variable | setting |
 | `ANALYZE_AI_KEY` | Key for that endpoint | Optional Pages secret | secret |
 | `ANALYZE_AI_MODEL` | Model name for that endpoint | Optional Pages variable | setting |
-| `PAY_VIA_CONSOLE` | "1" sends the old Pay now pages and routes to the console (console-pay.ts); anything else, or unset, keeps the old payment exactly as it was. Set only by the owner. | Optional Pages variable | setting |
+| `PAY_VIA_CONSOLE` | Set to 1, the old pay pages go to the console and the old pay, pay-link, credit and proforma routes answer 410 (no order is opened with Razorpay or the central service). Unset: the old path, kept for rollback. Set only by the owner. | Optional Pages variable | setting |
+| `CONSOLE_PUBKEYS` | The console's public keys that check its signed notices (`POST /api/console/payable`, `POST /api/console/paid`); with no value those addresses do not exist (the normal 404) | wrangler var | setting |
 | `TARGET` | The scheduled job: the web address it calls | `apps/cron/wrangler.toml` | setting |

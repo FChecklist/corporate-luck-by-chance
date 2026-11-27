@@ -61,6 +61,7 @@ const rzpOf = (env: PayEnv): (RazorpayConfig) | null => (env.RAZORPAY_KEY_ID && 
  * Without PAY_SERVICE_KEY, or if the central service cannot be reached, the order is opened directly with Razorpay exactly as before (the webhook still reaches the ledger).
  */
 async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string }): Promise<CreatedOrder> {
+  if (env.PAY_VIA_CONSOLE === "1") throw new Error("payments go through the console"); // no central or direct-Razorpay order while the console takes the payment
   const c = centralOf(env);
   if (c) {
     try {
