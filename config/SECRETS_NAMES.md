@@ -52,5 +52,6 @@ Where things are set:
 | `ANALYZE_AI_KEY` | Key for that endpoint | Optional Pages secret | secret |
 | `ANALYZE_AI_MODEL` | Model name for that endpoint | Optional Pages variable | setting |
 | `PAY_VIA_CONSOLE` | Set to 1, the old pay pages go to the console and the old pay, pay-link, credit and proforma routes answer 410 (no order is opened with Razorpay or the central service). Unset: the old path, kept for rollback. Set only by the owner. | Optional Pages variable | setting |
+| `SITE_HIDDEN` | Switch: `1` shows a short "This game is coming soon" page on the public marketing pages (landing, about, brochure, pricing, trust, organizer guide, how it works), answers 404 for `/llms.txt` and `/sitemap.xml`, and sends noindex; join links, the player and host pages, sign-in, payment return, legal pages and `/api` are not touched. Unset or any other value = off, nothing changes. Not a secret | Pages variable | setting |
 | `CONSOLE_PUBKEYS` | The console's public keys that check its signed notices (`POST /api/console/payable`, `POST /api/console/paid`); with no value those addresses do not exist (the normal 404) | wrangler var | setting |
 | `TARGET` | The scheduled job: the web address it calls | `apps/cron/wrangler.toml` | setting |
