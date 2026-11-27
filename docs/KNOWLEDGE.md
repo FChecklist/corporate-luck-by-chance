@@ -6,7 +6,7 @@ Written 20 Nov 2026 (PR 11) and brought up to date on 22 Nov 2026 (version 1.5.5
 Pure-luck dice game for company events: ten rounds of ten dice rounds, a target number from 1 to 6, a strict top 10 with no ties. The game runs on the players' phones; the server keeps the sealed secret, the list of players and the votes.
 - Live site: https://luck.corporatetambola.com (Cloudflare Pages project `corporate-luck-by-chance`).
 - Live now: **1.5.1**, deployed 2026-11-20 18:52 UTC (Pages deployment `7fb0c286`), built from the default branch head `1736b9a` (the merge of PR 12). It is dark: `PAY_VIA_CONSOLE` is unset, so the old Pay now flow works exactly as before and no real payment flag was switched. The live `/version.json` has `commit` and `builtAt` but no version number; the number appears there from the next deploy on.
-- Version in the repository: **1.5.5** (1.5.2, the owner rules v1.1 change, plus the fixes for the failed audits of 1.5.2, 1.5.3 and 1.5.4; PR 14; not deployed). 1.5.2 and 1.5.3 were never deployed. Nothing live changes until the owner says go.
+- Version in the repository: **1.5.6** (adds the SITE_HIDDEN switch, see below) (1.5.2, the owner rules v1.1 change, plus the fixes for the failed audits of 1.5.2, 1.5.3 and 1.5.4; PR 14; not deployed). 1.5.2 and 1.5.3 were never deployed. Nothing live changes until the owner says go.
 - Where the history is: `CHANGELOG.md` (plain-language, newest first), `version.json` (the number and the last changes), `docs/DEPLOYS.md`. PR 11 (first knowledge notes) and PR 13 (the 1.5.1 deploy record) are folded into these files by PR 14 (1.5.2, then 1.5.3): close them when it merges; do not merge them as well.
 - Other repos and what they are for: `KNOWLEDGE-MAP.md` in the repo root.
 
@@ -64,3 +64,6 @@ This is the audit's High finding H1 ("the ID guess limit does not limit guessing
 
 ## 8. Owner-only steps still open
 Secrets and keys are the owner's (names only in config/SECRETS_NAMES.md where present). Deploy, domain, payment live mode and the Rs 1 payment test are for the owner to decide, through BOSS. Versioning work still to do in this repo: `docs/VERSIONING.md` (only the pre-1.5.0 ids).
+
+## Site hidden switch (SITE_HIDDEN, 1.5.6, 27 Nov 2026)
+Owner decision 27 Nov 2026: Tic-Tac-Toe, Snakes and Ladders and Luck by Chance are shown as 'coming soon' to the public while Tambola, Bingo and Lucky Draw stay. One Cloudflare Pages variable `SITE_HIDDEN` = `1` turns it on (unset or any other value = off, today's behaviour). Code: `apps/edge/src/site-hidden.ts`, hooked in `pages/functions/_middleware.ts`; test `apps/edge/test/site-hidden.test.ts`. It hides only the marketing pages, `/llms.txt` and `/sitemap.xml`; join links, the player page, host pages, sign-in, payments, legal pages and `/api` are never touched. Same name and same file in the other two hidden games.

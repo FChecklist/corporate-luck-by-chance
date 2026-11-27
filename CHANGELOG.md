@@ -2,6 +2,16 @@
 
 Newest first. Per version: Added / Changed / Fixed, each line = what, where, PR, audit result, rollback id. The standard is the marketing-ledger file plans/VERSION-AND-KNOWLEDGE-STANDARD-2026-11-20.md, section 2.2. Every change that goes live bumps the version here, in `version.json` and in `docs/KNOWLEDGE.md` in the same pull request.
 
+## 1.5.6 - 2026-11-27 (not deployed)
+Owner decision 27 Nov 2026: hide the public pages of this game without deleting anything. Based on the live code (ef502b8), standalone: it does not depend on the pay-via-console branches. Nothing is deployed and the switch is OFF by default.
+### Added
+- `SITE_HIDDEN` switch (`apps/edge/src/site-hidden.ts`, called from `pages/functions/_middleware.ts`). With SITE_HIDDEN set to 1 (a Cloudflare Pages variable, no rebuild) the landing page and the sales pages (/, /index, /about, /brochure, /pricing, /trust, /organizer-guide and the how-it-works pages) show a short 'This game is coming soon' page with a link to home.corporatetambola.com, send noindex (meta tag and X-Robots-Tag), and /llms.txt and /sitemap.xml answer 404; that page has no schema, no Open Graph and no agree buttons. Join links (/j/...), the player page, the host and organizer pages, sign-in, payment return, the legal pages, /api and the console links are NOT touched, so people who already have a link or a game still play. Switch off or unset: nothing changes. Nothing is deleted.
+- Test `apps/edge/test/site-hidden.test.ts` (switch off = unchanged, switch on = coming soon, join/host/api untouched).
+### Changed
+- `pages/build.mjs`: `/llms.txt` and `/sitemap.xml` are served through the function so the switch can answer them (off: they are served exactly as before).
+### Rollback
+- Unset `SITE_HIDDEN` in Cloudflare Pages (instant, no deploy), or redeploy the previous version (1.5.5).
+
 ## 1.5.5 - 2026-11-22 (not deployed; nothing live changes until the owner says go)
 Version 1.5.4 got one PASS and one FAIL from its two independent audits (the FAIL had one High and one Medium). 1.5.5 is 1.5.4 plus the fixes, in plain words:
 
