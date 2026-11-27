@@ -1,6 +1,8 @@
 // What is live, in one small file: pages/public/version.json = { version, commit, dirty, builtAt, game }, written by pages/build.mjs and served at /version.json.
 // `commit` is the git commit the build was made from (short), `dirty` says whether files differed from it, `builtAt` is UTC, `version` is the number kept in the root version.json (the same number as the top of CHANGELOG.md and docs/KNOWLEDGE.md). No secret, no person, no setting is ever put here.
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export function versionStamp({ root, game, version = "unknown", run, now = () => new Date() }) {
   const git = run ?? ((args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim());
