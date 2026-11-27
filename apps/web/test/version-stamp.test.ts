@@ -60,7 +60,7 @@ describe("R84: one version number, three places", () => {
   test("package.json, the footer of every public page and the What's new page carry the same number (v1.5.4)", () => {
     expect(JSON.parse(rd("package.json")).version).toBe(v.version);
     const { readdirSync } = require("node:fs");
-    const pages = (readdirSync(join(ROOT, "apps/web/public")) as string[]).filter((f) => f.endsWith(".html") && /class="uf"/.test(rd("apps/web/public/" + f)));
+    const pages = (readdirSync(join(ROOT, "apps/web/public")) as string[]).filter((f) => f.endsWith(".html") && /class="(uf|ck-foot)"/.test(rd("apps/web/public/" + f)));
     expect(pages.length).toBeGreaterThanOrEqual(13); expect(pages).toContain("changes.html"); expect(pages).toContain("about.html");
     for (const f of pages) expect([f, rd("apps/web/public/" + f).match(/<p class="ufv">Version (\d+\.\d+\.\d+) &middot; <a href="\/changes\.html">/)?.[1]]).toEqual([f, v.version]);
     const c = rd("apps/web/public/changes.html"); expect(c).toContain(`<h2 id="v-${v.version.replace(/\./g, "-")}">Version ${v.version}</h2>`);

@@ -1,0 +1,29 @@
+/* Corporate Luck by Chance: the brand shell for every page that still draws itself with the older app styles (app.css, z.css, zc.css, partner.css):
+   the sign-in pop-ups, the organizer console, the player page, the pay and report pages.
+   It changes ONLY looks: it points the old colour names at the brand kit's tokens (tokens.css must be loaded before this file),
+   and it dresses the old top bars in the kit's header colours. It never changes a rule of the game, the console steps, options or routes. */
+:root{
+  --pri:var(--action); --pri2:var(--bar-a); --deep:var(--bar-deep); --acc:var(--marigold); --acc2:#FFE08A; --accd:var(--accent);
+  --ivory:var(--bg); --surface:var(--paper); --sunk:var(--tint); --ink2:var(--ink); --faint:var(--muted); --line2:var(--line);
+  --okbg:var(--ok-bg); --warnbg:var(--warn-bg); --badbg:var(--bad-bg); --info:var(--st-blue-tx); --infobg:var(--st-blue-bg);
+  --zc-line:var(--line); --zc-mut:var(--muted); --zc-ink:var(--ink); --zc-soft:var(--tint); --zc-surf:var(--paper); --zc-accent:var(--action); --zc-bad:var(--bad); --zc-ok:var(--ok); --zc-warn:var(--warn);
+  --bg-tint-yellow:var(--st-yellow-bg); --text-tint-yellow:var(--st-yellow-tx); --bg-tint-red:var(--st-red-bg); --text-tint-red:var(--st-red-tx);
+  --bg-tint-blue:var(--st-blue-bg); --text-tint-blue:var(--st-blue-tx); --bg-tint-green:var(--st-green-bg); --text-tint-green:var(--st-green-tx);
+}
+html,body{font-family:var(--sans)}
+h1,h2,h3{font-family:var(--serif)}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+
+/* the old top bars take the kit's header colours and the proper name in the kit's serif */
+.zc-bar,.zhead,.rhead,.legaltop{background:linear-gradient(180deg,var(--bar-a),var(--bar-b));border-bottom:3px solid var(--bar-edge);color:var(--on-bar)}
+.zc-bar a,.zhead a,.rhead a,.zc-brand,.zc-bar b,.zhead b,.rbrand{color:var(--on-bar)}
+.zc-brand,.zhead b,.rbrand{font-family:var(--serif);font-weight:700;letter-spacing:-.01em}
+.zc-brand img,.zhead .zlogo img,.rlogo{border-radius:7px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.zhead .zsnd,.zc-bar .zc-pill{border:1px solid rgba(255,255,255,.55);background:transparent;color:var(--on-bar);border-radius:var(--r-pill)}
+.zc-pill-role{background:var(--bar-gold)!important;color:var(--bar-ink)!important;border-color:var(--bar-gold)!important;font-weight:700}
+
+/* buttons: round pills like the websites */
+.btn,.zbtn,.zc-btn,.zsnd{border-radius:var(--r-pill)}
+.btn:not(.line):not(.ghost):not(.danger):not(.gold){background:var(--action);color:var(--on-action)}
+.btn.gold{background:var(--marigold);color:var(--bar-ink)}

@@ -1,0 +1,4 @@
+/* The older app styles, kept only for the parts of the website that still use them (the sign-in and checkout pop-ups, tables, the price card).
+   They sit in a low-priority layer, so the brand kit (tokens.css, components.css) always wins where both say something. */
+@import url("/app.css?v=3") layer(legacy);
+@import url("/site.css?v=3") layer(legacy);

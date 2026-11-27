@@ -46,11 +46,13 @@ export function layoutReport(d: ReportData): Uint8Array {
 
   // ---- title band
   pdf.rect(0, pdf.H, pdf.W, 92, NAVY); pdf.rect(0, pdf.H - 92, pdf.W, 3, GOLD);
+  pdf.badge(pdf.M, pdf.H - 14, 64); // the Corporate Luck by Chance badge, at the left of the band
   if (d.logoPix) pdf.logo(d.logoPix, pdf.W - pdf.M - 64, pdf.H - 14, 64, 64); // the organizer's logo, on a white tile at the right of the band
+  const tx = pdf.M + 78;
   pdf.y = pdf.H - 28;
-  pdf.para(d.brand && d.brand.name ? `${d.brand.name} | Corporate Luck by Chance` : "Corporate Luck by Chance", { font: "F2", size: 11, color: GOLD, gap: 2 });
-  pdf.para("Complete game report", { font: "F2", size: 22, color: WHITE, gap: 2 });
-  pdf.para(`Game ${d.engagementId}   |   ${d.people.length} people   |   ${d.prizes.reduce((n, p) => n + p.winners.length, 0)} prize wins`, { size: 9.5, color: WHITE });
+  pdf.para(d.brand && d.brand.name ? `${d.brand.name} | Corporate Luck by Chance` : "Corporate Luck by Chance", { font: "F2", size: 11, color: GOLD, gap: 2, x: tx });
+  pdf.para("Complete game report", { font: "F2", size: 22, color: WHITE, gap: 2, x: tx });
+  pdf.para(`Game ${d.engagementId}   |   ${d.people.length} people   |   ${d.prizes.reduce((n, p) => n + p.winners.length, 0)} prize wins`, { size: 9.5, color: WHITE, x: tx });
   pdf.y = pdf.H - 92 - 16;
 
   pdf.box("Sent to you", [
@@ -200,9 +202,10 @@ export function layoutPeoplePart(d: ReportData, people: ReportPerson[], k: numbe
   const pdf = new PdfDoc();
   pdf.footer = `Corporate Luck by Chance  |  Game ${d.engagementId}  |  people part ${k} of ${n}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
   pdf.rect(0, pdf.H, pdf.W, 70, NAVY); pdf.rect(0, pdf.H - 70, pdf.W, 3, GOLD);
+  pdf.badge(pdf.M, pdf.H - 11, 48);
   pdf.y = pdf.H - 26;
-  pdf.para("Corporate Luck by Chance", { font: "F2", size: 11, color: GOLD, gap: 2 });
-  pdf.para(`People, part ${k} of ${n}  |  Game ${d.engagementId}`, { font: "F2", size: 16, color: WHITE });
+  pdf.para("Corporate Luck by Chance", { font: "F2", size: 11, color: GOLD, gap: 2, x: pdf.M + 62 });
+  pdf.para(`People, part ${k} of ${n}  |  Game ${d.engagementId}`, { font: "F2", size: 16, color: WHITE, x: pdf.M + 62 });
   pdf.y = pdf.H - 70 - 14;
   pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is deleted from our systems by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
   treeSection(pdf, people); listSection(pdf, people, d.tz);
