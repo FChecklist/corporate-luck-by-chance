@@ -1,5 +1,5 @@
-// Joining with a name only (the default for the common link): a guest is known by their name, their phone by its own random id.
-// A mobile number is only asked for when the organizer switches that on (join: "phone"), and a personal link or a typed number still work as before.
+// Joining with a nickname only (the older way, still read for a game that does not ask for an ID): a guest is known by the nickname, their phone by its own random id.
+// When the game asks for the ID (join: "id", the console always sets it), the guest also types the ONE invite ID; a mobile number is never a way to join.
 import { beforeEach, describe, expect, test } from "bun:test";
 import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
@@ -34,7 +34,7 @@ describe("joining with a name only", () => {
   test("a name and the phone's own id are enough: a seat, a card id, no number stored", async () => {
     await game("NAME-1");
     const info = await j(await call("GET", "/api/z/NAME-1/info"));
-    expect(info.joinPhone).toBe(false);
+    expect(info.joinId).toBe(false);
     const r = await call("POST", "/api/z/NAME-1/join", { name: "Maya Lopez", device: dev(1) }); expect(r.status).toBe(200);
     const a = await j(r); expect(a.pid).toMatch(/^1x[0-9a-f]{12}$/);
     const row = raw.query("SELECT pii FROM participant WHERE pid=?").get(a.pid) as any;
@@ -60,12 +60,18 @@ describe("joining with a name only", () => {
     expect((await call("POST", "/api/z/NAME-4/join", { name: "Two", device: dev(2) })).status).toBe(200);
     const full = await call("POST", "/api/z/NAME-4/join", { name: "Three", device: dev(3) }); expect(full.status).toBe(409);
   });
-  test("when the organizer asks for a mobile number, a name alone is refused and a number works as always", async () => {
+  test("when the game asks for the ID, a nickname alone is refused and a typed ID (in any spelling) works; a mobile number is not an ID field", async () => {
     const h = await game("NAME-5");
-    expect((await call("PATCH", "/api/z/NAME-5/settings", { join: "phone" }, h)).status).toBe(200);
-    expect((await j(await call("GET", "/api/z/NAME-5/info"))).joinPhone).toBe(true);
-    const r = await call("POST", "/api/z/NAME-5/join", { name: "Maya", device: dev(1) }); expect(r.status).toBe(400); expect((await j(r)).error).toMatch(/mobile number/i);
-    const ok = await call("POST", "/api/z/NAME-5/join", { name: "Maya", phone: "+1 415 555 0132", device: dev(1) }); expect(ok.status).toBe(200);
+    expect((await call("PATCH", "/api/z/NAME-5/settings", { join: "id" }, h)).status).toBe(200);
+    expect((await j(await call("GET", "/api/z/NAME-5/info"))).joinId).toBe(true);
+    const r = await call("POST", "/api/z/NAME-5/join", { name: "Maya", device: dev(1) }); expect(r.status).toBe(400); expect((await j(r)).code).toBe("need-id");
+    const old = await call("POST", "/api/z/NAME-5/join", { name: "Maya", phone: "+1 415 555 0132", device: dev(1) }); expect(old.status).toBe(400); expect((await j(old)).error).toMatch(/ID/); // an old page that still sends a number is told to type an ID
+    const noNick = await call("POST", "/api/z/NAME-5/join", { id: "emp-7", device: dev(1) }); expect(noNick.status).toBe(400); expect((await j(noNick)).code).toBe("need-nickname");
+    const ok = await call("POST", "/api/z/NAME-5/join", { id: "emp-7", name: "Maya", device: dev(1) }); expect(ok.status).toBe(200);
+    expect(await openPii(env as any, (raw.query("SELECT pii FROM participant").get() as any).pii)).toEqual({ phone: "", name: "Maya", id: "EMP7" });
+    expect((await j(await call("POST", "/api/z/NAME-5/join", { id: "EMP 7", name: "Maya", device: dev(1) }))).again).toBe(true); // another spelling of the same ID is the same person
+    expect((await call("PATCH", "/api/z/NAME-5/settings", { join: "phone" }, h)).status).toBe(200); // the old word is still read, and means "id"
+    expect((await j(await call("GET", "/api/z/NAME-5/info"))).joinId).toBe(true);
     expect((await call("PATCH", "/api/z/NAME-5/settings", { join: "everyone" }, h)).status).toBe(400);
   });
   test("an invite-only game puts a name-only guest in the waiting room; the organizer sees only the name", async () => {

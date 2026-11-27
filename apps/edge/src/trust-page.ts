@@ -1,6 +1,7 @@
 // The public Trust page (/trust.html) and /llms.txt, generated from the same 10 facts the AI assistant is given (ai-facts.ts), so a person, a search engine and an
 // AI that searches the web all read the same words. tools/make-trust.ts writes the two files; a test regenerates them and fails if they differ, so they cannot drift.
 import { FACTS } from "./ai-facts";
+import VERSION from "../../../version.json"; // the number on the page is the one in version.json (a test keeps them equal)
 
 const ORIGIN = "https://luck.corporatetambola.com";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -29,7 +30,8 @@ ${facts}
 <div class="note"><b>Honest limits.</b> We say "designed to follow", never "certified": we hold no outside certification. We say cheating is "very hard", never "impossible". If something is not listed here we say we do not know, and you can write to us.</div>
 <p>More detail: <a href="/privacy.html">Rules and privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/dpa.html">Data processing</a> &middot; <a href="/subprocessors.html">Sub-processors</a> &middot; <a href="/organizer-guide.html">Organizer guide</a> &middot; <a href="/demo.html">Try the free demo</a></p>
 <footer>Questions or requests: our Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BLuck%20by%20Chance%5D%20">hello@corporatetambola.com</a>. We reply within 30 days.</footer>
-</main></body></html>
+</main><p class="ufv" style="text-align:center;font:13px/1.5 Inter,system-ui,sans-serif;color:#5A6A7A;margin:18px 0 12px">Version ${VERSION.version} &middot; <a href="/changes.html">What&#39;s new</a></p>
+</body></html>
 `;
 }
 

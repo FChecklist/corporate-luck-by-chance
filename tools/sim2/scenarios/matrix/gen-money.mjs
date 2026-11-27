@@ -70,7 +70,7 @@ export default async function gen({ R, L }) {
     const org = await t.newOrg(); const g = await openGame(t, org, 100); const r = await org.api("POST", `/api/z/${g.id}/pay-with-credit`, {});
     t.check("answers calmly without marking the game paid", r.status < 500 && (r.body.paid !== true), JSON.stringify(r.body).slice(0, 200)); t.check("game not paid", (await org.summary(g.id)).body.payment?.status !== "paid");
   } });
-  out.push({ name: "money|three presses of 'Use my credit' at once use it once", run: async (t) => {
+  out.push({ name: "money|three presses of 'Use your credit' at once use it once", run: async (t) => {
     const org = await t.newOrg(); const g1 = await paidGame(t, org, 500); await org.cancel(g1.id); const g2 = await openGame(t, org, 250);
     const rs = await Promise.all([1, 2, 3].map(() => org.api("POST", `/api/z/${g2.id}/pay-with-credit`, {}))); t.check("all answered calmly", rs.every((r) => r.status < 500), rs.map((r) => r.status).join(","));
     t.eq("credit used once", r2((await creditOf(org)).activeTotalInr), r2(totalFor(500) - totalFor(250)));

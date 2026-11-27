@@ -8,12 +8,16 @@
 //
 // Routes (all under /api/z/{eid}/luck/):  view (public)  seats (public, after the start)  me (a player)  beacon (public, only values that are due)  start (Organizer or Host)
 //                                         end (Organizer or Host: the game ends when the round now being played is over)
+//                                         plan (Organizer or Host: the choices a game that starts by itself will use; GET reads them, POST saves them)
+// Two ways to start (owner rules v1.1, docs/CONSOLE_VOICE.md): "You start the game" (start, above: the Organizer or a Host presses Start) and "The game starts by itself" (config `start: "auto"`:
+// at the start time the server begins the game with the saved plan, on the next look of any phone or the next scheduled tick; it waits while fewer than 2 players have joined).
 //                                         vote (a player)  rank (public)  reveal (public after the game)  tick (platform key / scheduled job)
 // Only scheduling and checking helpers come from the game package: when a number is due (timeline), what an organizer may choose (settings), and the hash for the feed (random).
 // Targets, dice, scores, rankings and prizes are NOT imported here: the phones compute them (apps/edge/test/server-computes-nothing.test.ts keeps it that way).
 import { sha256Hex } from "../../../packages/luck/src/random";
-import { parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/settings";
+import { defaultSettings, parseSettings, TOP_LIST, type LuckSettings } from "../../../packages/luck/src/settings";
 import { beaconDueMs, gameEndMs, phaseAt, roundOf, totalDiceRounds } from "../../../packages/luck/src/timeline";
+import { openPii } from "./pii";
 import type { Env } from "./worker";
 
 export const LUCK_SCHEMA: string[] = [
@@ -107,11 +111,64 @@ async function settleVotes(env: Env, t: TRow, now: number): Promise<TRow> {
 }
 
 /** Scheduled job: closes games whose result never reached agreement. Bounded work. */
-export async function luckTick(env: Env, now: number): Promise<number> {
+export async function luckTick(env: Env, now: number, spend?: (n: number) => Promise<boolean>): Promise<number> {
   let n = 0;
+  // games set to start by themselves whose start time has come (a paid game; maybeAutoStart checks the rest)
+  const due = await env.DB.prepare(`SELECT t.eid AS eid, e.* FROM luck_t t JOIN engagement e ON e.id=t.eid WHERE t.state='open' AND e.pack>0 AND e.cancelled_ms IS NULL AND e.unplayed_ms IS NULL AND e.config LIKE '%"start":"auto"%' AND ((${GENESIS} + (e.start_round - 1) * 3) * 1000)<=? AND (SELECT COUNT(*) FROM participant WHERE eid=t.eid)>=2 ORDER BY e.start_round LIMIT 50`).bind(now).all<any>();
+  for (const e of due.results ?? []) {
+    const t = await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(e.eid).first<TRow>();
+    if (t && (await maybeAutoStart(env, e, t, now, spend)).state !== "open") n++;
+  }
   const ts = await env.DB.prepare("SELECT * FROM luck_t WHERE state='running' AND end_ms IS NOT NULL AND end_ms<? LIMIT 200").bind(now).all<TRow>();
   for (const t of ts.results ?? []) { const after = await settleVotes(env, t, now); if (after.state === "done") n++; }
   return n;
+}
+
+// ---------------------------------------------------------------------------------------------------------------- starting a game (both ways)
+/** Seconds between "the game starts by itself" firing and the first dice round: the list closes at once, phones have this long to read it. */
+export const AUTO_LEAD_SECS = 10;
+const GENESIS = 1692803367; // drand quicknet round r is published at GENESIS + (r-1)*3 s; the engagement's start time is such a round (worker.ts roundMs)
+export const scheduledMsOf = (e: { start_round: number }): number => (GENESIS + (e.start_round - 1) * 3) * 1000;
+/** The way this game starts: "auto" (by itself at the start time) or "manual" (the Organizer or a Host presses Start). Manual is the default and what every game did before 1.5.2. */
+export const startModeOf = (e: { config?: string | null }): "auto" | "manual" => { try { return (e.config ? JSON.parse(e.config) : {}).start === "auto" ? "auto" : "manual"; } catch { return "manual"; } };
+const planKey = (eid: string) => `luck-plan/${eid}`;
+const autoLockKey = (eid: string) => `luck-auto/${eid}`;
+/** The choices a game that starts by itself plays with: what the Organizer saved (rounds, press window, prizes), else the defaults (10 rounds, 10 seconds, no prize text). */
+export async function planOf(env: Env, eid: string): Promise<LuckSettings> {
+  const r = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(planKey(eid)).first<{ v: string }>();
+  if (r) { try { const p = parseSettings(JSON.parse(r.v)); if (p.ok) return p.value; } catch { /* a damaged plan means the defaults */ } }
+  return defaultSettings();
+}
+type Began = { ok: true; players: number; startMs: number; endMs: number; diceRounds: number } | { ok: false; status: number; error: string; code?: string; joined?: number; busy?: boolean };
+/** Freezes the list of players and sets the clock. The same step for both ways to start; only `delaySecs` and who asked differ. */
+export async function beginGame(env: Env, t: TRow, s: LuckSettings, delaySecs: number, now: number, spend: (n: number) => Promise<boolean>): Promise<Began> {
+  const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? ORDER BY p.pid").bind(t.eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
+  const players: { pid: string; name: string }[] = [];
+  for (const r of rows.results ?? []) { if (r.blocked) continue; players.push({ pid: r.pid, name: cleanName((await openPii(env, r.pii))?.name ?? null) }); }
+  if (players.length < 2) return { ok: false, status: 409, error: `A game needs at least 2 players. ${players.length} joined.`, code: "too-few", joined: players.length };
+  if (!(await spend(players.length * 2 + 8))) return { ok: false, status: 503, error: "Busy day. Please try again in a moment.", busy: true };
+  const startMs = now + delaySecs * 1000, endMs = gameEndMs(s, startMs);
+  const seed = await seedOf(t.secret!, t.eid, players.map((p) => p.pid));
+  const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, t.eid)];
+  // the seats go in only while THIS start is the one that won (same seed): two phones that look at the same instant must never mix their lists
+  players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM luck_t WHERE eid=? AND state='running' AND seed=?)").bind(t.eid, p.pid, i, p.name, t.eid, seed)));
+  let won = 0;
+  for (let i = 0; i < stmts.length; i += 90) { const res = await env.DB.batch(stmts.slice(i, i + 90)); if (i === 0) won = res[0]?.meta?.changes ?? 0; }
+  if (won === 0) return { ok: false, status: 409, error: "The game has already started.", code: "started" }; // another start (the game starting by itself, or another press of Start) got there first: its clock is the game's clock, not this one
+  return { ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s) };
+}
+/** "The game starts by itself": once the start time has come, a paid game that is set to start by itself begins with its saved plan. Returns the row as it is afterwards. */
+export async function maybeAutoStart(env: Env, e: any, t: TRow, now: number, spend: (n: number) => Promise<boolean> = async () => true): Promise<TRow> {
+  if (t.state !== "open" || startModeOf(e) !== "auto" || !(e.pack > 0) || e.cancelled_ms || e.unplayed_ms) return t;
+  if (now < scheduledMsOf(e)) return t;
+  const have = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(t.eid).first<{ c: number }>())?.c ?? 0;
+  if (have < 2) return t; // nobody (or one person) yet: it waits, and a look costs almost nothing
+  // one starter at a time: at the start time every phone looks at once, and only the first needs to do the work
+  const lock = await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v WHERE CAST(kv.v AS INTEGER) < ?").bind(autoLockKey(t.eid), String(now), now - 20_000).run();
+  if ((lock.meta?.changes ?? 0) === 0) return (await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(t.eid).first<TRow>()) ?? t;
+  const r = await beginGame(env, t, await planOf(env, t.eid), AUTO_LEAD_SECS, now, spend);
+  if (!r.ok && r.code !== "started") return t; // fewer than 2 players, or a busy moment: it waits and tries again at the next look or tick
+  return (await env.DB.prepare("SELECT * FROM luck_t WHERE eid=?").bind(t.eid).first<TRow>()) ?? t;
 }
 
 // ---------------------------------------------------------------------------------------------------------------- routes
@@ -136,29 +193,33 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
   const method = req.method;
   let t = await ensureL(env, eid);
   t = await settleVotes(env, t, now);
+  if (t.state === "open" && (sub === "view" || sub === "me" || sub === "seats" || sub === "beacon") && method === "GET") t = await maybeAutoStart(env, c.e, t, now, (n) => c.spend(env, now, n)); // the first look of any phone after the start time begins a game that starts by itself
 
-  if (sub === "tick" && method === "POST") { if (!c.allowed) return json({ error: "Not allowed." }, 403); return json({ ok: true, closed: await luckTick(env, now) }); }
+  if (sub === "tick" && method === "POST") { if (!c.allowed) return json({ error: "Not allowed." }, 403); return json({ ok: true, closed: await luckTick(env, now, (n) => c.spend(env, now, n)) }); }
+
+  if (sub === "plan" && (method === "GET" || method === "POST")) { // the choices a game that starts by itself will use (rounds, press window, prizes), saved before the start time
+    if (!c.allowed) return json({ error: "Only the Organizer or a Host can set this." }, 403);
+    if (method === "GET") return json({ startMode: startModeOf(c.e), plan: await planOf(env, eid) });
+    if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
+    const b = (await c.body(req, 4096)) ?? {};
+    const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
+    if (!(await c.spend(env, now, 2))) return c.BUSY();
+    await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(planKey(eid), JSON.stringify(parsed.value)).run();
+    return json({ ok: true, plan: parsed.value, startMode: startModeOf(c.e) });
+  }
 
   if (sub === "start" && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can start the game." }, 403);
     if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
-    if (c.e?.pack === 0) return json({ error: "This game is not paid for yet. Please pay first, then press Start.", code: "not-paid" }, 402); // an unpaid game: the clock lock in worker.ts never reaches a game that is started early
+    if (!(c.e.pack > 0)) return json({ error: "This game cannot start until its pay step is done. Finish the pay step, then press Start again.", code: "unpaid", waitingFor: "organizer" }, 402); // no pay step, no game: pack is set only by the confirmed pay step, a credit or the owner's test or free-launch size; the Organizer is no exception
     const sent = (await req.clone().text()).trim() !== "", b = (await c.body(req, START_BODY_MAX)) ?? (sent ? null : {}); // no body at all = the default game; a body that cannot be read (too long, damaged) must not become the default game
     if (!b) return json({ error: "Your settings are too long or damaged, so nothing was started. Please shorten the gift texts and press Start again.", code: "bad-settings" }, 400);
     const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
     const delay = b.delaySecs === undefined ? 20 : Number(b.delaySecs);
     if (!Number.isInteger(delay) || delay < 5 || delay > 3600) return json({ error: "The game starts 5 seconds to 1 hour after you press start." }, 400);
-    const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? ORDER BY p.pid").bind(eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
-    const players: { pid: string; name: string }[] = [];
-    for (const r of rows.results ?? []) { if (r.blocked) continue; players.push({ pid: r.pid, name: cleanName(await c.openName(r.pii)) }); }
-    if (players.length < 2) return json({ error: `A game needs at least 2 players. ${players.length} joined.`, code: "too-few", joined: players.length }, 409);
-    if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
-    const s = parsed.value, startMs = now + delay * 1000, endMs = gameEndMs(s, startMs);
-    const seed = await seedOf(t.secret!, eid, players.map((p) => p.pid));
-    const stmts: any[] = [env.DB.prepare("UPDATE luck_t SET state='running', opts=?, seed=?, players=?, start_ms=?, end_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify(s), seed, players.length, startMs, endMs, eid)];
-    players.forEach((p, i) => stmts.push(env.DB.prepare("INSERT OR REPLACE INTO luck_p(eid,pid,seat,name) VALUES(?,?,?,?)").bind(eid, p.pid, i, p.name)));
-    for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
-    return json({ ok: true, players: players.length, startMs, endMs, diceRounds: totalDiceRounds(s), commit: t.commit_hash, secretShownAt: "reveal" });
+    const r = await beginGame(env, t, parsed.value, delay, now, (n) => c.spend(env, now, n));
+    if (!r.ok) return r.busy ? c.BUSY() : json({ error: r.error, ...(r.code ? { code: r.code } : {}), ...(r.joined !== undefined ? { joined: r.joined } : {}) }, r.status);
+    return json({ ok: true, players: r.players, startMs: r.startMs, endMs: r.endMs, diceRounds: r.diceRounds, commit: t.commit_hash, secretShownAt: "reveal" });
   }
 
   if (sub === "end" && method === "POST") { // O7: End the game. Nothing is computed here: the game just gets fewer rounds, so every phone (which reads the settings) stops after that round and the beacon feed stops with it.
@@ -232,10 +293,10 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
     // the organizer's latest "message to everyone" (kv ann/<id>, written by POST /api/z/<id>/announce) rides along with the public view every phone and the big screen already read
     let ann: { id: string; text: string } | null = null;
     { const a = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`ann/${eid}`).first<{ v: string }>(); if (a) { try { const x = JSON.parse(a.v); if (typeof x?.id === "string" && typeof x?.text === "string" && x.text) ann = { id: x.id, text: x.text }; } catch { /* a damaged row shows no message */ } } }
-    const head: Record<string, unknown> = { serverNow: now, ann, state: t.state, commit: t.commit_hash, joined, startMs: t.start_ms, endMs: t.end_ms, players: t.players, ...(t.state !== "open" ? { settings: settingsOf(t) } : {}), agreed: !!t.result, endedAfterRound: (JSON.parse(t.opts ?? "{}") as { endedAfterRound?: number }).endedAfterRound ?? null };
+    const head: Record<string, unknown> = { serverNow: now, ann, state: t.state, startMode: startModeOf(c.e), scheduledMs: scheduledMsOf(c.e), commit: t.commit_hash, joined, startMs: t.start_ms, endMs: t.end_ms, players: t.players, ...(t.state !== "open" ? { settings: settingsOf(t) } : {}), agreed: !!t.result, endedAfterRound: (JSON.parse(t.opts ?? "{}") as { endedAfterRound?: number }).endedAfterRound ?? null };
     if (sub === "view") return json(head);
     const q = c.url.searchParams, who = await playerOf(c, q.get("pid"), q.get("device")); if (who instanceof Response) return who;
-    if (t.state === "open") return json({ ...head, phase: "waiting", message: "You are in. Waiting for the host to start." });
+    if (t.state === "open") return json({ ...head, phase: "waiting", message: startModeOf(c.e) === "auto" ? "You are in. The game starts by itself at the start time." : "You are in. Waiting for the host to start." });
     const me = await env.DB.prepare("SELECT seat, name FROM luck_p WHERE eid=? AND pid=?").bind(eid, who.pid).first<{ seat: number; name: string }>();
     if (!me) return json({ ...head, phase: "watching", message: "The list closed before you joined. You can watch." });
     return json({ ...head, phase: "playing", you: { seat: me.seat, name: me.name } });

@@ -55,8 +55,8 @@ const team = async (publish = true) => {
 const row = (id = "UNP-1") => raw.prepare("SELECT * FROM engagement WHERE id=?").get(id) as any;
 const endOf = (id = "UNP-1") => endBoundMs(env as any, row(id));
 const eraseAt = async (id = "UNP-1") => personalDeleteAt(await endOf(id));
-const join = (phone: string, name = "Guest", eid = "UNP-1", now = T) => call("POST", `/api/z/${eid}/join`, { phone, name }, undefined, now);
-const people = (key: string, list: { name: string; phone: string }[], eid = "UNP-1") => call("POST", `/api/z/${eid}/people`, { people: list }, key);
+const join = (id: string, name = "Guest", eid = "UNP-1", now = T) => call("POST", `/api/z/${eid}/join`, { id: "E" + id, name }, undefined, now);
+const people = (key: string, list: { id: string }[], eid = "UNP-1") => call("POST", `/api/z/${eid}/people`, { people: list }, key);
 const pay = (key: string, eid = "UNP-1", now = T) => call("POST", "/api/checkout", { eid, org: "Acme Ltd", name: "Boss", email: "payer@acme.com", country: "IN", taxId: "", currency: "INR" }, key, now);
 const sign = (c: any, id: string) => createHmac("sha256", "sek").update(`${c.razorpay.orderId}|${id}`).digest("hex");
 const complete = async (c: any, id = "pay_" + (Object.keys(payments).length + 1), now = T) => {
@@ -70,7 +70,7 @@ const personal = () => ({
 });
 const withPersonalData = async (t: { master: string }) => {
   expect((await join("9876543210", "Asha")).status).toBe(200);
-  expect((await people(t.master, [{ name: "Ben", phone: "9876543211" }, { name: "Chitra", phone: "9876543212" }])).status).toBe(200);
+  expect((await people(t.master, [{ id: "E9876543211" }, { id: "E9876543212" }])).status).toBe(200);
   await call("PATCH", "/api/z/UNP-1/settings", { whoCanJoin: "list" }, t.master);
   expect((await join("9876543299", "Stranger")).status).toBe(403); // waits for approval
   const p = personal(); expect(p.participants).toBe(1); expect(p.people).toBeGreaterThanOrEqual(2); expect(p.waiting).toBe(1); expect(p.cohosts).toBe(1);
@@ -110,14 +110,14 @@ describe("a game that did not start: guest data is erased at the scheduled end +
   test("a played game with nobody who joined, only a people list, loses the list 23 h after the end", async () => {
     const t = await team();
     const c = await j(await pay(t.master)); await complete(c);
-    await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
+    await people(t.master, [{ id: "E9876543211" }]);
     expect(personal().people).toBe(1);
     const end = await endOf();
     await lifecycleTick(env as any, end + PURGE_AFTER_MS - 1000); expect(personal().people).toBe(1);
     await lifecycleTick(env as any, end + PURGE_AFTER_MS + 1000); expect(personal().people).toBe(0);
   });
   test("a cancelled game follows the cancel time, people lists included", async () => {
-    const t = await team(); await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
+    const t = await team(); await people(t.master, [{ id: "E9876543211" }]);
     await call("POST", "/api/z/UNP-1/cancel", { confirmations: 3 }, t.master, T);
     await lifecycleTick(env as any, T + PURGE_AFTER_MS - 1000); expect(personal().people).toBe(1);
     await lifecycleTick(env as any, T + PURGE_AFTER_MS + 1000); expect(personal().people).toBe(0);
@@ -138,7 +138,7 @@ describe("a game that did not start: guest data is erased at the scheduled end +
   });
   test("a draft nobody published loses its personal data the same way but is NOT closed and sends no e-mail", async () => {
     const t = await team(false);
-    await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
+    await people(t.master, [{ id: "E9876543211" }]);
     expect(personal().people).toBe(1);
     await lifecycleTick(env as any, await eraseAt());
     expect(personal().people).toBe(0); expect(row().unplayed_ms).toBeNull();
@@ -233,7 +233,7 @@ describe("what each person sees while the game is unpaid, and after it closes", 
     expect(await j(jn)).toMatchObject({ code: "did-not-start", didNotStart: true, error: "This game did not start. Your details have been erased." });
     const s = await j(await call("GET", "/api/z/UNP-1/summary", undefined, t.master, closeAt + 1000)); expect(s).toMatchObject({ didNotStart: true }); expect(s.status).toMatch(/did not start/);
     expect((await call("POST", "/api/z/UNP-1/announce", { text: "hi" }, t.master, closeAt + 1000)).status).toBe(409);
-    expect((await people(t.master, [{ name: "X", phone: "9876543277" }])).status).toBe(409);
+    expect((await people(t.master, [{ id: "E9876543277" }])).status).toBe(409);
     expect((await call("POST", "/api/z/UNP-1/cancel", { confirmations: 3 }, t.master, closeAt + 1000)).status).toBe(409);
     expect((await call("GET", "/api/z/UNP-1/cancel-preview", undefined, t.master, closeAt + 1000)).status).toBe(200);
   });

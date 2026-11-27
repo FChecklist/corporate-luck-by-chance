@@ -24,6 +24,7 @@ async function game(id: string) {
   const h = { "x-organizer": r.token as string };
   expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 6, cap: 100 }, h)).status).toBe(200);
   expect((await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210" }, h)).status).toBe(200);
+  raw.run("UPDATE engagement SET pack=100 WHERE id=?", [id]); // paid: a game that is not paid cannot be started (v1.5.3)
   return h;
 }
 const joinAs = async (id: string, i: number, name = `Player ${i}`) => { const r = await call("POST", `/api/z/${id}/join`, { name, device: dev(i) }); expect(r.status).toBe(200); return (await j(r)).pid as string; };

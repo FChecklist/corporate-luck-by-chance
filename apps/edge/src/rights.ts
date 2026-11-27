@@ -112,6 +112,7 @@ export async function heldAbout(c: RightsCtx, s: Seat): Promise<{ what: string; 
   const p = await c.db.prepare("SELECT pii, joined_ms FROM participant WHERE eid=? AND pid=?").bind(c.eid, s.pid).first<{ pii: string | null; joined_ms: number }>();
   const who = await openPii(c.env as any, p?.pii);
   out.push({ what: "Your name for this game", value: who?.name ? who.name : "none" });
+  if (who?.id) out.push({ what: "Your invite ID (given by the organizer's list)", value: "ending " + who.id.slice(-2) });
   if (who?.phone) out.push({ what: "Your mobile number (given by the organizer's list)", value: "ending " + who.phone.slice(-2) });
   out.push({ what: `Your ${NOUN} number`, value: String(s.seq) });
   if (p?.joined_ms) out.push({ what: "When you joined", value: istTime(p.joined_ms) });

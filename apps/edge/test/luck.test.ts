@@ -89,12 +89,12 @@ describe("the lobby and the start", () => {
     const r = await handle(new Request("http://x/api/z/LK-NOB/luck/start", { method: "POST", headers: { ...h } }), env, T); expect(r.status).toBe(200);
     expect((await view("LK-NOB", T + 1000)).settings.rounds).toBe(10);
   });
-  test("QA E12: Start is refused with 402 not-paid while nobody has paid for the game, and works once it is paid (an unpaid game could be played for free before)", async () => {
+  test("QA E12: Start is refused with 402 unpaid while nobody has paid for the game, and works once it is paid (an unpaid game could be played for free before)", async () => {
     const r = await j(await call("POST", "/api/start", { email: `o${++n}@acme.com` }, { "cf-connecting-ip": `10.0.0.${n}` })); const h = { "x-organizer": r.token as string };
     expect((await call("POST", "/api/z", { id: "LK-UNP", startRound: START, callSeconds: 6, cap: 100 }, h)).status).toBe(200);
     expect((await call("POST", "/api/z/LK-UNP/publish", { email: "boss@acme.com", phone: "98765 43210" }, h)).status).toBe(200); // published, not paid: pack stays 0
     await joinAll("LK-UNP", 3);
-    const no = await call("POST", "/api/z/LK-UNP/luck/start", { settings: SET }, h); expect(no.status).toBe(402); const b = await j(no); expect(b.code).toBe("not-paid"); expect(b.error).toMatch(/not paid for yet/);
+    const no = await call("POST", "/api/z/LK-UNP/luck/start", { settings: SET }, h); expect(no.status).toBe(402); const b = await j(no); expect(b.code).toBe("unpaid"); expect(b.error).toMatch(/pay step/);
     expect((await view("LK-UNP")).state).toBe("open"); // nothing started, the list is still open
     raw.run("UPDATE engagement SET pack=100 WHERE id=?", ["LK-UNP"]);
     expect((await call("POST", "/api/z/LK-UNP/luck/start", { settings: SET }, h)).status).toBe(200);
