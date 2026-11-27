@@ -175,7 +175,7 @@ endobj
 << /Type /Page /Parent 15 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 7 0 R >>
 endobj
 9 0 obj
-<< /Length 9197 >>
+<< /Length 9190 >>
 stream
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 44 790.55 Td (                                                +- Player 37  seat 37  98765 10036) Tj ET
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 44 780.35 Td (                                                +- Player 38  seat 38  98765 10037) Tj ET
@@ -201,12 +201,12 @@ BT /F3 7.6 Tf 0.11 0.14 0.2 rg 44 586.55 Td (                                   
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 44 576.35 Td (                                                +- Player 58  seat 58  98765 10057) Tj ET
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 44 566.15 Td (                                                +- Player 59  seat 59  98765 10058) Tj ET
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 44 555.95 Td (                                                +- Player 60  seat 60  98765 10059) Tj ET
-BT /F2 15 Tf 0.04 0.24 0.57 rg 44 527.09 Td (6. Everyone, with name and mobile number) Tj ET
+BT /F2 15 Tf 0.04 0.24 0.57 rg 44 527.09 Td (6. Everyone, with nickname and ID) Tj ET
 1 0.79 0.24 RG 1.2 w 44 522.09 m 551.28 522.09 l S
 BT /F1 9 Tf 0.11 0.14 0.2 rg 44 506.34 Td (60 people. 'Joined' is the time they opened the link \(IST\). Names in scripts other than Latin letters print as ? in) Tj ET
 BT /F1 9 Tf 0.11 0.14 0.2 rg 44 494.19 Td (this PDF.) Tj ET
 0.04 0.24 0.57 rg 44 473.51 360.24 11.78 re f
-BT /F4 7.6 Tf 1 1 1 rg 46 477.6 Td ( Seat Name                     Mobile       Joined   Late Role         By List) Tj ET
+BT /F4 7.6 Tf 1 1 1 rg 46 477.6 Td ( Seat Nickname                 ID           Joined   Late Role         By List) Tj ET
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 46 465.82 Td (    1 Player 1                 98765 10000  10:43:20 yes  Organizer           ) Tj ET
 0.96 0.95 0.92 rg 44 449.95 360.24 11.78 re f
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 46 454.04 Td (    2 Player 2                 98765 10001  10:43:21                    1     ) Tj ET
@@ -265,10 +265,10 @@ endobj
 << /Type /Page /Parent 15 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 9 0 R >>
 endobj
 11 0 obj
-<< /Length 6978 >>
+<< /Length 7013 >>
 stream
 0.04 0.24 0.57 rg 44 784.61 360.24 11.78 re f
-BT /F4 7.6 Tf 1 1 1 rg 46 788.7 Td ( Seat Name                     Mobile       Joined   Late Role         By List) Tj ET
+BT /F4 7.6 Tf 1 1 1 rg 46 788.7 Td ( Seat Nickname                 ID           Joined   Late Role         By List) Tj ET
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 46 776.92 Td (   35 Player 35                98765 10034  10:43:54                   34     ) Tj ET
 0.96 0.95 0.92 rg 44 761.05 360.24 11.78 re f
 BT /F3 7.6 Tf 0.11 0.14 0.2 rg 46 765.14 Td (   36 Player 36                98765 10035  10:43:55                   35     ) Tj ET
@@ -329,8 +329,8 @@ BT /F1 9 Tf 0.11 0.14 0.2 rg 56 248.19 Td (address and mobile number\), and the 
 BT /F1 9 Tf 0.11 0.14 0.2 rg 56 236.19 Td (number\). The winners record has no names and no mobile numbers.) Tj ET
 BT /F1 9 Tf 0.11 0.14 0.2 rg 56 224.19 Td (3. At 00:00 hours IST on Tue 28 Dec 2027, the end of the 365th day, everything else is deleted too. We keep) Tj ET
 BT /F1 9 Tf 0.11 0.14 0.2 rg 56 212.19 Td (billing data for audit and tax reasons.) Tj ET
-BT /F1 9 Tf 0.11 0.14 0.2 rg 56 200.19 Td (4. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever) Tj ET
-BT /F1 9 Tf 0.11 0.14 0.2 rg 56 188.19 Td (built from them.) Tj ET
+BT /F1 9 Tf 0.11 0.14 0.2 rg 56 200.19 Td (4. Invite IDs and nicknames \(and your team's mobile numbers\) are stored encrypted while we hold them, and only) Tj ET
+BT /F1 9 Tf 0.11 0.14 0.2 rg 56 188.19 Td (your own game's report is ever built from them.) Tj ET
 BT /F1 7.5 Tf 0.4 0.43 0.48 rg 44 26 Td (Corporate Luck by Chance  |  Game SAMPLE-1  |  sent Fri 15 Jan 2027, 13:30:00 IST) Tj ET BT /F1 7.5 Tf 0.4 0.43 0.48 rg 491.28 26 Td (page 4 of 5) Tj ET
 endstream
 endobj
@@ -383,16 +383,16 @@ xref
 0000010383 00000 n 
 0000018688 00000 n 
 0000018851 00000 n 
-0000028100 00000 n 
-0000028264 00000 n 
-0000035295 00000 n 
-0000035460 00000 n 
-0000037598 00000 n 
-0000037763 00000 n 
-0000037848 00000 n 
-0000037899 00000 n 
+0000028093 00000 n 
+0000028257 00000 n 
+0000035323 00000 n 
+0000035488 00000 n 
+0000037626 00000 n 
+0000037791 00000 n 
+0000037876 00000 n 
+0000037927 00000 n 
 trailer
 << /Size 18 /Root 16 0 R /Info 17 0 R >>
 startxref
-38004
+38032
 %%EOF
