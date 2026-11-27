@@ -30,6 +30,7 @@ export const LUCK_SCHEMA: string[] = [
 const MAX_MS = 6 * 3_600_000; // a game that has not ended this long after its scheduled start is closed for the data-deletion clock (lifecycle.ts)
 const NO_AGREEMENT_MS = 10 * 60_000; // ten minutes after the last dice round with no result agreed: the game is closed without a published result
 const BEACON_BATCH = 60;
+const START_BODY_MAX = 32768; // 20 rounds x 5 gifts x 120 letters is about 13 KB
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const sha = (s: string) => sha256Hex(s);
 
@@ -211,7 +212,8 @@ export async function luckRoute(c: LuckCtx): Promise<Response> {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can start the game." }, 403);
     if (t.state !== "open") return json({ error: "The game has already started.", code: "started" }, 409);
     if (!(c.e.pack > 0)) return json({ error: "This game cannot start until its pay step is done. Finish the pay step, then press Start again.", code: "unpaid", waitingFor: "organizer" }, 402); // no pay step, no game: pack is set only by the confirmed pay step, a credit or the owner's test or free-launch size; the Organizer is no exception
-    const b = (await c.body(req, 4096)) ?? {};
+    const sent = (await req.clone().text()).trim() !== "", b = (await c.body(req, START_BODY_MAX)) ?? (sent ? null : {}); // no body at all = the default game; a body that cannot be read (too long, damaged) must not become the default game
+    if (!b) return json({ error: "Your settings are too long or damaged, so nothing was started. Please shorten the gift texts and press Start again.", code: "bad-settings" }, 400);
     const parsed = parseSettings(b.settings ?? b); if (!parsed.ok) return json({ error: parsed.error }, 400);
     const delay = b.delaySecs === undefined ? 20 : Number(b.delaySecs);
     if (!Number.isInteger(delay) || delay < 5 || delay > 3600) return json({ error: "The game starts 5 seconds to 1 hour after you press start." }, 400);
